@@ -12,6 +12,14 @@
  *
  * Popup thông thường (hiện nội dung tuỳ ý, có nút đóng):
  *              PmcUI.popup("Chi tiết đơn hàng", "<p>...</p>");
+ *
+ * Loading khi gọi API/query (overlay toàn màn hình):
+ *              PmcUI.showLoading();
+ *              // ... fetch/ajax ...
+ *              PmcUI.hideLoading();
+ *
+ *              // hoặc gọn hơn — tự show/hide quanh 1 async function:
+ *              const data = await PmcUI.withLoading(() => fetch("/api/...").then(r => r.json()));
  */
 const PmcUI = (function () {
     const TOAST_META = {
@@ -173,7 +181,49 @@ const PmcUI = (function () {
         return modal;
     }
 
-    return { toast, success, error, warning, info, confirm, confirmDelete, popup };
+    function ensureLoadingOverlay() {
+        let el = document.getElementById("pmc-loading-overlay");
+        if (!el) {
+            el = document.createElement("div");
+            el.id = "pmc-loading-overlay";
+            el.innerHTML =
+                '<div class="pmc-loading-spinner"></div>' +
+                '<div class="pmc-loading-text">Đang tải dữ liệu...</div>';
+            document.body.appendChild(el);
+        }
+        return el;
+    }
+
+    // Đếm số lượt gọi đang chờ, để 2 query chạy song song không tắt overlay sớm
+    // khi mới có 1 cái xong.
+    let loadingCount = 0;
+
+    function showLoading() {
+        loadingCount++;
+        ensureLoadingOverlay().classList.add("show");
+    }
+
+    function hideLoading(force) {
+        loadingCount = force ? 0 : Math.max(0, loadingCount - 1);
+        if (loadingCount === 0) {
+            ensureLoadingOverlay().classList.remove("show");
+        }
+    }
+
+    async function withLoading(work) {
+        showLoading();
+        try {
+            return typeof work === "function" ? await work() : await work;
+        } finally {
+            hideLoading();
+        }
+    }
+
+    return {
+        toast, success, error, warning, info,
+        confirm, confirmDelete, popup,
+        showLoading, hideLoading, withLoading,
+    };
 })();
 
 window.PmcUI = PmcUI;

@@ -1,0 +1,92 @@
+@using PmcWh.Web.Helpers
+@model PmcWh.Web.Models.PaginationViewModel
+@{
+    Dictionary<string, string?> RouteFor(int page, int? pageSize = null)
+    {
+        var route = new Dictionary<string, string?>(Model.RouteValues)
+        {
+            ["page"] = page.ToString(),
+            ["pageSize"] = (pageSize ?? Model.PageSize).ToString(),
+        };
+        return route;
+    }
+
+    var rangeStart = Model.TotalCount == 0 ? 0 : (Model.Page - 1) * Model.PageSize + 1;
+    var rangeEnd = Model.PageSize <= 0 ? Model.TotalCount : Math.Min(Model.Page * Model.PageSize, Model.TotalCount);
+    var pageWindow = PaginationHelper.GetPageWindow(Model.Page, Model.TotalPages);
+}
+
+<div class="d-flex flex-wrap align-items-center justify-content-between gap-3">
+    <form method="get" asp-controller="@Model.Controller" asp-action="@Model.Action" class="d-flex align-items-center gap-2">
+        @foreach (var kv in Model.RouteValues.Where(kv => kv.Key != "page" && kv.Key != "pageSize"))
+        {
+            <input type="hidden" name="@kv.Key" value="@kv.Value" />
+        }
+        <input type="hidden" name="page" value="1" />
+        <label class="small text-muted mb-0 text-nowrap">Hiển thị</label>
+        <select name="pageSize" class="form-select form-select-sm" style="width:auto;" onchange="this.form.submit()">
+            @foreach (var size in PaginationHelper.PageSizeOptions)
+            {
+                <option value="@size" selected="@(Model.PageSize == size)">@size</option>
+            }
+            <option value="0" selected="@(Model.PageSize <= 0)">Tất cả</option>
+        </select>
+        <span class="small text-muted text-nowrap">
+            / trang &mdash; @rangeStart&ndash;@rangeEnd trên tổng @Model.TotalCount dòng
+        </span>
+    </form>
+
+    @if (Model.TotalPages > 1)
+    {
+        <nav aria-label="Phân trang">
+            <ul class="pagination mb-0">
+                <li class="page-item @(Model.Page <= 1 ? "disabled" : "")">
+                    @if (Model.Page <= 1)
+                    {
+                        <span class="page-link"><span class="material-icons" style="font-size:18px;vertical-align:middle;">chevron_left</span></span>
+                    }
+                    else
+                    {
+                        <a class="page-link" href="@Url.Action(Model.Action, Model.Controller, RouteFor(Model.Page - 1))">
+                            <span class="material-icons" style="font-size:18px;vertical-align:middle;">chevron_left</span>
+                        </a>
+                    }
+                </li>
+
+                @foreach (var p in pageWindow)
+                {
+                    if (p == 0)
+                    {
+                        <li class="page-item disabled"><span class="page-link">&hellip;</span></li>
+                    }
+                    else
+                    {
+                        <li class="page-item @(p == Model.Page ? "active" : "")">
+                            @if (p == Model.Page)
+                            {
+                                <span class="page-link">@p</span>
+                            }
+                            else
+                            {
+                                <a class="page-link" href="@Url.Action(Model.Action, Model.Controller, RouteFor(p))">@p</a>
+                            }
+                        </li>
+                    }
+                }
+
+                <li class="page-item @(Model.Page >= Model.TotalPages ? "disabled" : "")">
+                    @if (Model.Page >= Model.TotalPages)
+                    {
+                        <span class="page-link"><span class="material-icons" style="font-size:18px;vertical-align:middle;">chevron_right</span></span>
+                    }
+                    else
+                    {
+                        <a class="page-link" href="@Url.Action(Model.Action, Model.Controller, RouteFor(Model.Page + 1))">
+                            <span class="material-icons" style="font-size:18px;vertical-align:middle;">chevron_right</span>
+                        </a>
+                    }
+                </li>
+            </ul>
+        </nav>
+    }
+</div>
