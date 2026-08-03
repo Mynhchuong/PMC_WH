@@ -1,0 +1,209 @@
+@using System.Security.Claims
+@{
+    var currentUserName = User.FindFirst(ClaimTypes.GivenName)?.Value ?? User.Identity?.Name ?? "Người dùng";
+}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewData["Title"] - PMC WH</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
+
+    <!-- Material Dashboard CSS -->
+    <link href="~/assets/css/nucleo-icons.css" rel="stylesheet" asp-append-version="true" />
+    <link href="~/assets/css/nucleo-svg.css" rel="stylesheet" asp-append-version="true" />
+    <link href="~/assets/css/material-dashboard.css" rel="stylesheet" asp-append-version="true" />
+
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/PmcWh.Web.styles.css" asp-append-version="true" />
+
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+
+        #wh-sidebar {
+            width: 260px;
+            position: fixed;
+            top: 0;
+            bottom: 0;
+            left: 0;
+            transform: translateX(0);
+            background-color: #fff;
+            z-index: 1030;
+            overflow-y: auto;
+            transition: left 0.3s ease;
+            box-shadow: 0 0 15px rgba(0,0,0,0.05);
+            border-right: 1px solid #eee;
+        }
+
+        .wh-main-content {
+            margin-left: 260px;
+            transition: margin-left 0.3s ease;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Desktop: sidebar collapsed/hidden */
+        body.wh-menu-hidden #wh-sidebar { left: -260px; }
+        body.wh-menu-hidden .wh-main-content { margin-left: 0 !important; }
+
+        /* Mobile sidebar (off-canvas) */
+        @@media (max-width: 991.98px) {
+            #wh-sidebar {
+                left: 0 !important;
+                transform: translateX(-100%);
+                visibility: hidden;
+                pointer-events: none;
+                transition: transform 0.3s ease;
+            }
+            .wh-main-content { margin-left: 0 !important; }
+
+            body.wh-mobile-open #wh-sidebar {
+                transform: translateX(0);
+                visibility: visible;
+                pointer-events: auto;
+                z-index: 1032;
+                box-shadow: 0 8px 32px rgba(0,0,0,0.15);
+            }
+            body.wh-mobile-open { overflow: hidden; }
+
+            .wh-backdrop {
+                position: fixed;
+                inset: 0;
+                background: rgba(0,0,0,0.5);
+                z-index: 1031;
+                display: none;
+            }
+            body.wh-mobile-open .wh-backdrop { display: block; }
+        }
+
+        .wh-toggle-btn {
+            width: 40px;
+            height: 40px;
+            border-radius: 12px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            background: transparent;
+            border: 0;
+            color: #64748b;
+            transition: all 0.2s ease;
+        }
+        .wh-toggle-btn:hover { background: rgba(0,0,0,0.05); color: #1e293b; }
+    </style>
+
+    @await RenderSectionAsync("Styles", required: false)
+</head>
+<body class="bg-light">
+
+    <div class="wh-backdrop"></div>
+
+    <aside id="wh-sidebar" class="sidenav navbar navbar-vertical navbar-expand-xs border-0">
+        @await Html.PartialAsync("_SideNav")
+    </aside>
+
+    <div class="wh-main-content">
+        <header class="bg-white border-bottom px-3 px-md-4 py-3 shadow-sm">
+            <div class="d-flex justify-content-between align-items-center">
+                <div class="d-flex align-items-center gap-2">
+                    <button id="wh-btnToggle" class="wh-toggle-btn" type="button" aria-label="Toggle menu" aria-expanded="true">
+                        <span class="material-icons">menu</span>
+                    </button>
+                    <div>
+                        <h5 class="mb-0">@ViewData["Title"]</h5>
+                        <small class="text-muted">ASP.NET Core MVC + Oracle-ready architecture</small>
+                    </div>
+                </div>
+                <div class="dropdown">
+                    <button class="btn btn-link text-decoration-none dropdown-toggle d-flex align-items-center gap-2" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                        <span class="d-inline-flex align-items-center justify-content-center rounded-circle" style="width:32px;height:32px;background:linear-gradient(135deg, #495057 0%, #212529 100%);">
+                            <span class="material-icons text-white" style="font-size:18px;">person</span>
+                        </span>
+                        <span class="text-dark fw-semibold d-none d-sm-inline">@currentUserName</span>
+                    </button>
+                    <ul class="dropdown-menu dropdown-menu-end shadow-sm">
+                        <li><h6 class="dropdown-header">@currentUserName</h6></li>
+                        <li><hr class="dropdown-divider" /></li>
+                        <li>
+                            <form asp-controller="Account" asp-action="Logout" method="post" class="px-1">
+                                <button type="submit" class="dropdown-item text-danger d-flex align-items-center gap-2">
+                                    <span class="material-icons" style="font-size:18px;">logout</span> Đăng xuất
+                                </button>
+                            </form>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </header>
+
+        <main class="flex-grow-1 p-3 p-md-4">
+            @RenderBody()
+        </main>
+    </div>
+
+    <script src="~/lib/jquery/dist/jquery.min.js"></script>
+    <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+
+    <!-- Material Dashboard JS (scrollbar + ripple effects on the sidenav) -->
+    <script src="~/assets/js/plugins/perfect-scrollbar.min.js" asp-append-version="true"></script>
+    <script src="~/assets/js/material-dashboard.min.js" asp-append-version="true"></script>
+
+    <script src="~/js/site.js" asp-append-version="true"></script>
+    <script src="~/js/ui-helper.js" asp-append-version="true"></script>
+
+    <script>
+        (function () {
+            var body = document.body;
+            var btnToggle = document.getElementById("wh-btnToggle");
+            var backdrop = document.querySelector(".wh-backdrop");
+            var isMobile = function () { return window.innerWidth <= 991.98; };
+
+            function setMobileSidebar(isOpen) {
+                body.classList.toggle("wh-mobile-open", isOpen);
+                if (btnToggle) btnToggle.setAttribute("aria-expanded", isOpen ? "true" : "false");
+            }
+
+            function toggleSidebar() {
+                if (isMobile()) {
+                    setMobileSidebar(!body.classList.contains("wh-mobile-open"));
+                } else {
+                    body.classList.toggle("wh-menu-hidden");
+                    localStorage.setItem("wh_menu_hidden", body.classList.contains("wh-menu-hidden"));
+                    if (btnToggle) btnToggle.setAttribute("aria-expanded", (!body.classList.contains("wh-menu-hidden")).toString());
+                }
+            }
+
+            function syncDesktopState() {
+                if (!isMobile()) {
+                    setMobileSidebar(false);
+                    body.classList.toggle("wh-menu-hidden", localStorage.getItem("wh_menu_hidden") === "true");
+                } else {
+                    body.classList.remove("wh-menu-hidden");
+                }
+            }
+
+            syncDesktopState();
+
+            if (btnToggle) {
+                btnToggle.addEventListener("click", function (e) {
+                    e.preventDefault();
+                    toggleSidebar();
+                });
+            }
+
+            if (backdrop) {
+                backdrop.addEventListener("click", function () { setMobileSidebar(false); });
+            }
+
+            window.addEventListener("resize", syncDesktopState);
+        })();
+    </script>
+
+    @await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

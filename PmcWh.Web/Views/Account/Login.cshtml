@@ -1,0 +1,149 @@
+@model PmcWh.Web.Models.LoginViewModel
+@{
+    Layout = null;
+    ViewData["Title"] = "Đăng nhập";
+    var returnUrl = ViewData["ReturnUrl"] as string;
+    var backgroundImageUrl = Url.Content("~/assets/img/processing-storehouse-stocks-boxes-with-order-receipts-details.jpg");
+}
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewData["Title"] - PMC WH</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
+    <link href="~/assets/css/material-dashboard.css" rel="stylesheet" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+
+    <style>
+        html, body {
+            height: 100%;
+            font-family: 'Inter', sans-serif;
+        }
+
+        .login-page {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 1.5rem;
+            background-image: linear-gradient(135deg, rgba(20, 22, 26, 0.72) 0%, rgba(20, 22, 26, 0.55) 100%),
+                               url('@backgroundImageUrl');
+            background-size: cover;
+            background-position: center;
+        }
+
+        .login-card {
+            width: 100%;
+            max-width: 400px;
+            background: #fff;
+            border-radius: 1.5rem;
+            box-shadow: 0 25px 50px rgba(0, 0, 0, 0.25);
+            padding: 2.25rem 2rem;
+        }
+
+        .login-brand {
+            width: 56px;
+            height: 56px;
+            border-radius: 16px;
+            background: linear-gradient(135deg, #495057 0%, #212529 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 1rem;
+        }
+
+        .login-brand .material-icons { color: #fff; font-size: 28px; }
+
+        .login-input-group {
+            background: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 0.75rem;
+            display: flex;
+            align-items: center;
+            padding: 0 0.75rem;
+            transition: border-color 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .login-input-group:focus-within {
+            border-color: #495057;
+            box-shadow: 0 0 0 3px rgba(33, 37, 41, 0.08);
+        }
+
+        .login-input-group .material-icons { color: #94a3b8; font-size: 20px; }
+
+        .login-input-group input {
+            border: 0;
+            background: transparent;
+            padding: 0.7rem 0.6rem;
+            width: 100%;
+            outline: none;
+        }
+
+        .validation-summary-valid { display: none; }
+
+        .validation-summary-errors {
+            display: block;
+            background: #f8d7da;
+            color: #842029;
+            border: 1px solid #f5c2c7;
+            border-radius: 0.5rem;
+            padding: 0.6rem 0.9rem;
+            font-size: 0.875rem;
+            margin-bottom: 1rem;
+        }
+
+        .validation-summary-errors ul {
+            margin: 0;
+            padding-left: 1.1rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="login-page">
+        <div class="login-card">
+            <div class="login-brand">
+                <span class="material-icons">warehouse</span>
+            </div>
+            <h4 class="text-center mb-1">PMC WH</h4>
+            <p class="text-center text-muted mb-4">Đăng nhập để tiếp tục</p>
+
+            <form asp-controller="Account" asp-action="Login" asp-route-returnUrl="@returnUrl" method="post" novalidate>
+                <div asp-validation-summary="ModelOnly"></div>
+
+                <div class="mb-3">
+                    <label asp-for="Username" class="form-label small fw-semibold text-secondary"></label>
+                    <div class="login-input-group">
+                        <span class="material-icons">person</span>
+                        <input asp-for="Username" class="form-control-plaintext" autocomplete="username" autofocus />
+                    </div>
+                    <span asp-validation-for="Username" class="text-danger small"></span>
+                </div>
+
+                <div class="mb-3">
+                    <label asp-for="Password" class="form-label small fw-semibold text-secondary"></label>
+                    <div class="login-input-group">
+                        <span class="material-icons">lock</span>
+                        <input asp-for="Password" class="form-control-plaintext" type="password" autocomplete="current-password" />
+                    </div>
+                    <span asp-validation-for="Password" class="text-danger small"></span>
+                </div>
+
+                <div class="form-check mb-4">
+                    <input asp-for="RememberMe" class="form-check-input" />
+                    <label asp-for="RememberMe" class="form-check-label small text-secondary"></label>
+                </div>
+
+                <button type="submit" class="btn pmc-btn-dark w-100 py-2 rounded-3">Đăng nhập</button>
+            </form>
+        </div>
+    </div>
+
+    <script src="~/lib/jquery/dist/jquery.min.js"></script>
+    <script src="~/lib/jquery-validation/dist/jquery.validate.min.js"></script>
+    <script src="~/lib/jquery-validation-unobtrusive/dist/jquery.validate.unobtrusive.min.js"></script>
+    <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

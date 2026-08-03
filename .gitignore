@@ -1,0 +1,42 @@
+# ===== .NET (PmcWh.Api / PmcWh.Web) =====
+[Bb]in/
+[Oo]bj/
+*.user
+*.suo
+*.userosscache
+*.userprefs
+*.sln.docstates
+*.dbmdl
+*.pidb
+TestResults/
+appsettings.*.local.json
+DataProtectionKeys/
+
+# Visual Studio / Rider / VS Code
+.vs/
+.vscode/
+
+# ===== Android (PmcWh.Android — Android Studio / Gradle) =====
+*.iml
+.gradle/
+/PmcWh.Android/local.properties
+/PmcWh.Android/.idea/
+/PmcWh.Android/build/
+/PmcWh.Android/*/build/
+/PmcWh.Android/captures/
+.externalNativeBuild/
+.cxx/
+*.apk
+*.ap_
+*.aab
+*.dex
+
+# JetBrains IDEs (Rider / Android Studio) at repo root, if opened there
+.idea/
+
+# ===== OS junk =====
+.DS_Store
+Thumbs.db
+
+# ===== Claude Code local settings (machine-specific, not shared) =====
+.claude/settings.local.json

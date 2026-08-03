@@ -1,0 +1,54 @@
+body {
+  font-family: 'Inter', sans-serif;
+  background: #f8f9fa;
+}
+
+.nav-link.active {
+  background: #0d6efd;
+  color: #fff !important;
+}
+
+.card {
+  transition: transform 0.2s ease-in-out;
+}
+
+.card:hover {
+  transform: translateY(-2px);
+}
+
+.material-icons {
+  font-size: 20px;
+}
+
+/* Default (non-destructive) action button for PmcUI.confirm — matches the
+   sidebar's dark accent instead of Bootstrap's pink .btn-primary. */
+.pmc-btn-dark {
+  background: linear-gradient(135deg, #495057 0%, #212529 100%);
+  border-color: #212529;
+  color: #fff;
+}
+
+.pmc-btn-dark:hover,
+.pmc-btn-dark:focus {
+  background: linear-gradient(135deg, #343a40 0%, #000000 100%);
+  border-color: #000000;
+  color: #fff;
+}
+
+/* material-dashboard.css swaps every .dropdown-toggle caret for a Font Awesome
+   glyph (\f107) that this project doesn't load, which renders as a broken
+   tofu box. Restore Bootstrap's native CSS-triangle caret instead. */
+.dropdown .dropdown-toggle::after,
+.dropup .dropdown-toggle::after,
+.dropstart .dropdown-toggle::after,
+.dropend .dropdown-toggle::after {
+  content: "";
+  font: inherit;
+  display: inline-block;
+  margin-left: 0.4em;
+  vertical-align: 0.15em;
+  border-top: 0.3em solid;
+  border-right: 0.3em solid transparent;
+  border-bottom: 0;
+  border-left: 0.3em solid transparent;
+}

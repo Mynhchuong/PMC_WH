@@ -1,0 +1,148 @@
+@using PmcWh.Web.Helpers
+@{
+    var currentPath = Context.Request.Path.Value?.ToLower().TrimEnd('/') ?? "";
+    if (string.IsNullOrEmpty(currentPath)) currentPath = "/home/index";
+    var menus = SideMenuBuilder.Build();
+}
+
+<style>
+    .menu-icon-shell {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+        width: 34px;
+        height: 34px;
+        border-radius: 12px;
+        margin-right: 0.65rem;
+        background: linear-gradient(135deg, #495057 0%, #212529 100%);
+        box-shadow: 0 8px 18px rgba(15, 23, 42, 0.10);
+    }
+
+    .menu-icon-shell .material-icons { font-size: 1.1rem; color: #fff; }
+
+    .menu-child-icon {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+        width: 28px;
+        height: 28px;
+        border-radius: 10px;
+        margin-right: 0.6rem;
+        background: rgba(148, 163, 184, 0.14);
+    }
+
+    .menu-child-icon .material-icons { font-size: 1rem; }
+
+    .menu-caret {
+        display: inline-block;
+        width: 7px;
+        height: 7px;
+        border-style: solid;
+        border-color: #94a3b8;
+        border-width: 0 2px 2px 0;
+        transform: rotate(45deg);
+        transition: transform 0.25s ease, border-color 0.25s ease;
+        flex-shrink: 0;
+        margin-right: 2px;
+    }
+
+    .nav-link:hover .menu-caret { border-color: #1e293b; }
+    .nav-link[aria-expanded="true"] .menu-caret { transform: rotate(-135deg); }
+
+    /* material-dashboard.css adds its own Font Awesome chevron on collapse
+       triggers; we render our own CSS-only .menu-caret instead. */
+    .navbar-vertical .navbar-nav .nav-link[data-bs-toggle="collapse"]::after {
+        content: none;
+    }
+
+    .nav-link {
+        margin: 0.4rem 0.85rem;
+        padding: 0.85rem 1.1rem !important;
+        border-radius: 20px !important;
+        display: flex;
+        align-items: center;
+        text-decoration: none;
+        color: #64748b !important;
+        font-weight: 500;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .nav-link:hover { background-color: #f1f5f9; color: #1e293b !important; }
+
+    .nav-link.active {
+        background: linear-gradient(135deg, #495057 0%, #212529 100%) !important;
+        color: #fff !important;
+        font-weight: 700;
+        box-shadow: 0 12px 24px rgba(33, 37, 41, 0.25) !important;
+    }
+
+    .nav-link.active .menu-child-icon { background: rgba(255, 255, 255, 0.2) !important; }
+    .nav-link.active .material-icons,
+    .nav-link.active .nav-link-text { color: #fff !important; }
+</style>
+
+<div class="sidenav-header">
+    <div class="navbar-brand px-4 py-4 m-0 d-flex align-items-center" style="border-bottom: 1px solid rgba(0,0,0,0.03);">
+        <div class="d-flex align-items-center justify-content-center bg-white shadow-sm rounded-3 me-2" style="width: 42px; height: 42px; border: 1px solid #f1f5f9; flex-shrink: 0;">
+            <span class="material-icons" style="color:#212529;">warehouse</span>
+        </div>
+        <div class="d-flex flex-column">
+            <span class="fw-bolder" style="letter-spacing: -0.5px; line-height: 1.1; font-size: 1.15rem;">PMC WH</span>
+            <span class="text-uppercase text-muted fw-bold" style="font-size: 0.65rem; letter-spacing: 0.5px; opacity: 0.8;">Warehouse Portal</span>
+        </div>
+    </div>
+</div>
+
+<hr class="horizontal dark mt-0 mb-2" />
+
+<div class="navbar-collapse w-auto max-height-vh-100 h-100" id="sidenav-collapse-main">
+    <ul class="navbar-nav">
+        @foreach (var menu in menus)
+        {
+            bool open = menu.Children.Any(c =>
+                !string.IsNullOrEmpty(c.Action) &&
+                currentPath.StartsWith((Url.Action(c.Action, c.Controller) ?? "").ToLower())
+            );
+
+            <li class="nav-item mt-2">
+                <a class="nav-link text-dark d-flex justify-content-between align-items-center"
+                   data-bs-toggle="collapse"
+                   href="#@menu.Id"
+                   aria-expanded="@open.ToString().ToLower()">
+
+                    <span class="d-flex align-items-center">
+                        <span class="menu-icon-shell">
+                            <span class="material-icons">@menu.Icon</span>
+                        </span>
+                        <span class="nav-link-text">@menu.Title</span>
+                    </span>
+
+                    <span class="menu-caret"></span>
+                </a>
+
+                <div class="collapse ps-3 @(open ? "show" : "")" id="@menu.Id">
+                    <ul class="navbar-nav">
+                        @foreach (var item in menu.Children)
+                        {
+                            var itemUrl = Url.Action(item.Action, item.Controller);
+                            bool active = !string.IsNullOrEmpty(itemUrl) &&
+                                          currentPath.StartsWith(itemUrl.ToLower());
+
+                            <li class="nav-item">
+                                <a class="nav-link text-dark rounded px-2 py-1 @(active ? "active fw-bold" : "")"
+                                   href="@(itemUrl ?? "#")">
+                                    <span class="menu-child-icon">
+                                        <span class="material-icons">@item.Icon</span>
+                                    </span>
+                                    <span class="nav-link-text">@item.Title</span>
+                                </a>
+                            </li>
+                        }
+                    </ul>
+                </div>
+            </li>
+        }
+    </ul>
+</div>
