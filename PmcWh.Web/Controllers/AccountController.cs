@@ -25,7 +25,7 @@ public class AccountController : Controller
     {
         if (User.Identity?.IsAuthenticated == true)
         {
-            return LocalRedirect(returnUrl ?? Url.Action("Index", "Home")!);
+            return LocalRedirect(returnUrl ?? Url.Action("Index", "Materials")!);
         }
 
         ViewData["ReturnUrl"] = returnUrl;
@@ -69,7 +69,7 @@ public class AccountController : Controller
             IsPersistent = model.RememberMe,
         });
 
-        return LocalRedirect(returnUrl ?? Url.Action("Index", "Home")!);
+        return LocalRedirect(returnUrl ?? Url.Action("Index", "Materials")!);
     }
 
     [HttpPost]

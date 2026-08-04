@@ -29,6 +29,65 @@ public class MaterialsController : ControllerBase
     }
 
     /// <summary>
+    /// Danh sách liệu (phân trang), lọc theo Barcode, Status, và khoảng Ngày Nhập (ArrivalDate).
+    /// Luôn ẩn IsArchived=1 (đã xoá mềm).
+    /// </summary>
+    [HttpGet]
+    public async Task<ActionResult<PagedResult<MaterialListItem>>> Get(
+        string? barcode, string? status, DateTime? fromDate, DateTime? toDate, int page = 1, int pageSize = 20)
+    {
+        const string innerSql = @"
+            SELECT MaterialId, Barcode, Dev, PoNo, Supplier, Model, Colorway, SizeSpec,
+                   ArrivalQty, Unit, Status, ArrivalDate, CreatedAt
+              FROM PMC_Materials
+             WHERE IsArchived = 0
+               AND (:barcode IS NULL OR UPPER(Barcode) LIKE '%' || UPPER(:barcode) || '%')
+               AND (:status IS NULL OR Status = :status)
+               AND (:fromDate IS NULL OR ArrivalDate >= :fromDate)
+               AND (:toDate IS NULL OR ArrivalDate < :toDate + 1)
+             ORDER BY CreatedAt DESC";
+
+        var paged = await _db.QueryPagedAsync(innerSql, page, pageSize,
+            new OracleParameter("barcode", (object?)barcode ?? DBNull.Value),
+            new OracleParameter("status", (object?)status ?? DBNull.Value),
+            new OracleParameter("fromDate", OracleDbType.Date) { Value = (object?)fromDate ?? DBNull.Value },
+            new OracleParameter("toDate", OracleDbType.Date) { Value = (object?)toDate ?? DBNull.Value });
+
+        var items = paged.Items.Select(MapMaterialListItem).ToList();
+
+        return Ok(new PagedResult<MaterialListItem>
+        {
+            Items = items,
+            Page = paged.Page,
+            PageSize = paged.PageSize,
+            TotalCount = paged.TotalCount,
+        });
+    }
+
+    /// <summary>
+    /// Chi tiết đầy đủ 1 liệu — dùng cho popup xem detail.
+    /// </summary>
+    [HttpGet("{id:int}")]
+    public async Task<ActionResult<MaterialDetail>> GetById(int id)
+    {
+        var rows = (await _db.QueryAsync(
+            @"SELECT MaterialId, Barcode, CsCode, Dev, PoNo, Supplier, Model, Season, Stage, Colorway,
+                     Component, MatlDescription, ColorCode, ColorName, SizeSpec, ArrivalQty, Unit, FocFlag,
+                     ArrivalDate, Remark, Testing, TestRequire, TestQty, Category, RequestBy, RequestOn,
+                     Balance, Status, StockedInAt, LastIssuedAt, DisposedAt, IsOverdue, CreatedAt, UpdatedAt
+                FROM PMC_Materials
+               WHERE MaterialId = :id",
+            new OracleParameter("id", id))).ToList();
+
+        if (rows.Count == 0)
+        {
+            return NotFound();
+        }
+
+        return Ok(MapMaterialDetail(rows[0]));
+    }
+
+    /// <summary>
     /// Import 1 batch (tối đa 40 dòng) vào PMC_Materials với Status mặc định 'Staging'.
     /// Bỏ qua (không insert) các dòng: barcode trống, ArrivalQty trống/không hợp lệ,
     /// trùng barcode trong chính batch, hoặc barcode đã có sẵn trong CSDL.
@@ -111,6 +170,61 @@ public class MaterialsController : ControllerBase
             .Select(b => b!)
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
     }
+
+    private static MaterialListItem MapMaterialListItem(Dictionary<string, object?> row) => new()
+    {
+        MaterialId = Convert.ToInt32(row["MATERIALID"]),
+        Barcode = row["BARCODE"]?.ToString() ?? string.Empty,
+        Dev = row["DEV"]?.ToString(),
+        PoNo = row["PONO"]?.ToString(),
+        Supplier = row["SUPPLIER"]?.ToString(),
+        Model = row["MODEL"]?.ToString(),
+        Colorway = row["COLORWAY"]?.ToString(),
+        SizeSpec = row["SIZESPEC"]?.ToString(),
+        ArrivalQty = row["ARRIVALQTY"] != null ? Convert.ToDecimal(row["ARRIVALQTY"]) : null,
+        Unit = row["UNIT"]?.ToString(),
+        Status = row["STATUS"]?.ToString() ?? string.Empty,
+        ArrivalDate = row["ARRIVALDATE"] != null ? Convert.ToDateTime(row["ARRIVALDATE"]) : null,
+        CreatedAt = Convert.ToDateTime(row["CREATEDAT"]),
+    };
+
+    private static MaterialDetail MapMaterialDetail(Dictionary<string, object?> row) => new()
+    {
+        MaterialId = Convert.ToInt32(row["MATERIALID"]),
+        Barcode = row["BARCODE"]?.ToString() ?? string.Empty,
+        CsCode = row["CSCODE"] != null ? Convert.ToInt32(row["CSCODE"]) : null,
+        Dev = row["DEV"]?.ToString(),
+        PoNo = row["PONO"]?.ToString(),
+        Supplier = row["SUPPLIER"]?.ToString(),
+        Model = row["MODEL"]?.ToString(),
+        Season = row["SEASON"]?.ToString(),
+        Stage = row["STAGE"]?.ToString(),
+        Colorway = row["COLORWAY"]?.ToString(),
+        Component = row["COMPONENT"]?.ToString(),
+        MatlDescription = row["MATLDESCRIPTION"]?.ToString(),
+        ColorCode = row["COLORCODE"]?.ToString(),
+        ColorName = row["COLORNAME"]?.ToString(),
+        SizeSpec = row["SIZESPEC"]?.ToString(),
+        ArrivalQty = row["ARRIVALQTY"] != null ? Convert.ToDecimal(row["ARRIVALQTY"]) : null,
+        Unit = row["UNIT"]?.ToString(),
+        FocFlag = row["FOCFLAG"]?.ToString(),
+        ArrivalDate = row["ARRIVALDATE"] != null ? Convert.ToDateTime(row["ARRIVALDATE"]) : null,
+        Remark = row["REMARK"]?.ToString(),
+        Testing = row["TESTING"] != null ? Convert.ToInt32(row["TESTING"]) : null,
+        TestRequire = row["TESTREQUIRE"]?.ToString(),
+        TestQty = row["TESTQTY"]?.ToString(),
+        Category = row["CATEGORY"]?.ToString(),
+        RequestBy = row["REQUESTBY"]?.ToString(),
+        RequestOn = row["REQUESTON"] != null ? Convert.ToDateTime(row["REQUESTON"]) : null,
+        Balance = row["BALANCE"] != null ? Convert.ToDecimal(row["BALANCE"]) : null,
+        Status = row["STATUS"]?.ToString() ?? string.Empty,
+        StockedInAt = row["STOCKEDINAT"] != null ? Convert.ToDateTime(row["STOCKEDINAT"]) : null,
+        LastIssuedAt = row["LASTISSUEDAT"] != null ? Convert.ToDateTime(row["LASTISSUEDAT"]) : null,
+        DisposedAt = row["DISPOSEDAT"] != null ? Convert.ToDateTime(row["DISPOSEDAT"]) : null,
+        IsOverdue = row["ISOVERDUE"] != null && Convert.ToInt32(row["ISOVERDUE"]) == 1,
+        CreatedAt = Convert.ToDateTime(row["CREATEDAT"]),
+        UpdatedAt = row["UPDATEDAT"] != null ? Convert.ToDateTime(row["UPDATEDAT"]) : null,
+    };
 
     private static OracleParameter[] BuildInsertParams(MaterialImportRow r) => new[]
     {

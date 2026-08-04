@@ -1,37 +1,64 @@
 @model PmcWh.Web.Models.UserListViewModel
 @{
     ViewData["Title"] = "Người dùng";
+
+    (string cls, string style) RoleBadge(string role) => role == "Admin"
+        ? ("bg-dark text-white", "")
+        : ("text-info", "background-color:rgba(13,202,240,0.15);");
+
+    string InitialOf(string username) => username.Length > 0 ? username[..1].ToUpperInvariant() : "?";
 }
 
 <div class="card border-0 shadow-sm rounded-4 mb-3">
     <div class="card-body">
-        <h5 class="card-title mb-3">Thêm người dùng</h5>
+        <div class="d-flex align-items-center gap-3 mb-4">
+            <span class="d-inline-flex align-items-center justify-content-center rounded-4"
+                  style="width:48px;height:48px;background:linear-gradient(135deg, #495057 0%, #212529 100%); flex-shrink:0;">
+                <span class="material-icons text-white">person_add</span>
+            </span>
+            <div>
+                <h5 class="card-title mb-0">Thêm người dùng</h5>
+                <p class="text-muted small mb-0">Tạo tài khoản đăng nhập cho nhân viên kho</p>
+            </div>
+        </div>
 
         @if (!ViewData.ModelState.IsValid)
         {
-            <div class="alert alert-danger" role="alert">
-                @foreach (var error in ViewData.ModelState.Values.SelectMany(v => v.Errors))
-                {
-                    <div>@error.ErrorMessage</div>
-                }
+            <div class="alert alert-danger d-flex align-items-center gap-2" role="alert">
+                <span class="material-icons">error_outline</span>
+                <div>
+                    @foreach (var error in ViewData.ModelState.Values.SelectMany(v => v.Errors))
+                    {
+                        <div>@error.ErrorMessage</div>
+                    }
+                </div>
             </div>
         }
 
-        <form asp-controller="Users" asp-action="Create" method="post" class="row g-2 align-items-end">
+        <form asp-controller="Users" asp-action="Create" method="post" class="row g-3 align-items-end">
             <input type="hidden" name="page" value="@Model.Pagination.Page" />
             <input type="hidden" name="pageSize" value="@Model.Pagination.PageSize" />
 
             <div class="col-sm-6 col-md-2">
                 <label asp-for="NewUser.Username" class="form-label small fw-semibold text-secondary"></label>
-                <input asp-for="NewUser.Username" class="form-control" />
+                <div class="input-group">
+                    <span class="input-group-text bg-white"><span class="material-icons" style="font-size:18px;">person</span></span>
+                    <input asp-for="NewUser.Username" class="form-control" placeholder="worker1" />
+                </div>
             </div>
             <div class="col-sm-6 col-md-2">
                 <label asp-for="NewUser.Password" class="form-label small fw-semibold text-secondary"></label>
-                <input asp-for="NewUser.Password" type="password" class="form-control" />
+                <div class="input-group">
+                    <span class="input-group-text bg-white"><span class="material-icons" style="font-size:18px;">lock</span></span>
+                    <input asp-for="NewUser.Password" type="password" class="form-control" placeholder="••••••" />
+                </div>
             </div>
             <div class="col-sm-6 col-md-3">
                 <label asp-for="NewUser.FullName" class="form-label small fw-semibold text-secondary"></label>
-                <input asp-for="NewUser.FullName" class="form-control" />
+                <div class="input-group">
+                    <span class="input-group-text bg-white"><span class="material-icons" style="font-size:18px;">badge</span></span>
+                    <input asp-for="NewUser.FullName" class="form-control" placeholder="Nguyễn Văn A" />
+                </div>
             </div>
             <div class="col-sm-6 col-md-2">
                 <label asp-for="NewUser.Role" class="form-label small fw-semibold text-secondary"></label>
@@ -41,7 +68,9 @@
                 </select>
             </div>
             <div class="col-sm-6 col-md-2">
-                <button type="submit" class="btn btn-primary w-100">Tạo</button>
+                <button type="submit" class="btn pmc-btn-dark w-100 d-inline-flex align-items-center justify-content-center gap-1">
+                    <span class="material-icons" style="font-size:18px;">add</span> Tạo
+                </button>
             </div>
         </form>
     </div>
@@ -55,8 +84,7 @@
             <table class="table align-middle">
                 <thead>
                     <tr class="text-uppercase text-muted small">
-                        <th>Username</th>
-                        <th>Họ tên</th>
+                        <th>Người dùng</th>
                         <th>Vai trò</th>
                         <th>Trạng thái</th>
                         <th>Ngày tạo</th>
@@ -66,10 +94,20 @@
                 <tbody>
                     @foreach (var u in Model.Items)
                     {
+                        var (badgeCls, badgeStyle) = RoleBadge(u.Role);
                         <tr>
-                            <td class="fw-semibold">@u.Username</td>
-                            <td>@u.FullName</td>
-                            <td>@u.Role</td>
+                            <td>
+                                <div class="d-flex align-items-center gap-2">
+                                    <span class="d-inline-flex align-items-center justify-content-center rounded-circle bg-light fw-bold text-secondary" style="width:36px;height:36px;flex-shrink:0;">
+                                        @InitialOf(u.Username)
+                                    </span>
+                                    <div>
+                                        <div class="fw-semibold">@u.Username</div>
+                                        <div class="text-muted small">@u.FullName</div>
+                                    </div>
+                                </div>
+                            </td>
+                            <td><span class="badge @badgeCls" style="@badgeStyle">@u.Role</span></td>
                             <td>
                                 @if (u.IsActive)
                                 {
@@ -80,14 +118,16 @@
                                     <span class="badge bg-secondary">Inactive</span>
                                 }
                             </td>
-                            <td>@u.CreatedAt.ToString("dd/MM/yyyy HH:mm")</td>
+                            <td class="text-muted small">@u.CreatedAt.ToString("dd/MM/yyyy HH:mm")</td>
                             <td class="text-end">
                                 <form asp-controller="Users" asp-action="ResetPassword" method="post" class="d-inline js-reset-password-form">
                                     <input type="hidden" name="userId" value="@u.UserId" />
                                     <input type="hidden" name="username" value="@u.Username" />
                                     <input type="hidden" name="page" value="@Model.Pagination.Page" />
                                     <input type="hidden" name="pageSize" value="@Model.Pagination.PageSize" />
-                                    <button type="submit" class="btn btn-sm btn-outline-warning">Reset mật khẩu</button>
+                                    <button type="submit" class="btn btn-sm btn-outline-warning d-inline-flex align-items-center gap-1">
+                                        <span class="material-icons" style="font-size:16px;">restart_alt</span> Reset mật khẩu
+                                    </button>
                                 </form>
                             </td>
                         </tr>
@@ -103,19 +143,22 @@
 </div>
 
 <div id="pmc-flash" data-success="@(ViewData["FlashSuccess"] as string)" data-error="@(ViewData["FlashError"] as string)" style="display:none"></div>
-<script>
-    (function () {
-        var flash = document.getElementById('pmc-flash');
-        if (flash.dataset.success) PmcUI.success(flash.dataset.success);
-        if (flash.dataset.error) PmcUI.error(flash.dataset.error);
 
-        document.querySelectorAll('.js-reset-password-form').forEach(function (form) {
-            form.addEventListener('submit', async function (e) {
-                e.preventDefault();
-                var username = form.querySelector('input[name="username"]').value;
-                var ok = await PmcUI.confirm('Đặt lại mật khẩu của "' + username + '" về 123456?', { title: 'Reset mật khẩu', variant: 'warning' });
-                if (ok) form.submit();
+@section Scripts {
+    <script>
+        (function () {
+            var flash = document.getElementById('pmc-flash');
+            if (flash.dataset.success) PmcUI.success(flash.dataset.success);
+            if (flash.dataset.error) PmcUI.error(flash.dataset.error);
+
+            document.querySelectorAll('.js-reset-password-form').forEach(function (form) {
+                form.addEventListener('submit', async function (e) {
+                    e.preventDefault();
+                    var username = form.querySelector('input[name="username"]').value;
+                    var ok = await PmcUI.confirm('Đặt lại mật khẩu của "' + username + '" về 123456?', { title: 'Reset mật khẩu', variant: 'warning' });
+                    if (ok) form.submit();
+                });
             });
-        });
-    })();
-</script>
+        })();
+    </script>
+}

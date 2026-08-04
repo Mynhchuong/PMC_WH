@@ -12,6 +12,7 @@
  *
  * Popup thông thường (hiện nội dung tuỳ ý, có nút đóng):
  *              PmcUI.popup("Chi tiết đơn hàng", "<p>...</p>");
+ *              PmcUI.popup("Chi tiết đơn hàng", "<p>...</p>", { size: "lg" }); // hoặc "xl"
  *
  * Loading khi gọi API/query (overlay toàn màn hình):
  *              PmcUI.showLoading();
@@ -172,8 +173,14 @@ const PmcUI = (function () {
         return modalEl;
     }
 
-    function popup(title, bodyHtml) {
+    function popup(title, bodyHtml, options) {
+        options = options || {};
         const modalEl = ensurePopupModal();
+        const dialogEl = modalEl.querySelector(".modal-dialog");
+        dialogEl.classList.remove("modal-lg", "modal-xl");
+        if (options.size === "lg" || options.size === "xl") {
+            dialogEl.classList.add("modal-" + options.size);
+        }
         modalEl.querySelector("#pmc-popup-title").textContent = title;
         modalEl.querySelector("#pmc-popup-body").innerHTML = bodyHtml;
         const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
