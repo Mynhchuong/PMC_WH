@@ -15,11 +15,17 @@ if (builder.Environment.IsDevelopment())
     mvcBuilder.AddRazorRuntimeCompilation();
 }
 
+builder.Services.AddHttpClient("PmcApi", client =>
+{
+    var baseUrl = builder.Configuration["PmcApi:BaseUrl"] ?? "http://localhost:5073";
+    client.BaseAddress = new Uri(baseUrl);
+});
+
 builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
     .AddCookie(options =>
     {
         options.LoginPath = "/Account/Login";
-        options.AccessDeniedPath = "/Account/Login";
+        options.AccessDeniedPath = "/Account/AccessDenied";
         options.ExpireTimeSpan = TimeSpan.FromHours(8);
         options.SlidingExpiration = true;
     });

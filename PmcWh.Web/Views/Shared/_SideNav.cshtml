@@ -2,7 +2,9 @@
 @{
     var currentPath = Context.Request.Path.Value?.ToLower().TrimEnd('/') ?? "";
     if (string.IsNullOrEmpty(currentPath)) currentPath = "/home/index";
-    var menus = SideMenuBuilder.Build();
+    var menus = SideMenuBuilder.Build(User.IsInRole("Admin"))
+        .Where(m => m.VisibleWhen == null || m.VisibleWhen())
+        .ToList();
 }
 
 <style>

@@ -1,0 +1,10 @@
+@{
+    ViewData["Title"] = "Không có quyền truy cập";
+}
+
+<div class="d-flex flex-column align-items-center justify-content-center text-center py-5">
+    <span class="material-icons text-danger mb-3" style="font-size: 3rem;">block</span>
+    <h4 class="mb-2">Bạn không có quyền truy cập trang này</h4>
+    <p class="text-muted mb-4">Chức năng này chỉ dành cho Admin.</p>
+    <a asp-controller="Home" asp-action="Index" class="btn btn-primary">Về trang chủ</a>
+</div>

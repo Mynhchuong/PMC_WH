@@ -40,15 +40,15 @@ No test projects exist yet.
 - `ExecuteAsync(sql, params)` — INSERT/UPDATE/DELETE, returns affected row count.
 - `QueryPagedAsync(innerSql, page, pageSize, params)` — pass a plain `SELECT ... ORDER BY ...` (no paging in it); wraps it in Oracle 10g's classic double-`ROWNUM` idiom and returns `PagedResult<Dictionary<string, object?>>` (`Items`, `Page`, `PageSize`, `TotalCount`, computed `TotalPages`). Use this instead of hand-writing `ROWNUM` paging per endpoint.
 
-Connection config comes from the `Oracle` section in `appsettings.json`, bound to `OracleConnectionOptions`. New endpoints follow this same raw-SQL-via-service pattern; always use `OracleParameter` bind variables, never string-concatenate values into SQL. All three methods set `command.BindByName = true` — **ODP.NET binds by ordinal position by default**, not by the `:name` in the SQL text, which silently breaks the moment parameters aren't supplied in left-to-right textual order (exactly what `QueryPagedAsync` does, appending its own `:pmcEndRow`/`:pmcStartRow` after the caller's params). Keep `BindByName = true` on any new raw `OracleCommand` you create outside this service.
+Connection config comes from the `Oracle` section (`Username`, `Password`, `DataSource`), bound to `OracleConnectionOptions`. **Real credentials live in .NET User Secrets, not `appsettings.json`/`appsettings.Development.json`** — those files are committed to the (GitHub) repo, User Secrets are stored outside the repo (`~/.microsoft/usersecrets/<UserSecretsId>/secrets.json`) and load automatically in Development, no code change needed. To set/inspect: `cd PmcWh.Api && dotnet user-secrets set "Oracle:Password" "..."` / `dotnet user-secrets list`. Live connectivity to the real Oracle 10g box (`192.168.1.32:1521`, SID `vmes`) has been verified working via `GET /api/Health`.
+
+New endpoints follow this same raw-SQL-via-service pattern; always use `OracleParameter` bind variables, never string-concatenate values into SQL. All three methods set `command.BindByName = true` — **ODP.NET binds by ordinal position by default**, not by the `:name` in the SQL text, which silently breaks the moment parameters aren't supplied in left-to-right textual order (exactly what `QueryPagedAsync` does, appending its own `:pmcEndRow`/`:pmcStartRow` after the caller's params). Keep `BindByName = true` on any new raw `OracleCommand` you create outside this service.
 
 **Target database is Oracle 10g — write SQL as if nothing past 10g exists.** Concretely, avoid/don't use:
 - `OFFSET ... FETCH NEXT` (12c+) — paginate with a `ROWNUM`-wrapped subquery instead.
 - Identity columns (`GENERATED ... AS IDENTITY`, 12c+) — use a `SEQUENCE` and reference `seq.NEXTVAL` in the insert.
 - `LISTAGG` (11g R2+), recursive `WITH` CTEs (11g R2+), `JSON_TABLE`/`JSON_VALUE`/JSON column type (12c+), `MERGE` enhancements newer than 9i.
 - Anything found in Oracle docs tagged 11g or later — if unsure whether a function/syntax existed in 10g, assume it didn't and ask, or use the older equivalent (e.g. `CONNECT BY` instead of recursive CTE).
-
-Before building a real feature against the live DB, sanity-check basic connectivity first (a trivial `SELECT` via `OracleDataService`) — very old server versions can occasionally hit ODP.NET managed-driver quirks that are cheaper to catch early than mid-feature.
 
 ### Web layout & sidebar menu
 The Material Dashboard (Creative Tim) asset bundle lives in `PmcWh.Web/wwwroot/assets`. The sidebar/menu system is a deliberate, reusable pattern — **follow it when adding new pages/menu items**, don't hand-roll new sidebar markup:

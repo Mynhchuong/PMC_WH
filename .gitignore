@@ -40,3 +40,5 @@ Thumbs.db
 
 # ===== Claude Code local settings (machine-specific, not shared) =====
 .claude/settings.local.json
+PMC_Warehouse_MasterPlan.md
+IN TEM- DATA.xlsx

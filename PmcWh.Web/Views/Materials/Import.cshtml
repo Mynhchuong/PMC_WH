@@ -1,0 +1,95 @@
+@model PmcWh.Web.Models.MaterialImportResultViewModel
+@{
+    ViewData["Title"] = "Import liệu (Staging)";
+    var hasResult = Model.TotalRowsParsed > 0 || Model.Skipped.Count > 0;
+}
+
+<div class="card border-0 shadow-sm rounded-4 mb-3">
+    <div class="card-body">
+        <h5 class="card-title mb-1">Import liệu vào Staging</h5>
+        <p class="text-muted small mb-3">
+            Upload file Excel (sheet đầu tiên, có header) — mỗi dòng thành 1 <code>PMC_Materials</code> với
+            <code>Status = 'Staging'</code>. Import theo lô 40 dòng/lần. Dòng thiếu barcode, thiếu A.Q'TY,
+            hoặc barcode đã trùng (trong file hoặc đã có trong CSDL) sẽ bị bỏ qua và liệt kê bên dưới.
+        </p>
+
+        @if (!ViewData.ModelState.IsValid)
+        {
+            <div class="alert alert-danger" role="alert">
+                @foreach (var error in ViewData.ModelState.Values.SelectMany(v => v.Errors))
+                {
+                    <div>@error.ErrorMessage</div>
+                }
+            </div>
+        }
+
+        <form asp-controller="Materials" asp-action="Import" method="post" enctype="multipart/form-data" class="d-flex align-items-center gap-2">
+            <input type="file" name="file" accept=".xlsx" class="form-control" style="max-width: 420px;" required />
+            <button type="submit" class="btn btn-primary">Import</button>
+        </form>
+    </div>
+</div>
+
+@if (hasResult)
+{
+    <div class="card border-0 shadow-sm rounded-4 mb-3">
+        <div class="card-body">
+            <h6 class="card-title mb-3">Kết quả</h6>
+            <div class="d-flex gap-4">
+                <div>
+                    <div class="text-muted small">Số dòng đọc được</div>
+                    <div class="fs-5 fw-semibold">@Model.TotalRowsParsed</div>
+                </div>
+                <div>
+                    <div class="text-muted small">Đã import</div>
+                    <div class="fs-5 fw-semibold text-success">@Model.InsertedCount</div>
+                </div>
+                <div>
+                    <div class="text-muted small">Bị bỏ qua</div>
+                    <div class="fs-5 fw-semibold text-warning">@Model.Skipped.Count</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    if (Model.Skipped.Count > 0)
+    {
+        <div class="card border-0 shadow-sm rounded-4">
+            <div class="card-body">
+                <h6 class="card-title mb-3">Dòng bị bỏ qua</h6>
+                <div class="table-responsive">
+                    <table class="table align-middle table-sm">
+                        <thead>
+                            <tr class="text-uppercase text-muted small">
+                                <th>Barcode</th>
+                                <th>Lý do</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var s in Model.Skipped)
+                            {
+                                <tr>
+                                    <td class="fw-semibold">@s.Barcode</td>
+                                    <td>@s.Reason</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    }
+
+    <script>
+        (function () {
+            const inserted = @Model.InsertedCount;
+            const total = @Model.TotalRowsParsed;
+            const skipped = @Model.Skipped.Count;
+            if (inserted > 0) {
+                PmcUI.success(`Đã import ${inserted}/${total} dòng vào Staging${skipped > 0 ? `, bỏ qua ${skipped} dòng` : ''}.`);
+            } else if (total > 0) {
+                PmcUI.warning('Không có dòng nào được import — xem chi tiết bên dưới.');
+            }
+        })();
+    </script>
+}

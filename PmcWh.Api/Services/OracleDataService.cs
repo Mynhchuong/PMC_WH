@@ -114,6 +114,42 @@ public class OracleDataService
         };
     }
 
+    /// <summary>
+    /// Chạy nhiều câu INSERT/UPDATE/DELETE trong CÙNG 1 transaction (commit/rollback chung) —
+    /// dùng cho import theo batch hoặc bất kỳ thao tác nào cần nhiều câu SQL ăn khớp với nhau
+    /// (vd. update Materials + insert StockMovements). Trả về tổng số dòng bị ảnh hưởng.
+    /// </summary>
+    public async Task<int> ExecuteBatchAsync(IEnumerable<(string Sql, OracleParameter[] Parameters)> statements)
+    {
+        await using var connection = new OracleConnection(_connectionString);
+        await connection.OpenAsync();
+        await using var transaction = connection.BeginTransaction();
+
+        var totalAffected = 0;
+        try
+        {
+            foreach (var (sql, parameters) in statements)
+            {
+                await using var command = connection.CreateCommand();
+                command.Transaction = transaction;
+                command.CommandText = sql;
+                command.CommandType = CommandType.Text;
+                command.BindByName = true;
+                command.Parameters.AddRange(parameters);
+                totalAffected += await command.ExecuteNonQueryAsync();
+            }
+
+            await transaction.CommitAsync();
+        }
+        catch
+        {
+            await transaction.RollbackAsync();
+            throw;
+        }
+
+        return totalAffected;
+    }
+
     private static string BuildConnectionString(OracleConnectionOptions options)
     {
         if (string.IsNullOrWhiteSpace(options.DataSource))
