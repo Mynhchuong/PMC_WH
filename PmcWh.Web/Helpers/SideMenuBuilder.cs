@@ -27,6 +27,7 @@ public static class SideMenuBuilder
                 Children = new List<SideMenuItem>
                 {
                     new SideMenuItem { Title = "Người dùng", Controller = "Users", Action = "Index", Icon = "group" },
+                    new SideMenuItem { Title = "Nơi nhận", Controller = "Recipients", Action = "Index", Icon = "add_location_alt" },
                 }
             },
         };
