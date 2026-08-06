@@ -34,11 +34,11 @@ public class MaterialsController : ControllerBase
     /// </summary>
     [HttpGet]
     public async Task<ActionResult<PagedResult<MaterialListItem>>> Get(
-        string? barcode, string? status, DateTime? fromDate, DateTime? toDate, int page = 1, int pageSize = 20)
+        string? barcode, string? status, DateTime? fromDate, DateTime? toDate, bool? isOverdue, int page = 1, int pageSize = 20)
     {
         const string innerSql = @"
             SELECT m.MaterialId, m.Barcode, m.Dev, m.PoNo, m.Supplier, m.Model, m.Colorway, m.SizeSpec,
-                   m.ArrivalQty, m.Balance, m.Unit, m.Status, l.Code AS LocationCode, m.ArrivalDate, m.CreatedAt
+                   m.ArrivalQty, m.Balance, m.Unit, m.Status, l.Code AS LocationCode, m.IsOverdue, m.ArrivalDate, m.CreatedAt
               FROM PMC_Materials m
               LEFT JOIN PMC_StorageLocations l ON l.LocationId = m.CurrentLocationId
              WHERE m.IsArchived = 0
@@ -46,13 +46,15 @@ public class MaterialsController : ControllerBase
                AND (:status IS NULL OR m.Status = :status)
                AND (:fromDate IS NULL OR m.ArrivalDate >= :fromDate)
                AND (:toDate IS NULL OR m.ArrivalDate < :toDate + 1)
+               AND (:isOverdue IS NULL OR m.IsOverdue = :isOverdue)
              ORDER BY m.CreatedAt DESC";
 
         var paged = await _db.QueryPagedAsync(innerSql, page, pageSize,
             new OracleParameter("barcode", (object?)barcode ?? DBNull.Value),
             new OracleParameter("status", (object?)status ?? DBNull.Value),
             new OracleParameter("fromDate", OracleDbType.Date) { Value = (object?)fromDate ?? DBNull.Value },
-            new OracleParameter("toDate", OracleDbType.Date) { Value = (object?)toDate ?? DBNull.Value });
+            new OracleParameter("toDate", OracleDbType.Date) { Value = (object?)toDate ?? DBNull.Value },
+            new OracleParameter("isOverdue", (object?)(isOverdue.HasValue ? (isOverdue.Value ? 1 : 0) : null) ?? DBNull.Value));
 
         var items = paged.Items.Select(MapMaterialListItem).ToList();
 
@@ -96,7 +98,7 @@ public class MaterialsController : ControllerBase
     {
         var rows = (await _db.QueryAsync(
             @"SELECT m.MaterialId, m.Barcode, m.Dev, m.PoNo, m.Supplier, m.Model, m.Colorway, m.SizeSpec,
-                     m.ArrivalQty, m.Balance, m.Unit, m.Status, l.Code AS LocationCode, m.ArrivalDate, m.CreatedAt
+                     m.ArrivalQty, m.Balance, m.Unit, m.Status, l.Code AS LocationCode, m.IsOverdue, m.ArrivalDate, m.CreatedAt
                 FROM PMC_Materials m
                 LEFT JOIN PMC_StorageLocations l ON l.LocationId = m.CurrentLocationId
                WHERE m.IsArchived = 0 AND UPPER(m.Barcode) = UPPER(:barcode)",
@@ -171,7 +173,7 @@ public class MaterialsController : ControllerBase
     {
         var rows = await _db.QueryAsync(
             @"SELECT m.MaterialId, m.Barcode, m.Dev, m.PoNo, m.Supplier, m.Model, m.Colorway, m.SizeSpec,
-                     m.ArrivalQty, m.Balance, m.Unit, m.Status, l.Code AS LocationCode, m.ArrivalDate, m.CreatedAt
+                     m.ArrivalQty, m.Balance, m.Unit, m.Status, l.Code AS LocationCode, m.IsOverdue, m.ArrivalDate, m.CreatedAt
                 FROM PMC_Materials m
                 LEFT JOIN PMC_StorageLocations l ON l.LocationId = m.CurrentLocationId
                WHERE m.IsArchived = 0
@@ -240,6 +242,159 @@ public class MaterialsController : ControllerBase
                  new OracleParameter("Qty", req.Qty),
                  new OracleParameter("UserId", req.UserId),
                  new OracleParameter("RecipientId", req.RecipientId),
+             }),
+        };
+
+        await _db.ExecuteBatchAsync(statements);
+
+        return Ok();
+    }
+
+    /// <summary>
+    /// Danh sách liệu đang out (IssuedOut/PartiallyIssued) — có thể nhận lại (Return).
+    /// </summary>
+    [HttpGet("returnable")]
+    public async Task<ActionResult<List<MaterialListItem>>> Returnable()
+    {
+        var rows = await _db.QueryAsync(
+            @"SELECT m.MaterialId, m.Barcode, m.Dev, m.PoNo, m.Supplier, m.Model, m.Colorway, m.SizeSpec,
+                     m.ArrivalQty, m.Balance, m.Unit, m.Status, l.Code AS LocationCode, m.IsOverdue, m.ArrivalDate, m.CreatedAt
+                FROM PMC_Materials m
+                LEFT JOIN PMC_StorageLocations l ON l.LocationId = m.CurrentLocationId
+               WHERE m.IsArchived = 0
+                 AND m.Status IN ('IssuedOut', 'PartiallyIssued')
+               ORDER BY m.LastIssuedAt NULLS FIRST, m.CreatedAt");
+
+        return Ok(rows.Select(MapMaterialListItem).ToList());
+    }
+
+    /// <summary>
+    /// Nhận lại hàng đã xuất: cộng lại Balance, về kệ (InStock nếu đủ, PartiallyIssued nếu còn thiếu),
+    /// reset IsOverdue, ghi StockMovements (Return). Update Materials + insert Movement chạy CÙNG 1 transaction.
+    /// </summary>
+    [HttpPost("{id:int}/return")]
+    public async Task<IActionResult> Return(int id, [FromBody] ReturnRequest req)
+    {
+        if (req.Qty <= 0)
+        {
+            return BadRequest(new { message = "Số lượng nhận lại phải lớn hơn 0." });
+        }
+
+        var rows = (await _db.QueryAsync(
+            "SELECT Balance, ArrivalQty, Status FROM PMC_Materials WHERE MaterialId = :id",
+            new OracleParameter("id", id))).ToList();
+
+        if (rows.Count == 0)
+        {
+            return NotFound(new { message = "Không tìm thấy liệu." });
+        }
+
+        var status = rows[0]["STATUS"]?.ToString();
+        if (status != "IssuedOut" && status != "PartiallyIssued")
+        {
+            return Conflict(new { message = "Liệu này không ở trạng thái đang out (phải đang IssuedOut hoặc PartiallyIssued)." });
+        }
+
+        var balance = Convert.ToDecimal(rows[0]["BALANCE"]);
+        var arrivalQty = Convert.ToDecimal(rows[0]["ARRIVALQTY"]);
+        var newBalance = balance + req.Qty;
+        if (newBalance > arrivalQty)
+        {
+            return BadRequest(new { message = $"Số lượng nhận lại ({req.Qty}) vượt quá số lượng đã xuất còn lại (tối đa {arrivalQty - balance})." });
+        }
+
+        var newStatus = newBalance >= arrivalQty ? "InStock" : "PartiallyIssued";
+
+        var statements = new (string Sql, OracleParameter[] Parameters)[]
+        {
+            ("UPDATE PMC_Materials " +
+             "   SET Balance = :NewBalance, Status = :NewStatus, CurrentLocationId = :LocationId, IsOverdue = 0, " +
+             "       UpdatedBy = :UserId, UpdatedAt = SYSTIMESTAMP, VersionNo = VersionNo + 1 " +
+             " WHERE MaterialId = :MaterialId AND Status IN ('IssuedOut', 'PartiallyIssued')",
+             new[]
+             {
+                 new OracleParameter("NewBalance", newBalance),
+                 new OracleParameter("NewStatus", newStatus),
+                 new OracleParameter("LocationId", req.LocationId),
+                 new OracleParameter("UserId", req.UserId),
+                 new OracleParameter("MaterialId", id),
+             }),
+            ("INSERT INTO PMC_StockMovements (MaterialId, MovementType, Qty, LocationId, UserId) " +
+             "VALUES (:MaterialId, 'Return', :Qty, :LocationId, :UserId)",
+             new[]
+             {
+                 new OracleParameter("MaterialId", id),
+                 new OracleParameter("Qty", req.Qty),
+                 new OracleParameter("LocationId", req.LocationId),
+                 new OracleParameter("UserId", req.UserId),
+             }),
+        };
+
+        await _db.ExecuteBatchAsync(statements);
+
+        return Ok();
+    }
+
+    /// <summary>
+    /// Danh sách liệu có thể hủy — mọi liệu chưa hủy, chưa bị xoá mềm.
+    /// </summary>
+    [HttpGet("disposable")]
+    public async Task<ActionResult<List<MaterialListItem>>> Disposable()
+    {
+        var rows = await _db.QueryAsync(
+            @"SELECT m.MaterialId, m.Barcode, m.Dev, m.PoNo, m.Supplier, m.Model, m.Colorway, m.SizeSpec,
+                     m.ArrivalQty, m.Balance, m.Unit, m.Status, l.Code AS LocationCode, m.IsOverdue, m.ArrivalDate, m.CreatedAt
+                FROM PMC_Materials m
+                LEFT JOIN PMC_StorageLocations l ON l.LocationId = m.CurrentLocationId
+               WHERE m.IsArchived = 0
+                 AND m.Status <> 'Disposed'
+               ORDER BY m.CreatedAt DESC");
+
+        return Ok(rows.Select(MapMaterialListItem).ToList());
+    }
+
+    /// <summary>
+    /// Hủy liệu: chuyển Status='Disposed', Balance=0, ghi DisposedAt (bắt đầu đếm 30 ngày trước khi ẩn),
+    /// ghi StockMovements (Dispose). Update Materials + insert Movement chạy CÙNG 1 transaction.
+    /// </summary>
+    [HttpPost("{id:int}/dispose")]
+    public async Task<IActionResult> Dispose(int id, [FromBody] DisposeRequest req)
+    {
+        var rows = (await _db.QueryAsync(
+            "SELECT Balance, Status FROM PMC_Materials WHERE MaterialId = :id",
+            new OracleParameter("id", id))).ToList();
+
+        if (rows.Count == 0)
+        {
+            return NotFound(new { message = "Không tìm thấy liệu." });
+        }
+
+        var status = rows[0]["STATUS"]?.ToString();
+        if (status == "Disposed")
+        {
+            return Conflict(new { message = "Liệu này đã bị hủy trước đó." });
+        }
+
+        var balance = rows[0]["BALANCE"] != null ? Convert.ToDecimal(rows[0]["BALANCE"]) : 0m;
+
+        var statements = new (string Sql, OracleParameter[] Parameters)[]
+        {
+            ("UPDATE PMC_Materials " +
+             "   SET Status = 'Disposed', Balance = 0, DisposedAt = SYSTIMESTAMP, " +
+             "       UpdatedBy = :UserId, UpdatedAt = SYSTIMESTAMP, VersionNo = VersionNo + 1 " +
+             " WHERE MaterialId = :MaterialId AND Status <> 'Disposed'",
+             new[]
+             {
+                 new OracleParameter("UserId", req.UserId),
+                 new OracleParameter("MaterialId", id),
+             }),
+            ("INSERT INTO PMC_StockMovements (MaterialId, MovementType, Qty, UserId) " +
+             "VALUES (:MaterialId, 'Dispose', :Qty, :UserId)",
+             new[]
+             {
+                 new OracleParameter("MaterialId", id),
+                 new OracleParameter("Qty", balance),
+                 new OracleParameter("UserId", req.UserId),
              }),
         };
 
@@ -347,6 +502,7 @@ public class MaterialsController : ControllerBase
         Unit = row["UNIT"]?.ToString(),
         Status = row["STATUS"]?.ToString() ?? string.Empty,
         LocationCode = row["LOCATIONCODE"]?.ToString(),
+        IsOverdue = row["ISOVERDUE"] != null && Convert.ToInt32(row["ISOVERDUE"]) == 1,
         ArrivalDate = row["ARRIVALDATE"] != null ? Convert.ToDateTime(row["ARRIVALDATE"]) : null,
         CreatedAt = Convert.ToDateTime(row["CREATEDAT"]),
     };

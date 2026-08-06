@@ -15,6 +15,7 @@ public class MaterialListItem
     public string? Unit { get; set; }
     public string Status { get; set; } = string.Empty;
     public string? LocationCode { get; set; }
+    public bool IsOverdue { get; set; }
     public DateTime? ArrivalDate { get; set; }
     public DateTime CreatedAt { get; set; }
 }

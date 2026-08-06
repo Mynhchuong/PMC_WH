@@ -15,6 +15,7 @@ public class MaterialListItem
     public string? Unit { get; set; }
     public string Status { get; set; } = string.Empty;
     public string? LocationCode { get; set; }
+    public bool IsOverdue { get; set; }
     public DateTime? ArrivalDate { get; set; }
     public DateTime CreatedAt { get; set; }
 }
@@ -26,6 +27,7 @@ public class MaterialListViewModel
     public string? Status { get; set; }
     public DateTime? FromDate { get; set; }
     public DateTime? ToDate { get; set; }
+    public bool? IsOverdue { get; set; }
     public PaginationViewModel Pagination { get; set; } = new();
     public List<MaterialImportSkipItem>? ImportSkipped { get; set; }
 }

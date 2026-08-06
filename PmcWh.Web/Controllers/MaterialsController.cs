@@ -28,14 +28,15 @@ public class MaterialsController : Controller
     };
 
     [HttpGet]
-    public async Task<IActionResult> Index(string? barcode, string? status, DateTime? fromDate, DateTime? toDate, int page = 1, int pageSize = 20)
+    public async Task<IActionResult> Index(string? barcode, string? status, DateTime? fromDate, DateTime? toDate, bool? isOverdue, int page = 1, int pageSize = 20)
     {
         var client = _httpClientFactory.CreateClient("PmcApi");
         var query = $"api/Materials?page={page}&pageSize={pageSize}" +
                     $"&barcode={Uri.EscapeDataString(barcode ?? string.Empty)}" +
                     $"&status={Uri.EscapeDataString(status ?? string.Empty)}" +
                     $"&fromDate={Uri.EscapeDataString(fromDate?.ToString("yyyy-MM-dd") ?? string.Empty)}" +
-                    $"&toDate={Uri.EscapeDataString(toDate?.ToString("yyyy-MM-dd") ?? string.Empty)}";
+                    $"&toDate={Uri.EscapeDataString(toDate?.ToString("yyyy-MM-dd") ?? string.Empty)}" +
+                    $"&isOverdue={Uri.EscapeDataString(isOverdue?.ToString() ?? string.Empty)}";
         var paged = await client.GetFromJsonAsync<PagedResultDto<MaterialListItem>>(query, ApiJsonOptions);
 
         var model = new MaterialListViewModel
@@ -45,6 +46,7 @@ public class MaterialsController : Controller
             Status = status,
             FromDate = fromDate,
             ToDate = toDate,
+            IsOverdue = isOverdue,
             Pagination = new PaginationViewModel
             {
                 Page = page,
@@ -59,6 +61,7 @@ public class MaterialsController : Controller
                     ["status"] = status,
                     ["fromDate"] = fromDate?.ToString("yyyy-MM-dd"),
                     ["toDate"] = toDate?.ToString("yyyy-MM-dd"),
+                    ["isOverdue"] = isOverdue?.ToString(),
                 },
             },
         };

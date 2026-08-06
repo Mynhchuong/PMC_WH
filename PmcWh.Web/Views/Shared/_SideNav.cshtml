@@ -1,25 +1,45 @@
 @using PmcWh.Web.Helpers
+@using Microsoft.AspNetCore.Routing
 @{
-    // "/" là URL rút gọn của route mặc định (Materials/Index) — không dùng StartsWith
-    // trực tiếp để so khớp active, vì "/" là tiền tố của MỌI path, sẽ khiến item đó
-    // luôn hiện active dù đang ở trang nào khác.
-    string NormalizePath(string? path)
-    {
-        var p = (path ?? "").ToLower().TrimEnd('/');
-        return string.IsNullOrEmpty(p) ? "/" : p;
-    }
+    // So khớp active theo controller+action+route-values thực tế (không so chuỗi URL) —
+    // Url.Action rút gọn "Materials/Index" thành "/" trong khi path thực tế trên trình
+    // duyệt có thể là "/Materials/Index" hoặc "/", nên so chuỗi URL rất dễ sai. Nhiều
+    // item báo cáo trỏ cùng controller/action (Materials/Index) nhưng khác route value
+    // (status=..., isOverdue=...) nên phải so cả route value, không chỉ path.
+    var currentController = ViewContext.RouteData.Values["controller"]?.ToString() ?? "";
+    var currentAction = ViewContext.RouteData.Values["action"]?.ToString() ?? "";
 
-    bool IsActivePath(string currentPath, string? itemUrl)
-    {
-        if (string.IsNullOrEmpty(itemUrl)) return false;
-        var normalized = NormalizePath(itemUrl);
-        return currentPath == normalized || (normalized != "/" && currentPath.StartsWith(normalized + "/"));
-    }
-
-    var currentPath = NormalizePath(Context.Request.Path.Value);
     var menus = SideMenuBuilder.Build(User.IsInRole("Admin"))
         .Where(m => m.VisibleWhen == null || m.VisibleWhen())
         .ToList();
+
+    // Các route-value key được bất kỳ item nào dùng để phân biệt (vd: status, isOverdue).
+    // Item không có RouteValues (trang mặc định) chỉ active khi request hiện tại KHÔNG
+    // mang theo key nào trong số này — tránh việc trang "Cơ sở dữ liệu của PMC" (không
+    // filter) bị sáng cùng lúc với link báo cáo "Đang chờ lên kệ" (status=Staging).
+    var reservedFilterKeys = menus.SelectMany(m => m.Children)
+        .Where(c => c.RouteValues != null)
+        .SelectMany(c => new RouteValueDictionary(c.RouteValues).Keys)
+        .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+    bool IsActivePath(SideMenuItem item)
+    {
+        if (!string.Equals(item.Controller, currentController, StringComparison.OrdinalIgnoreCase)) return false;
+        if (!string.Equals(item.Action, currentAction, StringComparison.OrdinalIgnoreCase)) return false;
+
+        var itemRoute = item.RouteValues == null ? new RouteValueDictionary() : new RouteValueDictionary(item.RouteValues);
+        if (itemRoute.Count > 0)
+        {
+            return itemRoute.All(kv =>
+            {
+                var expected = kv.Value?.ToString() ?? "";
+                var actual = Context.Request.Query[kv.Key].ToString();
+                return string.Equals(expected, actual, StringComparison.OrdinalIgnoreCase);
+            });
+        }
+
+        return !reservedFilterKeys.Any(key => !string.IsNullOrEmpty(Context.Request.Query[key].ToString()));
+    }
 }
 
 <style>
@@ -118,7 +138,7 @@
     <ul class="navbar-nav">
         @foreach (var menu in menus)
         {
-            bool open = menu.Children.Any(c => IsActivePath(currentPath, Url.Action(c.Action, c.Controller)));
+            bool open = menu.Children.Any(c => IsActivePath(c));
 
             <li class="nav-item mt-2">
                 <a class="nav-link text-dark d-flex justify-content-between align-items-center"
@@ -140,8 +160,8 @@
                     <ul class="navbar-nav">
                         @foreach (var item in menu.Children)
                         {
-                            var itemUrl = Url.Action(item.Action, item.Controller);
-                            bool active = IsActivePath(currentPath, itemUrl);
+                            var itemUrl = Url.Action(item.Action, item.Controller, item.RouteValues);
+                            bool active = IsActivePath(item);
 
                             <li class="nav-item">
                                 <a class="nav-link text-dark rounded px-2 py-1 @(active ? "active fw-bold" : "")"

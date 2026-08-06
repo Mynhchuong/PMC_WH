@@ -7,6 +7,7 @@ public class SideMenuItem
     public string Icon { get; set; } = string.Empty;
     public string? Controller { get; set; }
     public string? Action { get; set; }
+    public object? RouteValues { get; set; }
     public List<SideMenuItem> Children { get; set; } = new();
     public Func<bool>? VisibleWhen { get; set; }
 }

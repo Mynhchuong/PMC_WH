@@ -53,6 +53,12 @@
                 <label class="form-label small fw-semibold text-secondary">Đến ngày</label>
                 <input type="date" name="toDate" value="@Model.ToDate?.ToString("yyyy-MM-dd")" class="form-control" />
             </div>
+            <div class="col-sm-4 col-md-1 d-flex align-items-center">
+                <div class="form-check">
+                    <input type="checkbox" name="isOverdue" value="true" class="form-check-input" id="isOverdueCheck" checked="@(Model.IsOverdue == true)" />
+                    <label class="form-check-label small" for="isOverdueCheck">Quá 90 ngày</label>
+                </div>
+            </div>
             <div class="col-sm-4 col-md-2">
                 <button type="submit" class="btn btn-outline-dark w-100 d-inline-flex align-items-center justify-content-center gap-1">
                     <span class="material-icons" style="font-size:18px;">filter_alt</span> Lọc
@@ -118,7 +124,13 @@
                             <td>@m.Colorway</td>
                             <td>@m.SizeSpec</td>
                             <td class="text-end">@m.ArrivalQty @m.Unit</td>
-                            <td><span class="badge @badgeTextClass" style="@badgeStyle">@MaterialStatusHelper.Label(m.Status)</span></td>
+                            <td>
+                                <span class="badge @badgeTextClass" style="@badgeStyle">@MaterialStatusHelper.Label(m.Status)</span>
+                                @if (m.IsOverdue)
+                                {
+                                    <span class="badge bg-danger ms-1">Quá 90 ngày</span>
+                                }
+                            </td>
                             <td>@(m.LocationCode ?? "—")</td>
                             <td class="text-muted small">@(m.ArrivalDate?.ToString("dd/MM/yyyy") ?? "—")</td>
                         </tr>
