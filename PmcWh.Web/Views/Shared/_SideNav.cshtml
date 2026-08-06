@@ -1,7 +1,22 @@
 @using PmcWh.Web.Helpers
 @{
-    var currentPath = Context.Request.Path.Value?.ToLower().TrimEnd('/') ?? "";
-    if (string.IsNullOrEmpty(currentPath)) currentPath = "/home/index";
+    // "/" là URL rút gọn của route mặc định (Materials/Index) — không dùng StartsWith
+    // trực tiếp để so khớp active, vì "/" là tiền tố của MỌI path, sẽ khiến item đó
+    // luôn hiện active dù đang ở trang nào khác.
+    string NormalizePath(string? path)
+    {
+        var p = (path ?? "").ToLower().TrimEnd('/');
+        return string.IsNullOrEmpty(p) ? "/" : p;
+    }
+
+    bool IsActivePath(string currentPath, string? itemUrl)
+    {
+        if (string.IsNullOrEmpty(itemUrl)) return false;
+        var normalized = NormalizePath(itemUrl);
+        return currentPath == normalized || (normalized != "/" && currentPath.StartsWith(normalized + "/"));
+    }
+
+    var currentPath = NormalizePath(Context.Request.Path.Value);
     var menus = SideMenuBuilder.Build(User.IsInRole("Admin"))
         .Where(m => m.VisibleWhen == null || m.VisibleWhen())
         .ToList();
@@ -103,10 +118,7 @@
     <ul class="navbar-nav">
         @foreach (var menu in menus)
         {
-            bool open = menu.Children.Any(c =>
-                !string.IsNullOrEmpty(c.Action) &&
-                currentPath.StartsWith((Url.Action(c.Action, c.Controller) ?? "").ToLower())
-            );
+            bool open = menu.Children.Any(c => IsActivePath(currentPath, Url.Action(c.Action, c.Controller)));
 
             <li class="nav-item mt-2">
                 <a class="nav-link text-dark d-flex justify-content-between align-items-center"
@@ -129,8 +141,7 @@
                         @foreach (var item in menu.Children)
                         {
                             var itemUrl = Url.Action(item.Action, item.Controller);
-                            bool active = !string.IsNullOrEmpty(itemUrl) &&
-                                          currentPath.StartsWith(itemUrl.ToLower());
+                            bool active = IsActivePath(currentPath, itemUrl);
 
                             <li class="nav-item">
                                 <a class="nav-link text-dark rounded px-2 py-1 @(active ? "active fw-bold" : "")"

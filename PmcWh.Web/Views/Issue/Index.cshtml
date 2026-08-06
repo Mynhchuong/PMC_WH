@@ -1,0 +1,169 @@
+@using System.Text.Json
+@model PmcWh.Web.Models.IssueViewModel
+@{
+    ViewData["Title"] = "Xuất hàng";
+    var itemsJson = JsonSerializer.Serialize(
+        Model.IssuableItems.Select(m => new { m.MaterialId, m.Barcode, m.Balance, m.Unit }),
+        new JsonSerializerOptions(JsonSerializerDefaults.Web));
+}
+
+<div class="card border-0 shadow-sm rounded-4 mb-3">
+    <div class="card-body">
+        <div class="d-flex align-items-center gap-3 mb-4">
+            <span class="d-inline-flex align-items-center justify-content-center rounded-4"
+                  style="width:48px;height:48px;background:linear-gradient(135deg, #495057 0%, #212529 100%); flex-shrink:0;">
+                <span class="material-icons text-white">local_shipping</span>
+            </span>
+            <div>
+                <h5 class="card-title mb-0">Xuất hàng</h5>
+                <p class="text-muted small mb-0">Xuất liệu cho DEV/Workshop, trừ tồn kho</p>
+            </div>
+        </div>
+
+        <label class="form-label small fw-semibold text-secondary">Quét barcode</label>
+        <div class="input-group" style="max-width: 420px;">
+            <span class="input-group-text bg-white"><span class="material-icons" style="font-size:18px;">qr_code_scanner</span></span>
+            <input type="text" id="scanInput" class="form-control" placeholder="Quét hoặc gõ barcode rồi Enter..." autofocus autocomplete="off" />
+        </div>
+    </div>
+</div>
+
+<div class="card border-0 shadow-sm rounded-4">
+    <div class="card-body">
+        <h5 class="card-title mb-3">Có thể xuất (@Model.IssuableItems.Count)</h5>
+
+        <div class="table-responsive">
+            <table class="table align-middle">
+                <thead>
+                    <tr class="text-uppercase text-muted small">
+                        <th>Barcode</th>
+                        <th>Dev</th>
+                        <th>Model</th>
+                        <th>Colorway</th>
+                        <th>Size</th>
+                        <th class="text-end">Tồn</th>
+                        <th>Kệ hiện tại</th>
+                        <th class="text-end">Hành động</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var m in Model.IssuableItems)
+                    {
+                        <tr class="js-issuable-row" data-barcode="@m.Barcode">
+                            <td class="fw-semibold">@m.Barcode</td>
+                            <td>@m.Dev</td>
+                            <td>@m.Model</td>
+                            <td>@m.Colorway</td>
+                            <td>@m.SizeSpec</td>
+                            <td class="text-end">@m.Balance @m.Unit</td>
+                            <td>@(m.LocationCode ?? "—")</td>
+                            <td class="text-end">
+                                <button type="button" class="btn btn-sm pmc-btn-dark js-open-issue"
+                                        data-material-id="@m.MaterialId" data-barcode="@m.Barcode">
+                                    Xuất
+                                </button>
+                            </td>
+                        </tr>
+                    }
+                    @if (Model.IssuableItems.Count == 0)
+                    {
+                        <tr>
+                            <td colspan="8" class="text-center text-muted py-4">Không có liệu nào có thể xuất.</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="issueModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 rounded-4 shadow">
+            <div class="modal-header border-0">
+                <h5 class="modal-title">Xuất — <span id="issueBarcodeLabel"></span></h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form asp-controller="Issue" asp-action="Scan" method="post">
+                <input type="hidden" name="materialId" id="issueMaterialId" />
+                <input type="hidden" name="barcode" id="issueBarcode" />
+                <div class="modal-body">
+                    <p class="text-muted small mb-3">Tồn hiện tại: <span id="issueBalanceLabel" class="fw-semibold"></span></p>
+
+                    <label class="form-label small fw-semibold text-secondary">Nơi nhận</label>
+                    <select name="recipientId" id="recipientSelect" class="form-select mb-3" required>
+                        @foreach (var r in Model.Recipients)
+                        {
+                            <option value="@r.RecipientId">@r.Name</option>
+                        }
+                    </select>
+
+                    <label class="form-label small fw-semibold text-secondary">Số lượng xuất</label>
+                    <input type="number" name="qty" id="issueQty" class="form-control" step="0.01" min="0.01" required />
+                </div>
+                <div class="modal-footer border-0">
+                    <button type="button" class="btn btn-light" data-bs-dismiss="modal">Hủy</button>
+                    <button type="submit" class="btn pmc-btn-dark d-inline-flex align-items-center gap-1">
+                        <span class="material-icons" style="font-size:18px;">check</span> Xác nhận
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div id="pmc-flash"
+     data-success="@(ViewData["FlashSuccess"] as string)"
+     data-error="@(ViewData["FlashError"] as string)"
+     style="display:none"></div>
+
+@section Scripts {
+    <script>
+        (function () {
+            var flash = document.getElementById('pmc-flash');
+            if (flash.dataset.success) PmcUI.success(flash.dataset.success);
+            if (flash.dataset.error) PmcUI.error(flash.dataset.error);
+
+            var items = @Html.Raw(itemsJson);
+            var byId = {};
+            items.forEach(function (it) { byId[it.materialId] = it; });
+
+            var issueModal = new bootstrap.Modal(document.getElementById('issueModal'));
+
+            function openIssueFor(materialId, barcode) {
+                var item = byId[materialId];
+                document.getElementById('issueMaterialId').value = materialId;
+                document.getElementById('issueBarcode').value = barcode;
+                document.getElementById('issueBarcodeLabel').textContent = barcode;
+                document.getElementById('issueBalanceLabel').textContent = item ? (item.balance + ' ' + (item.unit || '')) : '';
+                var qtyInput = document.getElementById('issueQty');
+                qtyInput.value = item ? item.balance : '';
+                qtyInput.max = item ? item.balance : '';
+                issueModal.show();
+            }
+
+            document.querySelectorAll('.js-open-issue').forEach(function (btn) {
+                btn.addEventListener('click', function () {
+                    openIssueFor(btn.dataset.materialId, btn.dataset.barcode);
+                });
+            });
+
+            var scanInput = document.getElementById('scanInput');
+            scanInput.addEventListener('keydown', function (e) {
+                if (e.key !== 'Enter') return;
+                e.preventDefault();
+                var code = scanInput.value.trim();
+                scanInput.value = '';
+                if (!code) return;
+
+                var row = document.querySelector('.js-issuable-row[data-barcode="' + CSS.escape(code) + '"]');
+                if (!row) {
+                    PmcUI.error('Không tìm thấy barcode "' + code + '" trong danh sách có thể xuất.');
+                    return;
+                }
+                var btn = row.querySelector('.js-open-issue');
+                openIssueFor(btn.dataset.materialId, btn.dataset.barcode);
+            });
+        })();
+    </script>
+}

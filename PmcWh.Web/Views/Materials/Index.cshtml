@@ -103,6 +103,7 @@
                         <th>Size</th>
                         <th class="text-end">A.Qty</th>
                         <th>Trạng thái</th>
+                        <th>Kệ hiện tại</th>
                         <th>Ngày nhập</th>
                     </tr>
                 </thead>
@@ -118,13 +119,14 @@
                             <td>@m.SizeSpec</td>
                             <td class="text-end">@m.ArrivalQty @m.Unit</td>
                             <td><span class="badge @badgeTextClass" style="@badgeStyle">@MaterialStatusHelper.Label(m.Status)</span></td>
+                            <td>@(m.LocationCode ?? "—")</td>
                             <td class="text-muted small">@(m.ArrivalDate?.ToString("dd/MM/yyyy") ?? "—")</td>
                         </tr>
                     }
                     @if (Model.Items.Count == 0)
                     {
                         <tr>
-                            <td colspan="8" class="text-center text-muted py-4">Không có dữ liệu phù hợp.</td>
+                            <td colspan="9" class="text-center text-muted py-4">Không có dữ liệu phù hợp.</td>
                         </tr>
                     }
                 </tbody>

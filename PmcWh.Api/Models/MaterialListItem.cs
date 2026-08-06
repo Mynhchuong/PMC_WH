@@ -11,8 +11,10 @@ public class MaterialListItem
     public string? Colorway { get; set; }
     public string? SizeSpec { get; set; }
     public decimal? ArrivalQty { get; set; }
+    public decimal? Balance { get; set; }
     public string? Unit { get; set; }
     public string Status { get; set; } = string.Empty;
+    public string? LocationCode { get; set; }
     public DateTime? ArrivalDate { get; set; }
     public DateTime CreatedAt { get; set; }
 }

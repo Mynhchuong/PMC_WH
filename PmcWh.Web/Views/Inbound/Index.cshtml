@@ -1,0 +1,186 @@
+@using System.Text.Json
+@model PmcWh.Web.Models.InboundViewModel
+@{
+    ViewData["Title"] = "Quét lên kệ";
+    var locationsJson = JsonSerializer.Serialize(Model.Locations, new JsonSerializerOptions(JsonSerializerDefaults.Web));
+}
+
+<div class="card border-0 shadow-sm rounded-4 mb-3">
+    <div class="card-body">
+        <div class="d-flex align-items-center gap-3 mb-4">
+            <span class="d-inline-flex align-items-center justify-content-center rounded-4"
+                  style="width:48px;height:48px;background:linear-gradient(135deg, #495057 0%, #212529 100%); flex-shrink:0;">
+                <span class="material-icons text-white">qr_code_scanner</span>
+            </span>
+            <div>
+                <h5 class="card-title mb-0">Quét lên kệ</h5>
+                <p class="text-muted small mb-0">Chuyển liệu từ khu vực chờ (Staging) lên kệ thật</p>
+            </div>
+        </div>
+
+        <label class="form-label small fw-semibold text-secondary">Quét barcode</label>
+        <div class="input-group" style="max-width: 420px;">
+            <span class="input-group-text bg-white"><span class="material-icons" style="font-size:18px;">qr_code_scanner</span></span>
+            <input type="text" id="scanInput" class="form-control" placeholder="Quét hoặc gõ barcode rồi Enter..." autofocus autocomplete="off" />
+        </div>
+    </div>
+</div>
+
+<div class="card border-0 shadow-sm rounded-4">
+    <div class="card-body">
+        <h5 class="card-title mb-3">Đang chờ lên kệ (@Model.StagingItems.Count)</h5>
+
+        <div class="table-responsive">
+            <table class="table align-middle">
+                <thead>
+                    <tr class="text-uppercase text-muted small">
+                        <th>Barcode</th>
+                        <th>Dev</th>
+                        <th>Model</th>
+                        <th>Colorway</th>
+                        <th>Size</th>
+                        <th class="text-end">A.Qty</th>
+                        <th>Kệ hiện tại</th>
+                        <th>Ngày nhập</th>
+                        <th class="text-end">Hành động</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var m in Model.StagingItems)
+                    {
+                        <tr class="js-staging-row" data-barcode="@m.Barcode">
+                            <td class="fw-semibold">@m.Barcode</td>
+                            <td>@m.Dev</td>
+                            <td>@m.Model</td>
+                            <td>@m.Colorway</td>
+                            <td>@m.SizeSpec</td>
+                            <td class="text-end">@m.ArrivalQty @m.Unit</td>
+                            <td>@(m.LocationCode ?? "—")</td>
+                            <td class="text-muted small">@(m.ArrivalDate?.ToString("dd/MM/yyyy") ?? "—")</td>
+                            <td class="text-end">
+                                <button type="button" class="btn btn-sm pmc-btn-dark js-open-inbound"
+                                        data-material-id="@m.MaterialId" data-barcode="@m.Barcode">
+                                    Lên kệ
+                                </button>
+                            </td>
+                        </tr>
+                    }
+                    @if (Model.StagingItems.Count == 0)
+                    {
+                        <tr>
+                            <td colspan="9" class="text-center text-muted py-4">Không có liệu nào đang chờ lên kệ.</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="inboundModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 rounded-4 shadow">
+            <div class="modal-header border-0">
+                <h5 class="modal-title">Lên kệ — <span id="inboundBarcodeLabel"></span></h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form asp-controller="Inbound" asp-action="Scan" method="post">
+                <input type="hidden" name="materialId" id="inboundMaterialId" />
+                <input type="hidden" name="barcode" id="inboundBarcode" />
+                <div class="modal-body">
+                    <label class="form-label small fw-semibold text-secondary">Kệ</label>
+                    <select id="rackSelect" class="form-select mb-3"></select>
+
+                    <label class="form-label small fw-semibold text-secondary">Tầng</label>
+                    <select name="locationId" id="levelSelect" class="form-select" required></select>
+                </div>
+                <div class="modal-footer border-0">
+                    <button type="button" class="btn btn-light" data-bs-dismiss="modal">Hủy</button>
+                    <button type="submit" class="btn pmc-btn-dark d-inline-flex align-items-center gap-1">
+                        <span class="material-icons" style="font-size:18px;">check</span> Xác nhận
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div id="pmc-flash"
+     data-success="@(ViewData["FlashSuccess"] as string)"
+     data-error="@(ViewData["FlashError"] as string)"
+     style="display:none"></div>
+
+@section Scripts {
+    <script>
+        (function () {
+            var flash = document.getElementById('pmc-flash');
+            if (flash.dataset.success) PmcUI.success(flash.dataset.success);
+            if (flash.dataset.error) PmcUI.error(flash.dataset.error);
+
+            var locations = @Html.Raw(locationsJson);
+            var byRack = {};
+            locations.forEach(function (loc) {
+                (byRack[loc.rackNo] = byRack[loc.rackNo] || []).push(loc);
+            });
+            var racks = Object.keys(byRack).map(Number).sort(function (a, b) { return a - b; });
+
+            var rackSelect = document.getElementById('rackSelect');
+            var levelSelect = document.getElementById('levelSelect');
+
+            racks.forEach(function (rack) {
+                var opt = document.createElement('option');
+                opt.value = rack;
+                opt.textContent = 'Kệ ' + rack;
+                rackSelect.appendChild(opt);
+            });
+
+            function populateLevels(rack) {
+                levelSelect.innerHTML = '';
+                (byRack[rack] || []).sort(function (a, b) { return a.levelNo - b.levelNo; }).forEach(function (loc) {
+                    var opt = document.createElement('option');
+                    opt.value = loc.locationId;
+                    opt.textContent = 'Tầng ' + loc.levelNo + ' (' + loc.code + ')';
+                    levelSelect.appendChild(opt);
+                });
+            }
+
+            rackSelect.addEventListener('change', function () { populateLevels(rackSelect.value); });
+            if (racks.length > 0) {
+                rackSelect.value = racks[0];
+                populateLevels(racks[0]);
+            }
+
+            var inboundModal = new bootstrap.Modal(document.getElementById('inboundModal'));
+
+            function openInboundFor(materialId, barcode) {
+                document.getElementById('inboundMaterialId').value = materialId;
+                document.getElementById('inboundBarcode').value = barcode;
+                document.getElementById('inboundBarcodeLabel').textContent = barcode;
+                inboundModal.show();
+            }
+
+            document.querySelectorAll('.js-open-inbound').forEach(function (btn) {
+                btn.addEventListener('click', function () {
+                    openInboundFor(btn.dataset.materialId, btn.dataset.barcode);
+                });
+            });
+
+            var scanInput = document.getElementById('scanInput');
+            scanInput.addEventListener('keydown', function (e) {
+                if (e.key !== 'Enter') return;
+                e.preventDefault();
+                var code = scanInput.value.trim();
+                scanInput.value = '';
+                if (!code) return;
+
+                var row = document.querySelector('.js-staging-row[data-barcode="' + CSS.escape(code) + '"]');
+                if (!row) {
+                    PmcUI.error('Không tìm thấy barcode "' + code + '" trong danh sách đang chờ lên kệ.');
+                    return;
+                }
+                var btn = row.querySelector('.js-open-inbound');
+                openInboundFor(btn.dataset.materialId, btn.dataset.barcode);
+            });
+        })();
+    </script>
+}

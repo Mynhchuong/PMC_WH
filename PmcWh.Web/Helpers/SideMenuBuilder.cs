@@ -16,6 +16,8 @@ public static class SideMenuBuilder
                 Children = new List<SideMenuItem>
                 {
                     new SideMenuItem { Title = "Cơ sở dữ liệu của PMC", Controller = "Materials", Action = "Index", Icon = "storage" },
+                    new SideMenuItem { Title = "Quét lên kệ", Controller = "Inbound", Action = "Index", Icon = "qr_code_scanner" },
+                    new SideMenuItem { Title = "Xuất hàng", Controller = "Issue", Action = "Index", Icon = "local_shipping" },
                 }
             },
             new SideMenuItem
