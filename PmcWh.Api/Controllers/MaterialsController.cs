@@ -87,7 +87,94 @@ public class MaterialsController : ControllerBase
             return NotFound();
         }
 
-        return Ok(MapMaterialDetail(rows[0]));
+        var detail = MapMaterialDetail(rows[0]);
+
+        var movementRows = await _db.QueryAsync(
+            @"SELECT mv.MovementId, mv.MovementType, mv.Qty, mv.OccurredAt, mv.Note,
+                     l.Code AS LocationCode, u.Username, r.Name AS RecipientName
+                FROM PMC_StockMovements mv
+                LEFT JOIN PMC_StorageLocations l ON l.LocationId = mv.LocationId
+                LEFT JOIN PMC_Users u ON u.UserId = mv.UserId
+                LEFT JOIN PMC_Recipients r ON r.RecipientId = mv.RecipientId
+               WHERE mv.MaterialId = :id
+               ORDER BY mv.OccurredAt DESC, mv.MovementId DESC",
+            new OracleParameter("id", id));
+
+        detail.Movements = movementRows.Select(MapMovementHistoryItem).ToList();
+
+        return Ok(detail);
+    }
+
+    /// <summary>
+    /// Sửa thông tin mô tả (Dev, PO, Model, Colorway, v.v.) — KHÔNG sửa ArrivalQty/Balance/Status,
+    /// các trường đó do nghiệp vụ nhập/xuất/hủy/nhận lại tự tính. Admin-only (chặn ở tầng Web).
+    /// </summary>
+    [HttpPost("{id:int}/edit")]
+    public async Task<IActionResult> Edit(int id, [FromBody] EditMaterialRequest req)
+    {
+        var affected = await _db.ExecuteAsync(
+            @"UPDATE PMC_Materials
+                 SET Dev = :Dev, PoNo = :PoNo, Supplier = :Supplier, Model = :Model, Season = :Season,
+                     Stage = :Stage, Colorway = :Colorway, Component = :Component,
+                     MatlDescription = :MatlDescription, ColorCode = :ColorCode, ColorName = :ColorName,
+                     SizeSpec = :SizeSpec, Unit = :Unit, FocFlag = :FocFlag, ArrivalDate = :ArrivalDate,
+                     Remark = :Remark, Testing = :Testing, TestRequire = :TestRequire, TestQty = :TestQty,
+                     Category = :Category, RequestBy = :RequestBy, RequestOn = :RequestOn,
+                     UpdatedBy = :UserId, UpdatedAt = SYSTIMESTAMP, VersionNo = VersionNo + 1
+               WHERE MaterialId = :MaterialId",
+            new OracleParameter("Dev", (object?)req.Dev ?? DBNull.Value),
+            new OracleParameter("PoNo", (object?)req.PoNo ?? DBNull.Value),
+            new OracleParameter("Supplier", (object?)req.Supplier ?? DBNull.Value),
+            new OracleParameter("Model", (object?)req.Model ?? DBNull.Value),
+            new OracleParameter("Season", (object?)req.Season ?? DBNull.Value),
+            new OracleParameter("Stage", (object?)req.Stage ?? DBNull.Value),
+            new OracleParameter("Colorway", (object?)req.Colorway ?? DBNull.Value),
+            new OracleParameter("Component", (object?)req.Component ?? DBNull.Value),
+            new OracleParameter("MatlDescription", (object?)req.MatlDescription ?? DBNull.Value),
+            new OracleParameter("ColorCode", (object?)req.ColorCode ?? DBNull.Value),
+            new OracleParameter("ColorName", (object?)req.ColorName ?? DBNull.Value),
+            new OracleParameter("SizeSpec", (object?)req.SizeSpec ?? DBNull.Value),
+            new OracleParameter("Unit", (object?)req.Unit ?? DBNull.Value),
+            new OracleParameter("FocFlag", (object?)req.FocFlag ?? DBNull.Value),
+            new OracleParameter("ArrivalDate", OracleDbType.Date) { Value = (object?)req.ArrivalDate ?? DBNull.Value },
+            new OracleParameter("Remark", (object?)req.Remark ?? DBNull.Value),
+            new OracleParameter("Testing", (object?)req.Testing ?? DBNull.Value),
+            new OracleParameter("TestRequire", (object?)req.TestRequire ?? DBNull.Value),
+            new OracleParameter("TestQty", (object?)req.TestQty ?? DBNull.Value),
+            new OracleParameter("Category", (object?)req.Category ?? DBNull.Value),
+            new OracleParameter("RequestBy", (object?)req.RequestBy ?? DBNull.Value),
+            new OracleParameter("RequestOn", OracleDbType.Date) { Value = (object?)req.RequestOn ?? DBNull.Value },
+            new OracleParameter("UserId", req.UserId),
+            new OracleParameter("MaterialId", id));
+
+        if (affected == 0)
+        {
+            return NotFound(new { message = "Không tìm thấy liệu." });
+        }
+
+        return Ok();
+    }
+
+    /// <summary>
+    /// Admin xóa (đánh cờ IsArchived) 1 liệu đang quá 90 ngày chưa nhận lại — xóa mềm, vẫn giữ
+    /// lịch sử StockMovements. KHÔNG tự động chạy — chỉ Admin bấm tay (chặn ở tầng Web).
+    /// </summary>
+    [HttpPost("{id:int}/archive-overdue")]
+    public async Task<IActionResult> ArchiveOverdue(int id, [FromBody] ArchiveOverdueRequest req)
+    {
+        var affected = await _db.ExecuteAsync(
+            @"UPDATE PMC_Materials
+                 SET IsArchived = 1, UpdatedBy = :UserId, UpdatedAt = SYSTIMESTAMP, VersionNo = VersionNo + 1
+               WHERE MaterialId = :MaterialId AND IsOverdue = 1 AND IsArchived = 0",
+            new OracleParameter("UserId", req.UserId),
+            new OracleParameter("MaterialId", id));
+
+        if (affected == 0)
+        {
+            return Conflict(new { message = "Liệu này không còn ở trạng thái quá hạn chưa xóa — có thể đã được nhận lại hoặc xóa trước đó." });
+        }
+
+        return Ok();
     }
 
     /// <summary>
@@ -160,7 +247,14 @@ public class MaterialsController : ControllerBase
              }),
         };
 
-        await _db.ExecuteBatchAsync(statements);
+        try
+        {
+            await _db.ExecuteBatchAsync(statements);
+        }
+        catch (ConcurrencyConflictException)
+        {
+            return Conflict(new { message = "Liệu này vừa được người khác lên kệ, vui lòng tải lại danh sách." });
+        }
 
         return Ok();
     }
@@ -225,14 +319,16 @@ public class MaterialsController : ControllerBase
         {
             ("UPDATE PMC_Materials " +
              "   SET Balance = :Remaining, Status = :NewStatus, LastIssuedAt = SYSTIMESTAMP, " +
+             "       CurrentLocationId = CASE WHEN :NewStatus = 'IssuedOut' THEN NULL ELSE CurrentLocationId END, " +
              "       UpdatedBy = :UserId, UpdatedAt = SYSTIMESTAMP, VersionNo = VersionNo + 1 " +
-             " WHERE MaterialId = :MaterialId AND Status IN ('InStock', 'PartiallyIssued')",
+             " WHERE MaterialId = :MaterialId AND Status IN ('InStock', 'PartiallyIssued') AND Balance = :OldBalance",
              new[]
              {
                  new OracleParameter("Remaining", remaining),
                  new OracleParameter("NewStatus", newStatus),
                  new OracleParameter("UserId", req.UserId),
                  new OracleParameter("MaterialId", id),
+                 new OracleParameter("OldBalance", balance),
              }),
             ("INSERT INTO PMC_StockMovements (MaterialId, MovementType, Qty, UserId, RecipientId) " +
              "VALUES (:MaterialId, 'IssueToWorkshop', :Qty, :UserId, :RecipientId)",
@@ -245,7 +341,14 @@ public class MaterialsController : ControllerBase
              }),
         };
 
-        await _db.ExecuteBatchAsync(statements);
+        try
+        {
+            await _db.ExecuteBatchAsync(statements);
+        }
+        catch (ConcurrencyConflictException)
+        {
+            return Conflict(new { message = "Tồn kho của liệu này vừa bị thay đổi bởi thao tác khác, vui lòng tải lại và thử lại." });
+        }
 
         return Ok();
     }
@@ -310,7 +413,7 @@ public class MaterialsController : ControllerBase
             ("UPDATE PMC_Materials " +
              "   SET Balance = :NewBalance, Status = :NewStatus, CurrentLocationId = :LocationId, IsOverdue = 0, " +
              "       UpdatedBy = :UserId, UpdatedAt = SYSTIMESTAMP, VersionNo = VersionNo + 1 " +
-             " WHERE MaterialId = :MaterialId AND Status IN ('IssuedOut', 'PartiallyIssued')",
+             " WHERE MaterialId = :MaterialId AND Status IN ('IssuedOut', 'PartiallyIssued') AND Balance = :OldBalance",
              new[]
              {
                  new OracleParameter("NewBalance", newBalance),
@@ -318,6 +421,7 @@ public class MaterialsController : ControllerBase
                  new OracleParameter("LocationId", req.LocationId),
                  new OracleParameter("UserId", req.UserId),
                  new OracleParameter("MaterialId", id),
+                 new OracleParameter("OldBalance", balance),
              }),
             ("INSERT INTO PMC_StockMovements (MaterialId, MovementType, Qty, LocationId, UserId) " +
              "VALUES (:MaterialId, 'Return', :Qty, :LocationId, :UserId)",
@@ -330,7 +434,14 @@ public class MaterialsController : ControllerBase
              }),
         };
 
-        await _db.ExecuteBatchAsync(statements);
+        try
+        {
+            await _db.ExecuteBatchAsync(statements);
+        }
+        catch (ConcurrencyConflictException)
+        {
+            return Conflict(new { message = "Số lượng đã xuất của liệu này vừa bị thay đổi bởi thao tác khác, vui lòng tải lại và thử lại." });
+        }
 
         return Ok();
     }
@@ -398,7 +509,14 @@ public class MaterialsController : ControllerBase
              }),
         };
 
-        await _db.ExecuteBatchAsync(statements);
+        try
+        {
+            await _db.ExecuteBatchAsync(statements);
+        }
+        catch (ConcurrencyConflictException)
+        {
+            return Conflict(new { message = "Liệu này vừa được người khác hủy, vui lòng tải lại danh sách." });
+        }
 
         return Ok();
     }
@@ -543,6 +661,18 @@ public class MaterialsController : ControllerBase
         IsOverdue = row["ISOVERDUE"] != null && Convert.ToInt32(row["ISOVERDUE"]) == 1,
         CreatedAt = Convert.ToDateTime(row["CREATEDAT"]),
         UpdatedAt = row["UPDATEDAT"] != null ? Convert.ToDateTime(row["UPDATEDAT"]) : null,
+    };
+
+    private static MovementHistoryItem MapMovementHistoryItem(Dictionary<string, object?> row) => new()
+    {
+        MovementId = Convert.ToInt32(row["MOVEMENTID"]),
+        MovementType = row["MOVEMENTTYPE"]?.ToString() ?? string.Empty,
+        Qty = Convert.ToDecimal(row["QTY"]),
+        LocationCode = row["LOCATIONCODE"]?.ToString(),
+        Username = row["USERNAME"]?.ToString(),
+        RecipientName = row["RECIPIENTNAME"]?.ToString(),
+        OccurredAt = Convert.ToDateTime(row["OCCURREDAT"]),
+        Note = row["NOTE"]?.ToString(),
     };
 
     private static OracleParameter[] BuildInsertParams(MaterialImportRow r) => new[]

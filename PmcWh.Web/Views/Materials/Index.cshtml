@@ -3,6 +3,7 @@
 @{
     ViewData["Title"] = "Cơ sở dữ liệu của PMC";
     var statusOptions = MaterialStatusHelper.AllStatuses;
+    var isAdmin = User.IsInRole("Admin");
 }
 
 <div class="card border-0 shadow-sm rounded-4 mb-3">
@@ -18,14 +19,17 @@
             </div>
         </div>
 
-        <div class="d-flex flex-wrap align-items-center gap-2 mb-3 pb-3 border-bottom">
-            <button type="button" class="btn pmc-btn-dark d-inline-flex align-items-center gap-1" data-bs-toggle="modal" data-bs-target="#importModal">
-                <span class="material-icons" style="font-size:18px;">cloud_upload</span> Import
-            </button>
-            <a asp-controller="Materials" asp-action="DownloadTemplate" class="btn btn-outline-secondary d-inline-flex align-items-center gap-1">
-                <span class="material-icons" style="font-size:18px;">download</span> Tải file mẫu
-            </a>
-        </div>
+        @if (isAdmin)
+        {
+            <div class="d-flex flex-wrap align-items-center gap-2 mb-3 pb-3 border-bottom">
+                <button type="button" class="btn pmc-btn-dark d-inline-flex align-items-center gap-1" data-bs-toggle="modal" data-bs-target="#importModal">
+                    <span class="material-icons" style="font-size:18px;">cloud_upload</span> Import
+                </button>
+                <a asp-controller="Materials" asp-action="DownloadTemplate" class="btn btn-outline-secondary d-inline-flex align-items-center gap-1">
+                    <span class="material-icons" style="font-size:18px;">download</span> Tải file mẫu
+                </a>
+            </div>
+        }
 
         <form asp-controller="Materials" asp-action="Index" method="get" class="row g-2 align-items-end">
             <div class="col-sm-6 col-md-3">
@@ -111,6 +115,10 @@
                         <th>Trạng thái</th>
                         <th>Kệ hiện tại</th>
                         <th>Ngày nhập</th>
+                        @if (isAdmin)
+                        {
+                            <th class="text-end">Hành động</th>
+                        }
                     </tr>
                 </thead>
                 <tbody>
@@ -133,12 +141,27 @@
                             </td>
                             <td>@(m.LocationCode ?? "—")</td>
                             <td class="text-muted small">@(m.ArrivalDate?.ToString("dd/MM/yyyy") ?? "—")</td>
+                            @if (isAdmin)
+                            {
+                                <td class="text-end">
+                                    <button type="button" class="btn btn-sm btn-outline-secondary js-edit-btn" data-id="@m.MaterialId" title="Sửa thông tin">
+                                        <span class="material-icons" style="font-size:16px;">edit</span>
+                                    </button>
+                                    @if (m.IsOverdue)
+                                    {
+                                        <button type="button" class="btn btn-sm btn-outline-danger js-archive-btn ms-1"
+                                                data-id="@m.MaterialId" data-barcode="@m.Barcode" title="Xóa liệu quá hạn">
+                                            <span class="material-icons" style="font-size:16px;">delete_forever</span>
+                                        </button>
+                                    }
+                                </td>
+                            }
                         </tr>
                     }
                     @if (Model.Items.Count == 0)
                     {
                         <tr>
-                            <td colspan="9" class="text-center text-muted py-4">Không có dữ liệu phù hợp.</td>
+                            <td colspan="@(isAdmin ? 10 : 9)" class="text-center text-muted py-4">Không có dữ liệu phù hợp.</td>
                         </tr>
                     }
                 </tbody>
@@ -151,28 +174,90 @@
     </div>
 </div>
 
-<div class="modal fade" id="importModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content border-0 rounded-4 shadow">
-            <div class="modal-header border-0">
-                <h5 class="modal-title">Import liệu từ Excel</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+@if (isAdmin)
+{
+    <div class="modal fade" id="importModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-0 rounded-4 shadow">
+                <div class="modal-header border-0">
+                    <h5 class="modal-title">Import liệu từ Excel</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <form asp-controller="Materials" asp-action="Index" method="post" enctype="multipart/form-data">
+                    <div class="modal-body">
+                        <label class="form-label small fw-semibold text-secondary">Chọn file Excel (.xlsx)</label>
+                        <input type="file" name="file" accept=".xlsx" class="form-control" required />
+                    </div>
+                    <div class="modal-footer border-0">
+                        <button type="button" class="btn btn-light" data-bs-dismiss="modal">Hủy</button>
+                        <button type="submit" class="btn pmc-btn-dark d-inline-flex align-items-center gap-1">
+                            <span class="material-icons" style="font-size:18px;">cloud_upload</span> Import
+                        </button>
+                    </div>
+                </form>
             </div>
-            <form asp-controller="Materials" asp-action="Index" method="post" enctype="multipart/form-data">
-                <div class="modal-body">
-                    <label class="form-label small fw-semibold text-secondary">Chọn file Excel (.xlsx)</label>
-                    <input type="file" name="file" accept=".xlsx" class="form-control" required />
-                </div>
-                <div class="modal-footer border-0">
-                    <button type="button" class="btn btn-light" data-bs-dismiss="modal">Hủy</button>
-                    <button type="submit" class="btn pmc-btn-dark d-inline-flex align-items-center gap-1">
-                        <span class="material-icons" style="font-size:18px;">cloud_upload</span> Import
-                    </button>
-                </div>
-            </form>
         </div>
     </div>
-</div>
+
+    <div class="modal fade" id="editModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-lg">
+            <div class="modal-content border-0 rounded-4 shadow">
+                <div class="modal-header border-0">
+                    <h5 class="modal-title">Sửa thông tin liệu</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <form asp-controller="Materials" asp-action="Edit" method="post" id="editForm">
+                    <input type="hidden" name="MaterialId" id="edit_MaterialId" />
+                    <input type="hidden" name="ReturnUrl" id="edit_ReturnUrl" />
+                    <div class="modal-body">
+                        <div class="row row-cols-2 g-3">
+                            <div><label class="form-label small fw-semibold text-secondary">Dev</label><input class="form-control" name="Dev" id="edit_Dev" /></div>
+                            <div><label class="form-label small fw-semibold text-secondary">PO</label><input class="form-control" name="PoNo" id="edit_PoNo" /></div>
+                            <div><label class="form-label small fw-semibold text-secondary">Supplier</label><input class="form-control" name="Supplier" id="edit_Supplier" /></div>
+                            <div><label class="form-label small fw-semibold text-secondary">Model</label><input class="form-control" name="Model" id="edit_Model" /></div>
+                            <div><label class="form-label small fw-semibold text-secondary">Season</label><input class="form-control" name="Season" id="edit_Season" /></div>
+                            <div><label class="form-label small fw-semibold text-secondary">Stage</label><input class="form-control" name="Stage" id="edit_Stage" /></div>
+                            <div><label class="form-label small fw-semibold text-secondary">Colorway</label><input class="form-control" name="Colorway" id="edit_Colorway" /></div>
+                            <div><label class="form-label small fw-semibold text-secondary">Component</label><input class="form-control" name="Component" id="edit_Component" /></div>
+                            <div class="col-12"><label class="form-label small fw-semibold text-secondary">Mô tả liệu</label><input class="form-control" name="MatlDescription" id="edit_MatlDescription" /></div>
+                            <div><label class="form-label small fw-semibold text-secondary">Color code</label><input class="form-control" name="ColorCode" id="edit_ColorCode" /></div>
+                            <div><label class="form-label small fw-semibold text-secondary">Color name</label><input class="form-control" name="ColorName" id="edit_ColorName" /></div>
+                            <div><label class="form-label small fw-semibold text-secondary">Size</label><input class="form-control" name="SizeSpec" id="edit_SizeSpec" /></div>
+                            <div><label class="form-label small fw-semibold text-secondary">Đơn vị</label><input class="form-control" name="Unit" id="edit_Unit" /></div>
+                            <div><label class="form-label small fw-semibold text-secondary">FOC</label><input class="form-control" name="FocFlag" id="edit_FocFlag" /></div>
+                            <div><label class="form-label small fw-semibold text-secondary">Ngày nhập (ATA)</label><input type="date" class="form-control" name="ArrivalDate" id="edit_ArrivalDate" /></div>
+                            <div>
+                                <label class="form-label small fw-semibold text-secondary">Testing</label>
+                                <select class="form-select" name="Testing" id="edit_Testing">
+                                    <option value="">—</option>
+                                    <option value="1">Có</option>
+                                    <option value="0">Không</option>
+                                </select>
+                            </div>
+                            <div><label class="form-label small fw-semibold text-secondary">Test require</label><input class="form-control" name="TestRequire" id="edit_TestRequire" /></div>
+                            <div><label class="form-label small fw-semibold text-secondary">Test qty</label><input class="form-control" name="TestQty" id="edit_TestQty" /></div>
+                            <div><label class="form-label small fw-semibold text-secondary">Category</label><input class="form-control" name="Category" id="edit_Category" /></div>
+                            <div><label class="form-label small fw-semibold text-secondary">Request by</label><input class="form-control" name="RequestBy" id="edit_RequestBy" /></div>
+                            <div><label class="form-label small fw-semibold text-secondary">Request on</label><input type="date" class="form-control" name="RequestOn" id="edit_RequestOn" /></div>
+                            <div class="col-12"><label class="form-label small fw-semibold text-secondary">Remark</label><textarea class="form-control" name="Remark" id="edit_Remark" rows="2"></textarea></div>
+                        </div>
+                    </div>
+                    <div class="modal-footer border-0">
+                        <button type="button" class="btn btn-light" data-bs-dismiss="modal">Hủy</button>
+                        <button type="submit" class="btn pmc-btn-dark d-inline-flex align-items-center gap-1">
+                            <span class="material-icons" style="font-size:18px;">save</span> Lưu
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <form asp-controller="Materials" asp-action="ArchiveOverdue" method="post" id="archiveForm">
+        <input type="hidden" name="id" id="archive_id" />
+        <input type="hidden" name="returnUrl" id="archive_returnUrl" />
+    </form>
+}
 
 <div id="pmc-flash"
      data-success="@(ViewData["FlashSuccess"] as string)"
@@ -202,6 +287,59 @@
                         PmcUI.popup('Chi tiết liệu — ' + barcode, html, { size: 'lg' });
                     } catch (e) {
                         PmcUI.error('Không tải được chi tiết liệu.');
+                    }
+                });
+            });
+
+            var editModalEl = document.getElementById('editModal');
+            if (editModalEl) {
+                var editModal = new bootstrap.Modal(editModalEl);
+                var editForm = document.getElementById('editForm');
+
+                document.querySelectorAll('.js-edit-btn').forEach(function (btn) {
+                    btn.addEventListener('click', async function (e) {
+                        e.stopPropagation();
+                        var id = btn.dataset.id;
+                        try {
+                            var detail = await PmcUI.withLoading(() =>
+                                fetch('/Materials/' + id + '/EditData').then(function (r) {
+                                    if (!r.ok) throw new Error('Không tải được thông tin liệu.');
+                                    return r.json();
+                                })
+                            );
+                            document.getElementById('edit_MaterialId').value = id;
+                            document.getElementById('edit_ReturnUrl').value = window.location.pathname + window.location.search;
+                            // API trả JSON camelCase (dev, poNo, ...) — map sang id PascalCase (edit_Dev, edit_PoNo, ...).
+                            ['dev', 'poNo', 'supplier', 'model', 'season', 'stage', 'colorway', 'component',
+                             'matlDescription', 'colorCode', 'colorName', 'sizeSpec', 'unit', 'focFlag',
+                             'remark', 'testRequire', 'testQty', 'category', 'requestBy'].forEach(function (field) {
+                                var elId = 'edit_' + field.charAt(0).toUpperCase() + field.slice(1);
+                                document.getElementById(elId).value = detail[field] || '';
+                            });
+                            document.getElementById('edit_Testing').value = detail.testing === null || detail.testing === undefined ? '' : detail.testing;
+                            document.getElementById('edit_ArrivalDate').value = detail.arrivalDate ? detail.arrivalDate.substring(0, 10) : '';
+                            document.getElementById('edit_RequestOn').value = detail.requestOn ? detail.requestOn.substring(0, 10) : '';
+                            editModal.show();
+                        } catch (err) {
+                            PmcUI.error('Không tải được thông tin liệu.');
+                        }
+                    });
+                });
+
+                editForm.addEventListener('submit', function () {
+                    editForm.querySelector('button[type="submit"]').disabled = true;
+                });
+            }
+
+            document.querySelectorAll('.js-archive-btn').forEach(function (btn) {
+                btn.addEventListener('click', async function (e) {
+                    e.stopPropagation();
+                    var barcode = btn.dataset.barcode;
+                    var ok = await PmcUI.confirmDelete('Xóa liệu quá hạn "' + barcode + '" khỏi danh sách? Lịch sử vẫn được giữ lại.');
+                    if (ok) {
+                        document.getElementById('archive_id').value = btn.dataset.id;
+                        document.getElementById('archive_returnUrl').value = window.location.pathname + window.location.search;
+                        document.getElementById('archiveForm').submit();
                     }
                 });
             });

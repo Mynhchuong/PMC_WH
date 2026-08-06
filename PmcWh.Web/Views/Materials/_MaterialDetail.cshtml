@@ -2,8 +2,18 @@
 @model PmcWh.Web.Models.MaterialDetail
 @{
     string Fmt(DateTime? d) => d?.ToString("dd/MM/yyyy") ?? "—";
+    string FmtDT(DateTime d) => d.ToString("dd/MM/yyyy HH:mm");
     string Val(string? s) => string.IsNullOrWhiteSpace(s) ? "—" : s;
     var (badgeTextClass, badgeStyle) = MaterialStatusHelper.BadgeStyle(Model.Status);
+
+    string MovementLabel(string type) => type switch
+    {
+        "Inbound" => "Lên kệ",
+        "IssueToWorkshop" => "Xuất",
+        "Return" => "Nhận lại",
+        "Dispose" => "Hủy",
+        _ => type,
+    };
 }
 
 <div class="d-flex align-items-center justify-content-between mb-3">
@@ -47,4 +57,41 @@
     <div><div class="text-muted">Quá hạn 90 ngày</div><div class="fw-semibold">@(Model.IsOverdue ? "Có" : "Không")</div></div>
     <div><div class="text-muted">Ngày tạo</div><div class="fw-semibold">@Model.CreatedAt.ToString("dd/MM/yyyy HH:mm")</div></div>
     <div><div class="text-muted">Cập nhật gần nhất</div><div class="fw-semibold">@(Model.UpdatedAt?.ToString("dd/MM/yyyy HH:mm") ?? "—")</div></div>
+</div>
+
+<hr />
+
+<h6 class="mb-3">Lịch sử di chuyển (@Model.Movements.Count)</h6>
+<div class="table-responsive">
+    <table class="table table-sm align-middle small mb-0">
+        <thead>
+            <tr class="text-uppercase text-muted">
+                <th>Loại</th>
+                <th class="text-end">Số lượng</th>
+                <th>Kệ</th>
+                <th>Người thực hiện</th>
+                <th>Giao cho</th>
+                <th>Thời gian</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var mv in Model.Movements)
+            {
+                <tr>
+                    <td>@MovementLabel(mv.MovementType)</td>
+                    <td class="text-end">@mv.Qty</td>
+                    <td>@(mv.LocationCode ?? "—")</td>
+                    <td>@(mv.Username ?? "—")</td>
+                    <td>@(mv.RecipientName ?? "—")</td>
+                    <td class="text-muted">@FmtDT(mv.OccurredAt)</td>
+                </tr>
+            }
+            @if (Model.Movements.Count == 0)
+            {
+                <tr>
+                    <td colspan="6" class="text-center text-muted py-3">Chưa có lịch sử di chuyển.</td>
+                </tr>
+            }
+        </tbody>
+    </table>
 </div>

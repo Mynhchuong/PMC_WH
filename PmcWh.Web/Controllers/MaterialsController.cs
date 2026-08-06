@@ -1,6 +1,8 @@
 using System.Globalization;
 using System.Net.Http.Json;
+using System.Security.Claims;
 using System.Text.Json;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using PmcWh.Web.Helpers;
 using PmcWh.Web.Models;
@@ -91,6 +93,86 @@ public class MaterialsController : Controller
         return PartialView("_MaterialDetail", detail);
     }
 
+    [HttpGet("Materials/{id:int}/EditData")]
+    [Authorize(Roles = "Admin")]
+    public async Task<IActionResult> EditData(int id)
+    {
+        var client = _httpClientFactory.CreateClient("PmcApi");
+        var response = await client.GetAsync($"api/Materials/{id}");
+        if (!response.IsSuccessStatusCode)
+        {
+            return NotFound();
+        }
+
+        var detail = await response.Content.ReadFromJsonAsync<MaterialDetail>(ApiJsonOptions);
+        return Json(detail, ApiJsonOptions);
+    }
+
+    [HttpPost]
+    [Authorize(Roles = "Admin")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> Edit(EditMaterialFormModel form)
+    {
+        var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
+        var client = _httpClientFactory.CreateClient("PmcApi");
+
+        var response = await client.PostAsJsonAsync($"api/Materials/{form.MaterialId}/edit", new
+        {
+            form.Dev, form.PoNo, form.Supplier, form.Model, form.Season, form.Stage,
+            form.Colorway, form.Component, form.MatlDescription, form.ColorCode, form.ColorName,
+            form.SizeSpec, form.Unit, form.FocFlag, form.ArrivalDate, form.Remark, form.Testing,
+            form.TestRequire, form.TestQty, form.Category, form.RequestBy, form.RequestOn,
+            UserId = userId,
+        });
+
+        if (response.IsSuccessStatusCode)
+        {
+            TempData["FlashSuccess"] = "Đã lưu thay đổi.";
+        }
+        else
+        {
+            var problem = await response.Content.ReadFromJsonAsync<ApiMessage>(ApiJsonOptions);
+            TempData["FlashError"] = problem?.Message ?? "Không thể lưu thay đổi.";
+        }
+
+        return RedirectToLocal(form.ReturnUrl);
+    }
+
+    [HttpPost]
+    [Authorize(Roles = "Admin")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> ArchiveOverdue(int id, string? returnUrl)
+    {
+        var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
+        var client = _httpClientFactory.CreateClient("PmcApi");
+
+        var response = await client.PostAsJsonAsync($"api/Materials/{id}/archive-overdue", new { UserId = userId });
+
+        if (response.IsSuccessStatusCode)
+        {
+            TempData["FlashSuccess"] = "Đã xóa liệu quá hạn khỏi danh sách.";
+        }
+        else
+        {
+            var problem = await response.Content.ReadFromJsonAsync<ApiMessage>(ApiJsonOptions);
+            TempData["FlashError"] = problem?.Message ?? "Không thể xóa liệu này.";
+        }
+
+        return RedirectToLocal(returnUrl);
+    }
+
+    /// <summary>Redirect an toàn tới URL do client gửi lên (returnUrl) — chỉ chấp nhận local path,
+    /// tránh open-redirect nếu returnUrl bị chỉnh thành 1 domain khác.</summary>
+    private IActionResult RedirectToLocal(string? returnUrl)
+    {
+        if (!string.IsNullOrWhiteSpace(returnUrl) && Url.IsLocalUrl(returnUrl))
+        {
+            return Redirect(returnUrl);
+        }
+
+        return RedirectToAction(nameof(Index));
+    }
+
     [HttpGet]
     public IActionResult DownloadTemplate()
     {
@@ -99,6 +181,7 @@ public class MaterialsController : Controller
     }
 
     [HttpPost]
+    [Authorize(Roles = "Admin")]
     [RequestSizeLimit(20_000_000)]
     public async Task<IActionResult> Index(IFormFile file)
     {
@@ -215,6 +298,11 @@ public class MaterialsController : Controller
     {
         public int InsertedCount { get; set; }
         public List<MaterialImportSkipApiItem> Skipped { get; set; } = new();
+    }
+
+    private class ApiMessage
+    {
+        public string? Message { get; set; }
     }
 
     private record MaterialImportSkipApiItem(string Barcode, string Reason);

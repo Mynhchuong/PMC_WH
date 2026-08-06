@@ -95,7 +95,10 @@
                     e.preventDefault();
                     var barcode = form.querySelector('input[name="barcode"]').value;
                     var ok = await PmcUI.confirmDelete('Hủy barcode "' + barcode + '"? Liệu sẽ giữ 30 ngày rồi tự ẩn.');
-                    if (ok) form.submit();
+                    if (ok) {
+                        form.querySelector('button[type="submit"]').disabled = true;
+                        form.submit();
+                    }
                 });
             });
 

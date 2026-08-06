@@ -18,25 +18,10 @@ public static class SideMenuBuilder
                     new SideMenuItem { Title = "Cơ sở dữ liệu của PMC", Controller = "Materials", Action = "Index", Icon = "storage" },
                     new SideMenuItem { Title = "Quét lên kệ", Controller = "Inbound", Action = "Index", Icon = "qr_code_scanner" },
                     new SideMenuItem { Title = "Xuất hàng", Controller = "Issue", Action = "Index", Icon = "local_shipping" },
-                    new SideMenuItem { Title = "Nhận lại hàng", Controller = "Return", Action = "Index", Icon = "assignment_return" },
-                    new SideMenuItem { Title = "Hủy liệu", Controller = "Dispose", Action = "Index", Icon = "delete_forever" },
+                    new SideMenuItem { Title = "Hủy liệu", Controller = "Dispose", Action = "Index", Icon = "delete_forever", VisibleWhen = () => isAdmin },
                 }
             },
-            new SideMenuItem
-            {
-                Id = "Reports",
-                Title = "Báo cáo",
-                Icon = "bar_chart",
-                Children = new List<SideMenuItem>
-                {
-                    new SideMenuItem { Title = "Đang chờ lên kệ", Controller = "Materials", Action = "Index", Icon = "hourglass_top", RouteValues = new { status = "Staging" } },
-                    new SideMenuItem { Title = "Đang trong kho", Controller = "Materials", Action = "Index", Icon = "inventory", RouteValues = new { status = "InStock" } },
-                    new SideMenuItem { Title = "Đã xuất 1 phần", Controller = "Materials", Action = "Index", Icon = "outbound", RouteValues = new { status = "PartiallyIssued" } },
-                    new SideMenuItem { Title = "Đã xuất hết chưa nhận lại", Controller = "Materials", Action = "Index", Icon = "local_shipping", RouteValues = new { status = "IssuedOut" } },
-                    new SideMenuItem { Title = "Quá 90 ngày chưa nhận lại", Controller = "Materials", Action = "Index", Icon = "warning", RouteValues = new { isOverdue = true } },
-                    new SideMenuItem { Title = "Đã hủy", Controller = "Materials", Action = "Index", Icon = "delete_forever", RouteValues = new { status = "Disposed" } },
-                }
-            },
+            
             new SideMenuItem
             {
                 Id = "Admin",

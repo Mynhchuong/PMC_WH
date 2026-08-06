@@ -148,6 +148,11 @@
                 });
             });
 
+            var issueForm = document.querySelector('#issueModal form');
+            issueForm.addEventListener('submit', function () {
+                issueForm.querySelector('button[type="submit"]').disabled = true;
+            });
+
             var scanInput = document.getElementById('scanInput');
             scanInput.addEventListener('keydown', function (e) {
                 if (e.key !== 'Enter') return;

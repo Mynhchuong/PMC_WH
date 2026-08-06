@@ -1,11 +1,13 @@
 using System.Net.Http.Json;
 using System.Security.Claims;
 using System.Text.Json;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using PmcWh.Web.Models;
 
 namespace PmcWh.Web.Controllers;
 
+[Authorize(Roles = "Admin")]
 public class DisposeController : Controller
 {
     private static readonly JsonSerializerOptions ApiJsonOptions = new(JsonSerializerDefaults.Web);

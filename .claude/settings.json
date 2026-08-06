@@ -2,7 +2,13 @@
   "permissions": {
     "allow": [
       "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:5073/api/Health)",
-      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:5139/Account/Login)"
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:5139/Account/Login)",
+      "Bash(echo \"web restarting pid $!\")",
+      "Bash(node regress-merged-inbound.js)",
+      "Bash(curl -s http://localhost:5073/api/Recipients)",
+      "Bash(curl -s -X POST http://localhost:5073/api/Materials/7/issue -H \"Content-Type: application/json\" -d '{\"recipientId\":1,\"qty\":1,\"userId\":1}')",
+      "Bash(sed -i '' -e s/862605206/862605208/g -e s/862604976/862604981/g regress-merged-inbound.js)",
+      "Bash(node regress-p4.js)"
     ]
   }
 }

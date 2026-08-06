@@ -23,13 +23,21 @@ public class InboundController : Controller
 
         var stagingTask = client.GetFromJsonAsync<PagedResultDto<MaterialListItem>>(
             "api/Materials?status=Staging&page=1&pageSize=500", ApiJsonOptions);
+        var returnableTask = client.GetFromJsonAsync<List<MaterialListItem>>("api/Materials/returnable", ApiJsonOptions);
         var locationsTask = client.GetFromJsonAsync<List<StorageLocationDto>>("api/StorageLocations", ApiJsonOptions);
 
-        await Task.WhenAll(stagingTask, locationsTask);
+        await Task.WhenAll(stagingTask, returnableTask, locationsTask);
+
+        // Ưu tiên xử lý theo FIFO (liệu chờ lâu nhất trước) — cùng quy ước với Issuable/Returnable bên Api.
+        var stagingItems = ((await stagingTask)?.Items ?? new List<MaterialListItem>())
+            .OrderBy(m => m.ArrivalDate ?? DateTime.MaxValue)
+            .ThenBy(m => m.CreatedAt)
+            .ToList();
 
         var model = new InboundViewModel
         {
-            StagingItems = (await stagingTask)?.Items ?? new List<MaterialListItem>(),
+            StagingItems = stagingItems,
+            ReturnableItems = await returnableTask ?? new List<MaterialListItem>(),
             Locations = await locationsTask ?? new List<StorageLocationDto>(),
         };
 
@@ -41,21 +49,36 @@ public class InboundController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> Scan(int materialId, int locationId, string barcode)
+    public async Task<IActionResult> Scan(int materialId, int locationId, string barcode, decimal? qty)
     {
         var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
-
         var client = _httpClientFactory.CreateClient("PmcApi");
-        var response = await client.PostAsJsonAsync($"api/Materials/{materialId}/inbound", new { locationId, userId });
+
+        HttpResponseMessage response;
+        string successMessage;
+        string failMessage;
+
+        if (qty.HasValue)
+        {
+            response = await client.PostAsJsonAsync($"api/Materials/{materialId}/return", new { locationId, qty = qty.Value, userId });
+            successMessage = $"Đã nhận lại {qty.Value} cho barcode '{barcode}'.";
+            failMessage = $"Không thể nhận lại barcode '{barcode}'.";
+        }
+        else
+        {
+            response = await client.PostAsJsonAsync($"api/Materials/{materialId}/inbound", new { locationId, userId });
+            successMessage = $"Đã lên kệ barcode '{barcode}'.";
+            failMessage = $"Không thể lên kệ barcode '{barcode}'.";
+        }
 
         if (response.IsSuccessStatusCode)
         {
-            TempData["FlashSuccess"] = $"Đã lên kệ barcode '{barcode}'.";
+            TempData["FlashSuccess"] = successMessage;
         }
         else
         {
             var problem = await response.Content.ReadFromJsonAsync<ApiMessage>(ApiJsonOptions);
-            TempData["FlashError"] = problem?.Message ?? $"Không thể lên kệ barcode '{barcode}'.";
+            TempData["FlashError"] = problem?.Message ?? failMessage;
         }
 
         return RedirectToAction(nameof(Index));

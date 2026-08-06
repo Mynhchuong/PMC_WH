@@ -14,7 +14,7 @@
             </span>
             <div>
                 <h5 class="card-title mb-0">Quét lên kệ</h5>
-                <p class="text-muted small mb-0">Chuyển liệu từ khu vực chờ (Staging) lên kệ thật</p>
+                <p class="text-muted small mb-0">Lên kệ liệu mới từ khu vực chờ, hoặc nhận lại hàng đã xuất về kệ</p>
             </div>
         </div>
 
@@ -28,7 +28,27 @@
 
 <div class="card border-0 shadow-sm rounded-4">
     <div class="card-body">
-        <h5 class="card-title mb-3">Đang chờ lên kệ (@Model.StagingItems.Count)</h5>
+        <div class="d-flex flex-wrap align-items-center gap-2 mb-4">
+            <h5 class="card-title mb-0 me-1">Cần lên kệ</h5>
+
+            <span class="d-inline-flex align-items-center gap-1 rounded-pill px-3 py-1 small fw-semibold"
+                  style="background-color:rgba(33,37,41,0.06);color:#212529;">
+                <span class="material-icons" style="font-size:16px;">inventory_2</span>
+                Tổng @(Model.StagingItems.Count + Model.ReturnableItems.Count)
+            </span>
+
+            <span class="d-inline-flex align-items-center gap-1 rounded-pill px-3 py-1 small fw-semibold"
+                  style="background-color:rgba(13,110,253,0.12);color:#0d6efd;">
+                <span class="material-icons" style="font-size:16px;">new_releases</span>
+                Mới nhập @Model.StagingItems.Count
+            </span>
+
+            <span class="d-inline-flex align-items-center gap-1 rounded-pill px-3 py-1 small fw-semibold"
+                  style="background-color:rgba(255,193,7,0.15);color:#997404;">
+                <span class="material-icons" style="font-size:16px;">assignment_return</span>
+                Nhận lại @Model.ReturnableItems.Count
+            </span>
+        </div>
 
         <div class="table-responsive">
             <table class="table align-middle">
@@ -39,36 +59,57 @@
                         <th>Model</th>
                         <th>Colorway</th>
                         <th>Size</th>
-                        <th class="text-end">A.Qty</th>
+                        <th>Loại</th>
+                        <th class="text-end">Số lượng</th>
                         <th>Kệ hiện tại</th>
-                        <th>Ngày nhập</th>
                         <th class="text-end">Hành động</th>
                     </tr>
                 </thead>
                 <tbody>
                     @foreach (var m in Model.StagingItems)
                     {
-                        <tr class="js-staging-row" data-barcode="@m.Barcode">
+                        <tr class="js-shelf-row" data-barcode="@m.Barcode">
                             <td class="fw-semibold">@m.Barcode</td>
                             <td>@m.Dev</td>
                             <td>@m.Model</td>
                             <td>@m.Colorway</td>
                             <td>@m.SizeSpec</td>
+                            <td><span class="badge" style="background-color:rgba(13,110,253,0.12);color:#0d6efd;">Mới nhập</span></td>
                             <td class="text-end">@m.ArrivalQty @m.Unit</td>
                             <td>@(m.LocationCode ?? "—")</td>
-                            <td class="text-muted small">@(m.ArrivalDate?.ToString("dd/MM/yyyy") ?? "—")</td>
                             <td class="text-end">
-                                <button type="button" class="btn btn-sm pmc-btn-dark js-open-inbound"
-                                        data-material-id="@m.MaterialId" data-barcode="@m.Barcode">
+                                <button type="button" class="btn btn-sm pmc-btn-dark js-open-shelf"
+                                        data-material-id="@m.MaterialId" data-barcode="@m.Barcode" data-kind="new">
                                     Lên kệ
                                 </button>
                             </td>
                         </tr>
                     }
-                    @if (Model.StagingItems.Count == 0)
+                    @foreach (var m in Model.ReturnableItems)
+                    {
+                        var outstanding = (m.ArrivalQty ?? 0) - (m.Balance ?? 0);
+                        <tr class="js-shelf-row" data-barcode="@m.Barcode">
+                            <td class="fw-semibold">@m.Barcode</td>
+                            <td>@m.Dev</td>
+                            <td>@m.Model</td>
+                            <td>@m.Colorway</td>
+                            <td>@m.SizeSpec</td>
+                            <td><span class="badge" style="background-color:rgba(255,193,7,0.15);color:#997404;">Nhận lại</span></td>
+                            <td class="text-end">@outstanding @m.Unit</td>
+                            <td>—</td>
+                            <td class="text-end">
+                                <button type="button" class="btn btn-sm pmc-btn-dark js-open-shelf"
+                                        data-material-id="@m.MaterialId" data-barcode="@m.Barcode" data-kind="return"
+                                        data-outstanding="@outstanding" data-unit="@m.Unit">
+                                    Nhận lại
+                                </button>
+                            </td>
+                        </tr>
+                    }
+                    @if (Model.StagingItems.Count == 0 && Model.ReturnableItems.Count == 0)
                     {
                         <tr>
-                            <td colspan="9" class="text-center text-muted py-4">Không có liệu nào đang chờ lên kệ.</td>
+                            <td colspan="9" class="text-center text-muted py-4">Không có liệu nào cần lên kệ.</td>
                         </tr>
                     }
                 </tbody>
@@ -77,17 +118,23 @@
     </div>
 </div>
 
-<div class="modal fade" id="inboundModal" tabindex="-1" aria-hidden="true">
+<div class="modal fade" id="shelfModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content border-0 rounded-4 shadow">
             <div class="modal-header border-0">
-                <h5 class="modal-title">Lên kệ — <span id="inboundBarcodeLabel"></span></h5>
+                <h5 class="modal-title"><span id="shelfModalTitle">Lên kệ</span> — <span id="shelfBarcodeLabel"></span></h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <form asp-controller="Inbound" asp-action="Scan" method="post">
-                <input type="hidden" name="materialId" id="inboundMaterialId" />
-                <input type="hidden" name="barcode" id="inboundBarcode" />
+                <input type="hidden" name="materialId" id="shelfMaterialId" />
+                <input type="hidden" name="barcode" id="shelfBarcode" />
                 <div class="modal-body">
+                    <div id="qtyGroup" class="d-none">
+                        <p class="text-muted small mb-2">Đã xuất còn thiếu: <span id="outstandingLabel" class="fw-semibold"></span></p>
+                        <label class="form-label small fw-semibold text-secondary">Số lượng nhận lại</label>
+                        <input type="number" name="qty" id="qtyInput" class="form-control mb-3" step="0.01" min="0.01" disabled />
+                    </div>
+
                     <label class="form-label small fw-semibold text-secondary">Kệ</label>
                     <select id="rackSelect" class="form-select mb-3"></select>
 
@@ -150,19 +197,43 @@
                 populateLevels(racks[0]);
             }
 
-            var inboundModal = new bootstrap.Modal(document.getElementById('inboundModal'));
+            var shelfModal = new bootstrap.Modal(document.getElementById('shelfModal'));
+            var qtyGroup = document.getElementById('qtyGroup');
+            var qtyInput = document.getElementById('qtyInput');
+            var outstandingLabel = document.getElementById('outstandingLabel');
 
-            function openInboundFor(materialId, barcode) {
-                document.getElementById('inboundMaterialId').value = materialId;
-                document.getElementById('inboundBarcode').value = barcode;
-                document.getElementById('inboundBarcodeLabel').textContent = barcode;
-                inboundModal.show();
+            function openShelfFor(materialId, barcode, kind, outstanding, unit) {
+                document.getElementById('shelfMaterialId').value = materialId;
+                document.getElementById('shelfBarcode').value = barcode;
+                document.getElementById('shelfBarcodeLabel').textContent = barcode;
+                document.getElementById('shelfModalTitle').textContent = kind === 'return' ? 'Nhận lại' : 'Lên kệ';
+
+                if (kind === 'return') {
+                    qtyGroup.classList.remove('d-none');
+                    qtyInput.disabled = false;
+                    qtyInput.required = true;
+                    qtyInput.value = outstanding;
+                    qtyInput.max = outstanding;
+                    outstandingLabel.textContent = outstanding + ' ' + (unit || '');
+                } else {
+                    qtyGroup.classList.add('d-none');
+                    qtyInput.disabled = true;
+                    qtyInput.required = false;
+                    qtyInput.value = '';
+                }
+
+                shelfModal.show();
             }
 
-            document.querySelectorAll('.js-open-inbound').forEach(function (btn) {
+            document.querySelectorAll('.js-open-shelf').forEach(function (btn) {
                 btn.addEventListener('click', function () {
-                    openInboundFor(btn.dataset.materialId, btn.dataset.barcode);
+                    openShelfFor(btn.dataset.materialId, btn.dataset.barcode, btn.dataset.kind, btn.dataset.outstanding, btn.dataset.unit);
                 });
+            });
+
+            var shelfForm = document.querySelector('#shelfModal form');
+            shelfForm.addEventListener('submit', function () {
+                shelfForm.querySelector('button[type="submit"]').disabled = true;
             });
 
             var scanInput = document.getElementById('scanInput');
@@ -173,13 +244,13 @@
                 scanInput.value = '';
                 if (!code) return;
 
-                var row = document.querySelector('.js-staging-row[data-barcode="' + CSS.escape(code) + '"]');
+                var row = document.querySelector('.js-shelf-row[data-barcode="' + CSS.escape(code) + '"]');
                 if (!row) {
-                    PmcUI.error('Không tìm thấy barcode "' + code + '" trong danh sách đang chờ lên kệ.');
+                    PmcUI.error('Không tìm thấy barcode "' + code + '" trong danh sách cần lên kệ.');
                     return;
                 }
-                var btn = row.querySelector('.js-open-inbound');
-                openInboundFor(btn.dataset.materialId, btn.dataset.barcode);
+                var btn = row.querySelector('.js-open-shelf');
+                openShelfFor(btn.dataset.materialId, btn.dataset.barcode, btn.dataset.kind, btn.dataset.outstanding, btn.dataset.unit);
             });
         })();
     </script>

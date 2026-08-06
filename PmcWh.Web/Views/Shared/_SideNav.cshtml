@@ -138,7 +138,7 @@
     <ul class="navbar-nav">
         @foreach (var menu in menus)
         {
-            bool open = menu.Children.Any(c => IsActivePath(c));
+            bool open = menu.Children.Where(c => c.VisibleWhen == null || c.VisibleWhen()).Any(c => IsActivePath(c));
 
             <li class="nav-item mt-2">
                 <a class="nav-link text-dark d-flex justify-content-between align-items-center"
@@ -158,7 +158,7 @@
 
                 <div class="collapse ps-3 @(open ? "show" : "")" id="@menu.Id">
                     <ul class="navbar-nav">
-                        @foreach (var item in menu.Children)
+                        @foreach (var item in menu.Children.Where(c => c.VisibleWhen == null || c.VisibleWhen()))
                         {
                             var itemUrl = Url.Action(item.Action, item.Controller, item.RouteValues);
                             bool active = IsActivePath(item);

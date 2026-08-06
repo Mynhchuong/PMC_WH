@@ -11,5 +11,6 @@ public class StorageLocationDto
 public class InboundViewModel
 {
     public List<MaterialListItem> StagingItems { get; set; } = new();
+    public List<MaterialListItem> ReturnableItems { get; set; } = new();
     public List<StorageLocationDto> Locations { get; set; } = new();
 }

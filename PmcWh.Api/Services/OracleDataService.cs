@@ -4,6 +4,13 @@ using PmcWh.Api.Models;
 
 namespace PmcWh.Api.Services;
 
+/// <summary>Ném khi một câu lệnh trong ExecuteBatchAsync ảnh hưởng ít dòng hơn kỳ vọng — báo hiệu
+/// dữ liệu đã bị thay đổi bởi một request khác giữa lúc đọc và lúc ghi (lost-update race).</summary>
+public class ConcurrencyConflictException : Exception
+{
+    public ConcurrencyConflictException(string message) : base(message) { }
+}
+
 public class OracleDataService
 {
     private readonly string _connectionString;
@@ -118,8 +125,15 @@ public class OracleDataService
     /// Chạy nhiều câu INSERT/UPDATE/DELETE trong CÙNG 1 transaction (commit/rollback chung) —
     /// dùng cho import theo batch hoặc bất kỳ thao tác nào cần nhiều câu SQL ăn khớp với nhau
     /// (vd. update Materials + insert StockMovements). Trả về tổng số dòng bị ảnh hưởng.
+    ///
+    /// Mỗi câu lệnh phải ảnh hưởng ít nhất <paramref name="minAffectedRowsPerStatement"/> dòng
+    /// (mặc định 1), nếu không sẽ rollback toàn bộ và ném ConcurrencyConflictException — tránh
+    /// trường hợp câu UPDATE có điều kiện WHERE (vd. WHERE Status = 'Staging') không khớp dòng
+    /// nào (do bị người khác cập nhật trước) nhưng câu INSERT StockMovements phía sau vẫn chạy
+    /// vô điều kiện, tạo ra dòng lịch sử "ma" cho một thao tác chưa hề áp dụng.
     /// </summary>
-    public async Task<int> ExecuteBatchAsync(IEnumerable<(string Sql, OracleParameter[] Parameters)> statements)
+    public async Task<int> ExecuteBatchAsync(
+        IEnumerable<(string Sql, OracleParameter[] Parameters)> statements, int minAffectedRowsPerStatement = 1)
     {
         await using var connection = new OracleConnection(_connectionString);
         await connection.OpenAsync();
@@ -136,7 +150,13 @@ public class OracleDataService
                 command.CommandType = CommandType.Text;
                 command.BindByName = true;
                 command.Parameters.AddRange(parameters);
-                totalAffected += await command.ExecuteNonQueryAsync();
+                var affected = await command.ExecuteNonQueryAsync();
+                if (affected < minAffectedRowsPerStatement)
+                {
+                    throw new ConcurrencyConflictException(
+                        $"Câu lệnh chỉ ảnh hưởng {affected} dòng (cần tối thiểu {minAffectedRowsPerStatement}) — dữ liệu có thể vừa bị người khác thay đổi.");
+                }
+                totalAffected += affected;
             }
 
             await transaction.CommitAsync();
