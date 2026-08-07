@@ -2,6 +2,8 @@ using System.Net.Http.Json;
 using System.Security.Claims;
 using System.Text.Json;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.SignalR;
+using PmcWh.Web.Hubs;
 using PmcWh.Web.Models;
 
 namespace PmcWh.Web.Controllers;
@@ -11,10 +13,12 @@ public class InboundController : Controller
     private static readonly JsonSerializerOptions ApiJsonOptions = new(JsonSerializerDefaults.Web);
 
     private readonly IHttpClientFactory _httpClientFactory;
+    private readonly IHubContext<WarehouseHub> _hub;
 
-    public InboundController(IHttpClientFactory httpClientFactory)
+    public InboundController(IHttpClientFactory httpClientFactory, IHubContext<WarehouseHub> hub)
     {
         _httpClientFactory = httpClientFactory;
+        _hub = hub;
     }
 
     public async Task<IActionResult> Index()
@@ -74,6 +78,7 @@ public class InboundController : Controller
         if (response.IsSuccessStatusCode)
         {
             TempData["FlashSuccess"] = successMessage;
+            await _hub.Clients.All.SendAsync("warehouseChanged");
         }
         else
         {

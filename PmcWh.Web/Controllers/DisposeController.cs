@@ -3,6 +3,8 @@ using System.Security.Claims;
 using System.Text.Json;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.SignalR;
+using PmcWh.Web.Hubs;
 using PmcWh.Web.Models;
 
 namespace PmcWh.Web.Controllers;
@@ -13,10 +15,12 @@ public class DisposeController : Controller
     private static readonly JsonSerializerOptions ApiJsonOptions = new(JsonSerializerDefaults.Web);
 
     private readonly IHttpClientFactory _httpClientFactory;
+    private readonly IHubContext<WarehouseHub> _hub;
 
-    public DisposeController(IHttpClientFactory httpClientFactory)
+    public DisposeController(IHttpClientFactory httpClientFactory, IHubContext<WarehouseHub> hub)
     {
         _httpClientFactory = httpClientFactory;
+        _hub = hub;
     }
 
     public async Task<IActionResult> Index()
@@ -44,6 +48,7 @@ public class DisposeController : Controller
         if (response.IsSuccessStatusCode)
         {
             TempData["FlashSuccess"] = $"Đã hủy barcode '{barcode}'.";
+            await _hub.Clients.All.SendAsync("warehouseChanged");
         }
         else
         {

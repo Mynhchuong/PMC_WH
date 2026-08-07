@@ -21,6 +21,8 @@ builder.Services.AddHttpClient("PmcApi", client =>
     client.BaseAddress = new Uri(baseUrl);
 });
 
+builder.Services.AddSignalR();
+
 builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
     .AddCookie(options =>
     {
@@ -52,6 +54,8 @@ app.MapControllerRoute(
     name: "default",
     pattern: "{controller=Materials}/{action=Index}/{id?}")
     .WithStaticAssets();
+
+app.MapHub<PmcWh.Web.Hubs.WarehouseHub>("/warehouseHub");
 
 
 app.Run();

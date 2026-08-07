@@ -2,6 +2,8 @@ using System.Net.Http.Json;
 using System.Security.Claims;
 using System.Text.Json;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.SignalR;
+using PmcWh.Web.Hubs;
 using PmcWh.Web.Models;
 
 namespace PmcWh.Web.Controllers;
@@ -11,10 +13,12 @@ public class IssueController : Controller
     private static readonly JsonSerializerOptions ApiJsonOptions = new(JsonSerializerDefaults.Web);
 
     private readonly IHttpClientFactory _httpClientFactory;
+    private readonly IHubContext<WarehouseHub> _hub;
 
-    public IssueController(IHttpClientFactory httpClientFactory)
+    public IssueController(IHttpClientFactory httpClientFactory, IHubContext<WarehouseHub> hub)
     {
         _httpClientFactory = httpClientFactory;
+        _hub = hub;
     }
 
     public async Task<IActionResult> Index()
@@ -50,6 +54,7 @@ public class IssueController : Controller
         if (response.IsSuccessStatusCode)
         {
             TempData["FlashSuccess"] = $"Đã xuất {qty} cho barcode '{barcode}'.";
+            await _hub.Clients.All.SendAsync("warehouseChanged");
         }
         else
         {

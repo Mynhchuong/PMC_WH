@@ -8,7 +8,28 @@
       "Bash(curl -s http://localhost:5073/api/Recipients)",
       "Bash(curl -s -X POST http://localhost:5073/api/Materials/7/issue -H \"Content-Type: application/json\" -d '{\"recipientId\":1,\"qty\":1,\"userId\":1}')",
       "Bash(sed -i '' -e s/862605206/862605208/g -e s/862604976/862604981/g regress-merged-inbound.js)",
-      "Bash(node regress-p4.js)"
+      "Bash(node regress-p4.js)",
+      "Skill(artifact-design)",
+      "Skill(artifact-design:*)",
+      "Bash(node preview_3d.js)",
+      "Bash(node debug3d2.js)",
+      "Bash(node shot_v2.js)",
+      "Bash(node interact_test.js)",
+      "Bash(node debug_wheel.js)",
+      "Bash(pkill -f debug_wheel.js)",
+      "Bash(pkill -f \"chromium.*debug_wheel\")",
+      "Bash(timeout 30 node debug_wheel2.js)",
+      "Bash(echo \"exit=$?\")",
+      "Bash(node debug_wheel2.js)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" --max-time 8 https://unpkg.com/three@0.160.0/build/three.min.js)",
+      "Bash(curl -s -o three.min.js https://unpkg.com/three@0.160.0/build/three.min.js)",
+      "Bash(python3 -c \"import numbers_parser; print\\('numbers_parser available', numbers_parser.__version__\\)\")",
+      "Bash(node errtrace.js)",
+      "Bash(node shot_layout.js)",
+      "Bash(mkdir -p wwwroot/lib/three)",
+      "Bash(cp /private/tmp/claude-501/-Users-minhtruong-Documents-Project-PMC-PMC-WH/43a32b69-e4e1-4fae-907f-81826781bfb5/scratchpad/three.min.js wwwroot/lib/three/three.min.js)",
+      "Bash(mkdir -p wwwroot/lib/signalr)",
+      "Bash(curl -s -o wwwroot/lib/signalr/signalr.min.js https://unpkg.com/@microsoft/signalr@8.0.7/dist/browser/signalr.min.js)"
     ]
   }
 }
