@@ -96,7 +96,22 @@
       "Bash(curl -s -w \"\\\\nHTTP:%{http_code}\\\\n\" \"http://localhost:5073/api/Reports/issues/export?overdueOnly=true\")",
       "Bash(curl -s -b cookies.txt -o /tmp/reports_page.html -w \"HTTP:%{http_code} size:%{size_download}\\\\n\" \"http://localhost:5139/Reports/Issues\")",
       "Bash(curl -s -b cookies.txt -o /tmp/reports_overdue.html -w \"HTTP:%{http_code}\\\\n\" \"http://localhost:5139/Reports/Issues?overdueOnly=true\")",
-      "Bash(curl -s -b cookies.txt -o /tmp/report_export.xlsx -w \"HTTP:%{http_code} size:%{size_download} content-type:%{content_type}\\\\n\" \"http://localhost:5139/Reports/ExportIssuesExcel?overdueOnly=true\")"
+      "Bash(curl -s -b cookies.txt -o /tmp/report_export.xlsx -w \"HTTP:%{http_code} size:%{size_download} content-type:%{content_type}\\\\n\" \"http://localhost:5139/Reports/ExportIssuesExcel?overdueOnly=true\")",
+      "Bash(curl -s -o /dev/null -w \"warehouse-dashboard.js HTTP:%{http_code} size:%{size_download}\\\\n\" \"http://localhost:5139/js/warehouse-dashboard.js\")",
+      "Bash(node -c /Users/minhtruong/Documents/Project/PMC/PMC_WH/PmcWh.Web/wwwroot/js/warehouse-dashboard.js)",
+      "Bash(grep -o \"@media[^{]*{[^}]*grid-template-columns: repeat\\(2, 1fr\\)\" /tmp/map_new.html)",
+      "Bash(curl -s -b cookies.txt -o /tmp/map_v2.html -w \"HTTP:%{http_code} size:%{size_download}\\\\n\" \"http://localhost:5139/Warehouse/Map\")",
+      "Bash(curl -s -o /dev/null -w \"warehouse-dashboard.js HTTP:%{http_code}\\\\n\" \"http://localhost:5139/js/warehouse-dashboard.js\")",
+      "Bash(node -c /Users/minhtruong/Documents/Project/PMC/PMC_WH/PmcWh.Web/wwwroot/js/warehouse-map.js)",
+      "Bash(curl -s -o /dev/null -w \"warehouse-map.js HTTP:%{http_code}\\\\n\" \"http://localhost:5139/js/warehouse-map.js\")",
+      "Bash(curl -s -b cookies.txt -o /tmp/map_v3.html -w \"HTTP:%{http_code}\\\\n\" \"http://localhost:5139/Warehouse/Map\")",
+      "Bash(curl -s \"http://localhost:5073/api/Warehouse/dashboard\")",
+      "Bash(curl -s -o /dev/null -w \"warehouse-i18n.js HTTP:%{http_code}\\\\n\" \"http://localhost:5139/js/warehouse-i18n.js\")",
+      "Bash(curl -s -b cookies.txt -o /tmp/map_v5.html -w \"Map page HTTP:%{http_code}\\\\n\" \"http://localhost:5139/Warehouse/Map\")",
+      "Bash(curl -s -o /dev/null -w \"map.js HTTP:%{http_code}\\\\n\" \"http://localhost:5139/js/warehouse-map.js\")",
+      "Bash(curl -s -o /dev/null -w \"dashboard.js HTTP:%{http_code}\\\\n\" \"http://localhost:5139/js/warehouse-dashboard.js\")",
+      "Bash(node -c /Users/minhtruong/Documents/Project/PMC/PMC_WH/PmcWh.Web/wwwroot/js/warehouse-i18n.js)",
+      "Bash(curl -s -o /dev/null -w \"i18n.js HTTP:%{http_code}\\\\n\" \"http://localhost:5139/js/warehouse-i18n.js\")"
     ]
   }
 }

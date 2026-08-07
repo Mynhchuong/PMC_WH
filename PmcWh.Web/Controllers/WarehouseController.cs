@@ -59,6 +59,15 @@ public class WarehouseController : Controller
         return await PassThroughAsync(resp);
     }
 
+    // Proxy: dữ liệu màn hình giám sát TV (tổng quan + 5 lượt lên kệ / xuất kho gần nhất).
+    [HttpGet]
+    public async Task<IActionResult> Dashboard()
+    {
+        var client = _httpClientFactory.CreateClient("PmcApi");
+        var resp = await client.GetAsync("api/Warehouse/dashboard");
+        return await PassThroughAsync(resp);
+    }
+
     // Trả nguyên body JSON + status code từ Api (giữ cả 404 kèm {message}).
     private static async Task<IActionResult> PassThroughAsync(HttpResponseMessage resp)
     {

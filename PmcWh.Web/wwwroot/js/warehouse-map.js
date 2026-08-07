@@ -4,6 +4,10 @@
 (function () {
   if (typeof THREE === 'undefined') { console.error('THREE chưa nạp'); return; }
   var TIERS = window.PMC_TIERS || [];
+  // I18N khai báo NGAY ĐẦU (không phải ở giữa file) vì các bảng hiệu 3D (CỬA RA VÀO, KỆ N,
+  // THOÁT HIỂM, màn hình PC...) được dựng sớm lúc build scene và cần gọi I18N.t() ngay lúc đó.
+  var I18N = window.PmcWhI18n || { t: function (k) { return k; }, onChange: function () {} };
+  var i18nSignRefreshers = []; // các sprite/canvas có chữ cần vẽ lại khi đổi ngôn ngữ
 
   // ----- Gom dữ liệu theo kệ/tầng + suy ra số tầng mỗi kệ -----
   var LEVELS = {}, tierMap = {};
@@ -65,13 +69,21 @@
   var labelMat = new THREE.MeshStandardMaterial({ map: labelTex, roughness: 0.9 });
 
   function roundRect(x, a, b, w, h, r) { x.beginPath(); x.moveTo(a + r, b); x.arcTo(a + w, b, a + w, b + h, r); x.arcTo(a + w, b + h, a, b + h, r); x.arcTo(a, b + h, a, b, r); x.arcTo(a, b, a + w, b, r); x.closePath(); }
+  // text: chuỗi tĩnh, HOẶC 1 hàm () => chuỗi nếu chữ cần đổi theo ngôn ngữ (VD: 'KỆ 32' <-> 'RACK 32') —
+  // truyền hàm thì sign tự đăng ký vào i18nSignRefreshers để vẽ lại canvas khi đổi ngôn ngữ.
   function makeSign(text, w, fs) {
     var c = document.createElement('canvas'); c.width = 320; c.height = 96; var x = c.getContext('2d');
-    x.fillStyle = 'rgba(20,58,110,0.94)'; roundRect(x, 4, 4, 312, 88, 14); x.fill();
-    x.strokeStyle = 'rgba(255,255,255,0.25)'; x.lineWidth = 3; roundRect(x, 4, 4, 312, 88, 14); x.stroke();
-    x.fillStyle = '#fff'; x.font = 'bold ' + (fs || 46) + 'px "Arial Narrow", Arial, sans-serif'; x.textAlign = 'center'; x.textBaseline = 'middle';
-    x.fillText(text, 160, 50);
     var t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace;
+    function draw() {
+      x.clearRect(0, 0, 320, 96);
+      x.fillStyle = 'rgba(20,58,110,0.94)'; roundRect(x, 4, 4, 312, 88, 14); x.fill();
+      x.strokeStyle = 'rgba(255,255,255,0.25)'; x.lineWidth = 3; roundRect(x, 4, 4, 312, 88, 14); x.stroke();
+      x.fillStyle = '#fff'; x.font = 'bold ' + (fs || 46) + 'px "Arial Narrow", Arial, sans-serif'; x.textAlign = 'center'; x.textBaseline = 'middle';
+      x.fillText(typeof text === 'function' ? text() : text, 160, 50);
+      t.needsUpdate = true;
+    }
+    draw();
+    if (typeof text === 'function') i18nSignRefreshers.push(draw);
     var s = new THREE.Sprite(new THREE.SpriteMaterial({ map: t, transparent: true })); s.scale.set(w || 46, (w || 46) * 0.3, 1); return s;
   }
   var _v1 = new THREE.Vector3(), _v2 = new THREE.Vector3();
@@ -150,7 +162,7 @@
 
       var num = new THREE.Mesh(numGeo, numMat(lvl + 1)); num.position.set(-RACK_W / 2 + 7, y + 16, RACK_D / 2 + 2); g.add(num);
     }
-    var sign = makeSign('KỆ ' + no, 46); sign.position.set(0, totalH + 15, RACK_D / 2 + 5); g.add(sign);
+    var sign = makeSign(function () { return I18N.t('rackWord') + no; }, 46); sign.position.set(0, totalH + 15, RACK_D / 2 + 5); g.add(sign);
     scene.add(g);
   }
 
@@ -180,6 +192,21 @@
     var lane = new THREE.Mesh(new THREE.PlaneGeometry(L + 260, 9), laneMat); lane.rotation.x = -Math.PI / 2; lane.position.set(0, 0.4, zc + shiftZ); lane.receiveShadow = true; scene.add(lane);
   });
 
+  // ----- Lối đi cắt ngang qua kệ (đúng chỗ có khoảng hở CROSS_EXTRA trong rowCenters) -----
+  // Kệ 19|20 và kệ 29|30 dùng chung 1 x (cA[7]/cA[8]) vì dãy A và dãy B áp lưng nhau -> chỉ 1 lối
+  // đi xuyên suốt cả 2 dãy. Kệ 41|42,43 chỉ xuyên qua bề dày riêng dãy 3.
+  var crossAB_X = (cA[7] + cA[8]) / 2 + shiftX;
+  var crossAB_Z = (ZA + ZB) / 2 + shiftZ;
+  var crossAB_Len = (ZB - ZA) + RACK_D;
+  var crossLaneAB = new THREE.Mesh(new THREE.PlaneGeometry(9, crossAB_Len), laneMat);
+  crossLaneAB.rotation.x = -Math.PI / 2; crossLaneAB.position.set(crossAB_X, 0.4, crossAB_Z); crossLaneAB.receiveShadow = true; scene.add(crossLaneAB);
+
+  var cross3_X = (c3[9] + c3[10]) / 2 + shiftX;
+  var cross3_Z = Z3 + shiftZ;
+  var cross3_Len = RACK_D + 80;
+  var crossLane3 = new THREE.Mesh(new THREE.PlaneGeometry(9, cross3_Len), laneMat);
+  crossLane3.rotation.x = -Math.PI / 2; crossLane3.position.set(cross3_X, 0.4, cross3_Z); crossLane3.receiveShadow = true; scene.add(crossLane3);
+
   // ----- Cửa ra vào + khu vực chờ (có hàng chờ) + thoát hiểm -----
   var xLeft = -L / 2 - 260;
   var zMidA = ((ZA + ZB) / 2) + shiftZ;
@@ -192,7 +219,7 @@
   var gateMat = new THREE.MeshStandardMaterial({ color: 0xf1c21b, roughness: 0.6, metalness: 0.2 });
   [zMidA - 70, zMidA + 70].forEach(function (zz) { var p = new THREE.Mesh(new THREE.BoxGeometry(10, 150, 10), gateMat); p.position.set(xLeft, 75, zz); p.castShadow = true; scene.add(p); });
   var header = new THREE.Mesh(new THREE.BoxGeometry(10, 12, 152), gateMat); header.position.set(xLeft, 150, zMidA); scene.add(header);
-  var doorSign = makeSign('CỬA RA VÀO', 150, 42); doorSign.scale.set(150, 40, 1); doorSign.position.set(xLeft, 180, zMidA); scene.add(doorSign);
+  var doorSign = makeSign(function () { return I18N.t('doorSignText'); }, 150, 42); doorSign.scale.set(150, 40, 1); doorSign.position.set(xLeft, 180, zMidA); scene.add(doorSign);
   var entryArrow = arrowPlane(110, 110, 0); entryArrow.position.set(xLeft + 215, 0.5, zMidA); scene.add(entryArrow);
 
   /* === KHU VỰC CHỜ — ẩn tạm theo yêu cầu (tương lai cần thì bỏ comment để bật lại) ===
@@ -217,10 +244,68 @@
   var escHeader = new THREE.Mesh(new THREE.BoxGeometry(80, 12, 9), escGreen); escHeader.position.set(xEsc, 150, zEscOuter); scene.add(escHeader);
   var escSign = (function () {
     var c = document.createElement('canvas'); c.width = 300; c.height = 96; var x = c.getContext('2d');
-    x.fillStyle = '#1f8a4c'; roundRect(x, 4, 4, 292, 88, 12); x.fill(); x.fillStyle = '#fff'; x.font = 'bold 40px "Arial Narrow", Arial, sans-serif'; x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillText('THOÁT HIỂM →', 150, 50);
-    var t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; var s = new THREE.Sprite(new THREE.SpriteMaterial({ map: t, transparent: true })); s.scale.set(100, 32, 1); s.position.set(xEsc, 172, zEscOuter); return s;
+    var t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace;
+    function draw() {
+      x.clearRect(0, 0, 300, 96);
+      x.fillStyle = '#1f8a4c'; roundRect(x, 4, 4, 292, 88, 12); x.fill(); x.fillStyle = '#fff'; x.font = 'bold 40px "Arial Narrow", Arial, sans-serif'; x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillText(I18N.t('exitSignText'), 150, 50);
+      t.needsUpdate = true;
+    }
+    draw(); i18nSignRefreshers.push(draw);
+    var s = new THREE.Sprite(new THREE.SpriteMaterial({ map: t, transparent: true })); s.scale.set(100, 32, 1); s.position.set(xEsc, 172, zEscOuter); return s;
   })();
   scene.add(escSign);
+
+  // ----- Bàn làm việc + PC trước kệ 32 (chỗ nhân viên ngồi quản lý khu vực) -----
+  (function buildOfficeDesk() {
+    var deskWoodMat = new THREE.MeshStandardMaterial({ color: 0x8a5a34, roughness: 0.75, metalness: 0.05 });
+    var deskTopMat = new THREE.MeshStandardMaterial({ color: 0xc59a63, roughness: 0.5, metalness: 0.05 });
+    var pcMat = new THREE.MeshStandardMaterial({ color: 0x2b2f36, roughness: 0.5, metalness: 0.3 });
+    var chairMat = new THREE.MeshStandardMaterial({ color: 0x24262c, roughness: 0.7, metalness: 0.1 });
+    var chromeMat = new THREE.MeshStandardMaterial({ color: 0xb9c0c9, roughness: 0.3, metalness: 0.8 });
+
+    // Màn hình PC: vẽ giao diện giám sát đơn giản lên texture cho giống thật, không phải màn hình trơn
+    var sc = document.createElement('canvas'); sc.width = 256; sc.height = 160; var sx = sc.getContext('2d');
+    var screenTex = new THREE.CanvasTexture(sc); screenTex.colorSpace = THREE.SRGBColorSpace;
+    function drawScreen() {
+      sx.clearRect(0, 0, 256, 160);
+      sx.fillStyle = '#0c2033'; sx.fillRect(0, 0, 256, 160);
+      sx.strokeStyle = '#2fbf7a'; sx.lineWidth = 3; sx.beginPath();
+      sx.moveTo(10, 120); sx.lineTo(60, 92); sx.lineTo(100, 106); sx.lineTo(150, 60); sx.lineTo(200, 78); sx.lineTo(246, 42); sx.stroke();
+      sx.fillStyle = '#e9edf5'; sx.font = 'bold 20px Arial'; sx.fillText(I18N.t('deskScreenTitle'), 14, 32);
+      sx.fillStyle = '#8a93a6'; sx.font = '13px Arial'; sx.fillText(I18N.t('deskScreenSub'), 14, 52);
+      screenTex.needsUpdate = true;
+    }
+    drawScreen(); i18nSignRefreshers.push(drawScreen);
+    var screenMat = new THREE.MeshStandardMaterial({ map: screenTex, roughness: 0.4, emissive: 0xffffff, emissiveMap: screenTex, emissiveIntensity: 0.5 });
+
+    // Cùng trục (cùng Z) với dãy 3, nằm TRƯỚC kệ 32 (nhỏ hơn X của kệ 32 1 pitch) — chỗ trống trên
+    // đường đi từ cửa vào đến kệ 32, là 1 khu riêng chứ không nằm trong khe hở giữa dãy B và dãy 3.
+    var deskX = c3[0] + shiftX - 130;
+    var deskZ = Z3 + shiftZ;
+    var desk = new THREE.Group(); desk.position.set(deskX, 0, deskZ);
+
+    var top = new THREE.Mesh(new THREE.BoxGeometry(112, 3, 58), deskTopMat); top.position.set(0, 44, 0); top.castShadow = true; top.receiveShadow = true; desk.add(top);
+    [[-52, -25], [52, -25], [-52, 25], [52, 25]].forEach(function (p) {
+      var leg = new THREE.Mesh(new THREE.BoxGeometry(4, 44, 4), deskWoodMat); leg.position.set(p[0], 22, p[1]); leg.castShadow = true; desk.add(leg);
+    });
+    var panel = new THREE.Mesh(new THREE.BoxGeometry(106, 26, 2), deskWoodMat); panel.position.set(0, 26, -22); desk.add(panel);
+
+    var cpu = new THREE.Mesh(new THREE.BoxGeometry(16, 38, 38), pcMat); cpu.position.set(42, 19, -8); cpu.castShadow = true; desk.add(cpu);
+
+    var standNeck = new THREE.Mesh(new THREE.CylinderGeometry(1.6, 1.6, 14, 10), chromeMat); standNeck.position.set(-10, 52, -16); desk.add(standNeck);
+    var standBase = new THREE.Mesh(new THREE.CylinderGeometry(9, 9, 1.6, 20), chromeMat); standBase.position.set(-10, 45.8, -16); desk.add(standBase);
+    var monitor = new THREE.Mesh(new THREE.BoxGeometry(38, 24, 2), screenMat); monitor.position.set(-10, 66, -16); monitor.castShadow = true; desk.add(monitor);
+
+    var keyboard = new THREE.Mesh(new THREE.BoxGeometry(24, 1.4, 9), pcMat); keyboard.position.set(-10, 45.7, 10); desk.add(keyboard);
+    var mouse = new THREE.Mesh(new THREE.BoxGeometry(4, 1.4, 6), pcMat); mouse.position.set(8, 45.7, 10); desk.add(mouse);
+
+    var seat = new THREE.Mesh(new THREE.BoxGeometry(30, 4, 30), chairMat); seat.position.set(0, 27, 26); seat.castShadow = true; desk.add(seat);
+    var back = new THREE.Mesh(new THREE.BoxGeometry(28, 26, 4), chairMat); back.position.set(0, 42, 40); desk.add(back);
+    var chairPost = new THREE.Mesh(new THREE.CylinderGeometry(2, 2, 22, 10), chromeMat); chairPost.position.set(0, 15, 26); desk.add(chairPost);
+    var chairBase = new THREE.Mesh(new THREE.CylinderGeometry(13, 13, 1.6, 5), chromeMat); chairBase.position.set(0, 4, 26); desk.add(chairBase);
+
+    scene.add(desk);
+  })();
 
   // ----- HUD stats -----
   function setTxt(id, v) { var el = document.getElementById(id); if (el) el.textContent = v; }
@@ -275,40 +360,40 @@
     var t = o.userData, wr = wrap.getBoundingClientRect();
     tooltip.style.left = (e.clientX - wr.left + 16) + 'px'; tooltip.style.top = (e.clientY - wr.top + 16) + 'px';
     var status = t.qrCount > 0
-      ? '<span class="wh3d-tt-status" style="background:rgba(47,191,122,0.18);color:#2fbf7a">Đang có hàng</span>'
-      : '<span class="wh3d-tt-status" style="background:rgba(148,163,184,0.18);color:#9aa3b5">Trống</span>';
-    tooltip.innerHTML = '<div class="wh3d-tt-code">Kệ ' + t.rack + ' · Tầng ' + t.level + '</div>' +
-      (t.qrCount > 0 ? '<div class="wh3d-tt-row"><span>Số mã QR</span><span>' + t.qrCount + '</span></div>' : '') + status;
+      ? '<span class="wh3d-tt-status" style="background:rgba(47,191,122,0.18);color:#2fbf7a">' + I18N.t('statusHasStock') + '</span>'
+      : '<span class="wh3d-tt-status" style="background:rgba(148,163,184,0.18);color:#9aa3b5">' + I18N.t('statusEmpty') + '</span>';
+    tooltip.innerHTML = '<div class="wh3d-tt-code">' + I18N.t('rackWord') + t.rack + I18N.t('levelWord') + t.level + '</div>' +
+      (t.qrCount > 0 ? '<div class="wh3d-tt-row"><span>' + I18N.t('qrCountLabel') + '</span><span>' + t.qrCount + '</span></div>' : '') + status;
     tooltip.classList.add('show');
   }
 
   // ----- Drawer: danh sách mã QR thật (fetch có phân trang) -----
   var drawer = document.getElementById('wh3d-drawer'), dCode = document.getElementById('wh3d-drawer-code'), dLoc = document.getElementById('wh3d-drawer-loc'), dBody = document.getElementById('wh3d-drawer-body');
-  var curLoc = null, curHl = null;
+  var curLoc = null, curHl = null, curRack = null, curLevel = null;
   function openTierByPad(pad, hlBarcode, startPage) {
-    var u = pad.userData; curLoc = u.locationId; curHl = hlBarcode || null;
-    dCode.textContent = 'Kệ ' + u.rack + ' · Tầng ' + u.level;
+    var u = pad.userData; curLoc = u.locationId; curHl = hlBarcode || null; curRack = u.rack; curLevel = u.level;
+    dCode.textContent = I18N.t('rackWord') + u.rack + I18N.t('levelWord') + u.level;
     drawer.classList.add('open'); focusPad(pad); showHighlight(pad);
-    autoSpin = false; if (btnSpin) { btnSpin.classList.remove('on'); btnSpin.textContent = '▶ Tự xoay'; }
-    if (!u.qrCount || !u.locationId) { dLoc.textContent = 'Ô trống'; dBody.innerHTML = '<div class="wh3d-empty">Tầng này hiện chưa có mã QR nào.</div>'; return; }
+    autoSpin = false; if (btnSpin) { btnSpin.classList.remove('on'); btnSpin.textContent = I18N.t('spinBtnStart'); }
+    if (!u.qrCount || !u.locationId) { dLoc.textContent = I18N.t('emptyTier'); dBody.innerHTML = '<div class="wh3d-empty">' + I18N.t('noQrInTier') + '</div>'; return; }
     loadPage(startPage || 1);
   }
   function loadPage(p) {
-    dLoc.textContent = 'Đang tải…'; dBody.innerHTML = '<div class="wh3d-empty">Đang tải…</div>';
+    dLoc.textContent = I18N.t('feedLoading'); dBody.innerHTML = '<div class="wh3d-empty">' + I18N.t('feedLoading') + '</div>';
     fetch('/Warehouse/LocationMaterials?id=' + curLoc + '&page=' + p)
       .then(function (r) { return r.json(); })
       .then(function (data) { renderDrawer(data); })
-      .catch(function () { dBody.innerHTML = '<div class="wh3d-empty">Lỗi tải dữ liệu.</div>'; });
+      .catch(function () { dBody.innerHTML = '<div class="wh3d-empty">' + I18N.t('loadError') + '</div>'; });
   }
   function renderDrawer(data) {
     var items = data.items || [], total = data.totalPages || 1, page = data.page || 1;
-    dLoc.textContent = (data.totalCount != null ? data.totalCount : items.length) + ' mã QR đang trong tầng';
+    dLoc.textContent = (data.totalCount != null ? data.totalCount : items.length) + I18N.t('qrInTierSuffix');
     var rows = items.map(function (it) {
       var hl = (curHl && it.barcode === curHl) ? ' class="hl"' : '';
       return '<tr' + hl + '><td class="mono">' + it.barcode + '</td><td>' + (it.dev || '') + '</td><td>' + (it.model || '') + '</td><td class="mono" style="text-align:right">' + (it.balance != null ? it.balance : '') + '</td></tr>';
     }).join('');
-    var pager = total > 1 ? '<div class="wh3d-pager"><button id="wh3d-pg-prev"' + (page <= 1 ? ' disabled' : '') + '>‹</button><span>Trang ' + page + ' / ' + total + '</span><button id="wh3d-pg-next"' + (page >= total ? ' disabled' : '') + '>›</button></div>' : '';
-    dBody.innerHTML = '<span class="wh3d-status">Đang có hàng</span><table class="wh3d-mini"><thead><tr><th>Barcode</th><th>Dev</th><th>Model</th><th style="text-align:right">SL</th></tr></thead><tbody>' + rows + '</tbody></table>' + pager;
+    var pager = total > 1 ? '<div class="wh3d-pager"><button id="wh3d-pg-prev"' + (page <= 1 ? ' disabled' : '') + '>‹</button><span>' + I18N.t('pageWord') + page + ' / ' + total + '</span><button id="wh3d-pg-next"' + (page >= total ? ' disabled' : '') + '>›</button></div>' : '';
+    dBody.innerHTML = '<span class="wh3d-status">' + I18N.t('statusHasStock') + '</span><table class="wh3d-mini"><thead><tr><th>' + I18N.t('colBarcode') + '</th><th>' + I18N.t('colDev') + '</th><th>' + I18N.t('colModel') + '</th><th style="text-align:right">' + I18N.t('colQty') + '</th></tr></thead><tbody>' + rows + '</tbody></table>' + pager;
     var pv = document.getElementById('wh3d-pg-prev'), nx = document.getElementById('wh3d-pg-next');
     if (pv) pv.onclick = function () { if (page > 1) loadPage(page - 1); };
     if (nx) nx.onclick = function () { if (page < total) loadPage(page + 1); };
@@ -320,25 +405,47 @@
   var sInput = document.getElementById('wh3d-search-input'), sMsg = document.getElementById('wh3d-search-msg');
   function setMsg(t, err) { sMsg.textContent = t || ''; sMsg.classList.toggle('err', !!err); }
   function doSearch(q) {
-    q = (q || '').trim(); if (!q) return; setMsg('Đang tìm…');
+    q = (q || '').trim(); if (!q) return; setMsg(I18N.t('searching'));
     fetch('/Warehouse/Find?barcode=' + encodeURIComponent(q))
       .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, d: d }; }); })
       .then(function (res) {
-        if (!res.ok) { setMsg(res.d && res.d.message ? res.d.message : 'Không tìm thấy.', true); hlBox.visible = false; return; }
+        if (!res.ok) { setMsg(res.d && res.d.message ? res.d.message : I18N.t('notFound'), true); hlBox.visible = false; return; }
         var f = res.d, pad = padByRackLevel[f.rackNo] && padByRackLevel[f.rackNo][f.levelNo];
-        if (!pad) { setMsg('Không định vị được ô kệ.', true); return; }
-        setMsg('Tìm thấy tại Kệ ' + f.rackNo + ' · Tầng ' + f.levelNo);
+        if (!pad) { setMsg(I18N.t('cannotLocate'), true); return; }
+        setMsg(I18N.t('foundAt') + f.rackNo + I18N.t('levelWord') + f.levelNo);
         openTierByPad(pad, q, Math.max(1, Math.ceil((f.ordinal || 1) / 8)));
       })
-      .catch(function () { setMsg('Lỗi tìm kiếm.', true); });
+      .catch(function () { setMsg(I18N.t('searchError'), true); });
   }
   document.getElementById('wh3d-search-btn').addEventListener('click', function () { doSearch(sInput.value); });
   sInput.addEventListener('keydown', function (e) { if (e.key === 'Enter') doSearch(sInput.value); });
 
+  function resetView() { animCamPos = null; hlBox.visible = false; target.set(0, 70, 0); radius = 1550; theta = -0.7; phi = 1.0; updateCamera(); }
   var btnReset = document.getElementById('wh3d-btnReset');
-  if (btnReset) btnReset.addEventListener('click', function () { animCamPos = null; hlBox.visible = false; target.set(0, 70, 0); radius = 1550; theta = -0.7; phi = 1.0; updateCamera(); });
+  if (btnReset) btnReset.addEventListener('click', resetView);
   var btnSpin = document.getElementById('wh3d-btnSpin');
-  if (btnSpin) btnSpin.addEventListener('click', function () { autoSpin = !autoSpin; btnSpin.classList.toggle('on', autoSpin); btnSpin.textContent = autoSpin ? '■ Dừng xoay' : '▶ Tự xoay'; });
+  if (btnSpin) btnSpin.addEventListener('click', function () {
+    autoSpin = !autoSpin;
+    btnSpin.classList.toggle('on', autoSpin);
+    btnSpin.textContent = autoSpin ? I18N.t('spinBtnStop') : I18N.t('spinBtnStart');
+    if (autoSpin) resetView(); // bật tự xoay -> luôn bắt đầu lại từ góc nhìn mặc định
+  });
+
+  // ----- Đổi ngôn ngữ: cập nhật lại các phần chữ tĩnh + đang mở (nếu có) sang ngôn ngữ mới -----
+  I18N.onChange(function () {
+    i18nSignRefreshers.forEach(function (fn) { fn(); }); // vẽ lại chữ trong scene 3D: CỬA RA VÀO, KỆ N, THOÁT HIỂM, màn hình PC
+    var badge = document.getElementById('wh3d-badge'); if (badge) badge.innerHTML = I18N.t('dragHint');
+    var hint = document.getElementById('wh3d-hint'); if (hint) hint.textContent = I18N.t('tierHint');
+    var loadingEl = document.getElementById('wh3d-loading'); if (loadingEl) loadingEl.textContent = I18N.t('loading3d');
+    if (sInput) sInput.placeholder = I18N.t('searchPlaceholder');
+    var sBtn = document.getElementById('wh3d-search-btn'); if (sBtn) sBtn.textContent = I18N.t('searchBtn');
+    if (btnReset) btnReset.textContent = I18N.t('resetBtn');
+    if (btnSpin) btnSpin.textContent = autoSpin ? I18N.t('spinBtnStop') : I18N.t('spinBtnStart');
+    if (drawer.classList.contains('open') && curRack != null) {
+      dCode.textContent = I18N.t('rackWord') + curRack + I18N.t('levelWord') + curLevel;
+      if (curLoc) loadPage(1);
+    }
+  });
 
   // ----- Realtime (SignalR): tự cập nhật khi có nhập/xuất/nhận lại/hủy -----
   function applyOccupancy(tiers) {
@@ -360,9 +467,14 @@
   }
   if (window.signalR) {
     try {
-      var conn = new signalR.HubConnectionBuilder().withUrl('/warehouseHub').withAutomaticReconnect().build();
+      // Dùng chung 1 kết nối /warehouseHub với warehouse-dashboard.js (window.PmcWhHub) thay vì
+      // mỗi file tự mở 1 socket riêng — file nào chạy trước thì tạo, file sau chỉ gắn thêm handler.
+      var conn = window.PmcWhHub || new signalR.HubConnectionBuilder().withUrl('/warehouseHub').withAutomaticReconnect().build();
+      window.PmcWhHub = conn;
       conn.on('warehouseChanged', refreshLayout);
-      conn.start().catch(function (e) { console.warn('SignalR connect fail', e); });
+      if (conn.state === signalR.HubConnectionState.Disconnected) {
+        conn.start().catch(function (e) { console.warn('SignalR connect fail', e); });
+      }
     } catch (e) { console.warn('SignalR init fail', e); }
   }
 

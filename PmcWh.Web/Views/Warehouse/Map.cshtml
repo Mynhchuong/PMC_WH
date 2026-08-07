@@ -7,10 +7,19 @@
 
 @section Styles {
     <style>
+        #wh3d-page { display: flex; flex-direction: column; gap: 10px; min-height: 480px; }
+        .wh3d-mainrow { display: flex; gap: 12px; flex: 1 1 auto; min-height: 320px; }
         #wh3d-wrap {
-            position: relative; width: 100%; height: calc(100vh - 150px); min-height: 480px;
+            position: relative; flex: 1 1 auto; width: auto; min-width: 0; height: 100%;
             border-radius: 16px; overflow: hidden; background: #d2d8df;
             box-shadow: 0 10px 30px rgba(15, 23, 42, 0.12); border: 1px solid #e2e6ea;
+        }
+        .wh3d-side { flex: 0 0 300px; display: flex; flex-direction: column; gap: 10px; min-height: 0; }
+        @@media (max-width: 1100px) {
+            #wh3d-page { height: auto !important; }
+            .wh3d-mainrow { flex-direction: column; }
+            #wh3d-wrap { height: 60vh; min-height: 420px; }
+            .wh3d-side { flex: none; }
         }
         #wh3d-canvas { display: block; width: 100%; height: 100%; cursor: grab; }
         .wh3d-hud {
@@ -84,68 +93,157 @@
         .wh3d-pager button { border: 1px solid #2a3040; background: #1d2230; color: #e9edf5; width: 28px; height: 26px; border-radius: 7px; cursor: pointer; font-size: 15px; }
         .wh3d-pager button:disabled { opacity: 0.35; cursor: default; }
         .wh3d-empty { text-align: center; color: #8a93a6; font-size: 12.5px; padding: 26px 10px; }
+
+        /* ---- Banner giám sát TV ---- */
+        .wh3d-banner {
+            display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap;
+            flex: 0 0 auto;
+            background: linear-gradient(120deg, #0c0e14 0%, #1a1f2c 55%, #0c0e14 100%);
+            border: 1px solid #2a3040; border-radius: 14px; padding: 9px 18px;
+            box-shadow: 0 12px 30px rgba(0,0,0,0.25);
+        }
+        .wh3d-banner .id { display: flex; align-items: center; gap: 12px; }
+        .wh3d-banner .id .icon { width: 38px; height: 38px; font-size: 18px; }
+        .wh3d-banner h5 { color: #f4f6fb; letter-spacing: 0.02em; margin-bottom: 1px; font-size: 16px; }
+        .wh3d-banner .sub { color: #8a93a6; }
+        .wh3d-clock { text-align: right; color: #e9edf5; font-variant-numeric: tabular-nums; }
+        .wh3d-clock .time { font-size: 18px; font-weight: 700; line-height: 1.1; }
+        .wh3d-clock .date { font-size: 10.5px; color: #8a93a6; text-transform: uppercase; letter-spacing: 0.06em; }
+        .wh3d-tvbtn {
+            border: 1px solid #2a3040; background: #1d2230; color: #e9edf5; font-size: 12px; font-weight: 600;
+            padding: 7px 13px; border-radius: 9px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px;
+        }
+        .wh3d-tvbtn:hover { border-color: #ff8a3d; color: #ff8a3d; }
+
+        /* ---- Bảng thống kê lớn (đọc được từ xa trên TV) ---- */
+        .wh3d-bignums { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; flex: 0 0 auto; }
+        .wh3d-bignum {
+            background: #12151d; border: 1px solid #2a3040; border-radius: 12px; padding: 10px 8px; text-align: center;
+        }
+        .wh3d-bignum .n { font-size: 26px; font-weight: 800; line-height: 1.05; color: #e9edf5; font-variant-numeric: tabular-nums; }
+        .wh3d-bignum .l { font-size: 10px; color: #8a93a6; text-transform: uppercase; letter-spacing: 0.04em; margin-top: 3px; }
+        .wh3d-bignum.occ .n { color: #2fbf7a; }
+        .wh3d-bignum.out .n { color: #ffb84d; }
+        @@media (max-width: 700px) { .wh3d-bignums { grid-template-columns: 1fr; } }
+        .wh3d-summary-updated { flex: 0 0 auto; text-align: right; font-size: 10.5px; color: #6b7385; margin-top: -2px; }
+
+        /* ---- Panel hoạt động gần đây (cột bên cạnh bản đồ 3D) ---- */
+        .wh3d-feed {
+            background: #12151d; border: 1px solid #2a3040; border-radius: 14px; padding: 12px 14px;
+            box-shadow: 0 10px 26px rgba(0,0,0,0.18); flex: 1 1 0; display: flex; flex-direction: column; min-height: 0;
+        }
+        .wh3d-feed h6 {
+            display: flex; align-items: center; gap: 8px; color: #e9edf5; font-size: 11.5px;
+            text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 6px; flex: 0 0 auto;
+        }
+        .wh3d-feed h6 .dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+        .wh3d-feed.in h6 .dot { background: #2fbf7a; box-shadow: 0 0 8px #2fbf7a; }
+        .wh3d-feed.out h6 .dot { background: #ffb84d; box-shadow: 0 0 8px #ffb84d; }
+        .wh3d-feed-list { flex: 1 1 auto; overflow-y: auto; min-height: 0; }
+        .wh3d-feed-item {
+            display: flex; align-items: center; justify-content: space-between; gap: 10px;
+            padding: 7px 0; border-bottom: 1px solid rgba(255,255,255,0.05);
+        }
+        .wh3d-feed-item:last-child { border-bottom: none; }
+        .wh3d-feed-item .fi-main { min-width: 0; }
+        .wh3d-feed-item .fi-code { font-family: monospace; font-weight: 700; color: #e9edf5; font-size: 12.5px; }
+        .wh3d-feed-item .fi-sub { font-size: 10.5px; color: #8a93a6; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .wh3d-feed-item .fi-right { text-align: right; flex-shrink: 0; }
+        .wh3d-feed-item .fi-qty { font-size: 11.5px; color: #e9edf5; font-weight: 600; }
+        .wh3d-feed-item .fi-time { font-size: 10px; color: #6b7385; }
+        .wh3d-feed-empty { text-align: center; color: #6b7385; font-size: 12px; padding: 14px 0; }
     </style>
 }
 
-<div class="d-flex align-items-center gap-3 mb-3">
-    <span class="d-inline-flex align-items-center justify-content-center rounded-4"
-          style="width:44px;height:44px;background:linear-gradient(135deg,#495057,#212529);flex-shrink:0;">
-        <span class="material-icons text-white">warehouse</span>
-    </span>
-    <div>
-        <h5 class="mb-0">Bản đồ kho 3D</h5>
-        <p class="text-muted small mb-0">Dữ liệu thật từ kho — chỉ hiển thị hàng đang có trong kho</p>
-    </div>
-</div>
-
-<div id="wh3d-wrap">
-    <canvas id="wh3d-canvas"></canvas>
-    <div class="wh3d-loading" id="wh3d-loading">Đang dựng kho 3D…</div>
-
-    <div class="wh3d-hud">
-        <div class="wh3d-badge">Kéo <b>xoay</b> · Cuộn <b>zoom</b> · Rê chuột lên tầng để xem</div>
-        <div class="wh3d-stats">
-            <div class="wh3d-stat"><div class="n" id="wh3d-stat-total">0</div><div class="l">Tổng tầng</div></div>
-            <div class="wh3d-stat occ"><div class="n" id="wh3d-stat-occ">0</div><div class="l">Tầng có hàng</div></div>
-            <div class="wh3d-stat"><div class="n" id="wh3d-stat-qr">0</div><div class="l">Tổng mã QR</div></div>
-        </div>
-    </div>
-
-    <div class="wh3d-legend">
-        <h6>Chú thích</h6>
-        <div class="row"><span class="sw" style="background:#9aa3b5"></span> Kệ trống</div>
-        <div class="row"><span class="sw" style="background:#2fbf7a"></span> Đang có hàng</div>
-        <div class="acts">
-            <button class="wh3d-btn" id="wh3d-btnReset">↺ Reset góc nhìn</button>
-            <button class="wh3d-btn" id="wh3d-btnSpin">▶ Tự xoay</button>
-        </div>
-    </div>
-
-    <div class="wh3d-search">
-        <span>🔍</span>
-        <input id="wh3d-search-input" type="text" placeholder="Tìm theo barcode…" autocomplete="off" />
-        <button id="wh3d-search-btn">Tìm</button>
-        <span class="msg" id="wh3d-search-msg"></span>
-    </div>
-
-    <div class="wh3d-tooltip" id="wh3d-tooltip"></div>
-    <div class="wh3d-hint">Bấm 1 tầng để bay tới xem mã QR</div>
-
-    <div class="wh3d-drawer" id="wh3d-drawer">
-        <div class="head">
+<div id="wh3d-page">
+    <div class="wh3d-banner">
+        <div class="id">
+            <span class="d-inline-flex align-items-center justify-content-center rounded-4 icon"
+                  style="background:linear-gradient(135deg,#ff8a3d,#c9501a);flex-shrink:0;">
+                <span class="material-icons text-white">warehouse</span>
+            </span>
             <div>
-                <div class="code" id="wh3d-drawer-code">—</div>
-                <div class="loc" id="wh3d-drawer-loc">—</div>
+                <h5 class="mb-0" id="wh3d-banner-title">KHO PMC </h5>
             </div>
-            <button class="close" id="wh3d-drawer-close" aria-label="Đóng">✕</button>
         </div>
-        <div class="body" id="wh3d-drawer-body"></div>
+        <div class="d-flex align-items-center gap-3">
+            <select class="wh3d-tvbtn" id="wh3d-lang-select" style="cursor:pointer;">
+                <option value="vi">Tiếng Việt</option>
+                <option value="en">English</option>
+            </select>
+            <div class="wh3d-clock">
+                <div class="time" id="wh3d-clock-time">--:--:--</div>
+                <div class="date" id="wh3d-clock-date">—</div>
+            </div>
+            <button type="button" class="wh3d-tvbtn" id="wh3d-btnFullscreen">
+                <span class="material-icons" style="font-size:16px;">fullscreen</span> <span id="wh3d-tvbtn-label">Chế độ TV</span>
+            </button>
+        </div>
+    </div>
+
+    <div class="wh3d-bignums">
+        <div class="wh3d-bignum occ"><div class="n" id="wh3d-big-instock">—</div><div class="l" id="wh3d-big-instock-label">Tổng số hàng trong kho</div></div>
+        <div class="wh3d-bignum out"><div class="n" id="wh3d-big-issued-today">—</div><div class="l" id="wh3d-big-issued-today-label">Đã xuất hôm nay</div></div>
+        <div class="wh3d-bignum"><div class="n" id="wh3d-big-inbound-today">—</div><div class="l" id="wh3d-big-inbound-today-label">Lên kệ hôm nay</div></div>
+    </div>
+    <div class="wh3d-summary-updated" id="wh3d-summary-updated">—</div>
+
+    <div class="wh3d-mainrow">
+        <div id="wh3d-wrap">
+            <canvas id="wh3d-canvas"></canvas>
+            <div class="wh3d-loading" id="wh3d-loading">Đang dựng kho 3D…</div>
+
+            <div class="wh3d-hud">
+                <div class="wh3d-badge" id="wh3d-badge">Kéo <b>xoay</b> · Cuộn <b>zoom</b> · Rê chuột lên tầng để xem</div>
+            </div>
+
+            <div class="wh3d-legend">
+                <div class="acts" style="margin-top:0;padding-top:0;border-top:none;">
+                    <button class="wh3d-btn" id="wh3d-btnReset">↺ Reset góc nhìn</button>
+                    <button class="wh3d-btn" id="wh3d-btnSpin">▶ Tự xoay</button>
+                </div>
+            </div>
+
+            <div class="wh3d-search">
+                <span>🔍</span>
+                <input id="wh3d-search-input" type="text" placeholder="Tìm theo barcode…" autocomplete="off" />
+                <button id="wh3d-search-btn">Tìm</button>
+                <span class="msg" id="wh3d-search-msg"></span>
+            </div>
+
+            <div class="wh3d-tooltip" id="wh3d-tooltip"></div>
+            <div class="wh3d-hint" id="wh3d-hint">Bấm 1 tầng để bay tới xem mã QR</div>
+
+            <div class="wh3d-drawer" id="wh3d-drawer">
+                <div class="head">
+                    <div>
+                        <div class="code" id="wh3d-drawer-code">—</div>
+                        <div class="loc" id="wh3d-drawer-loc">—</div>
+                    </div>
+                    <button class="close" id="wh3d-drawer-close" aria-label="Đóng">✕</button>
+                </div>
+                <div class="body" id="wh3d-drawer-body"></div>
+            </div>
+        </div>
+
+        <div class="wh3d-side">
+            <div class="wh3d-feed in">
+                <h6><span class="dot"></span> <span id="wh3d-feed-inbound-title">5 mã vừa lên kệ</span></h6>
+                <div class="wh3d-feed-list" id="wh3d-feed-inbound"><div class="wh3d-feed-empty">Đang tải…</div></div>
+            </div>
+            <div class="wh3d-feed out">
+                <h6><span class="dot"></span> <span id="wh3d-feed-issue-title">5 mã vừa xuất kho</span></h6>
+                <div class="wh3d-feed-list" id="wh3d-feed-issue"><div class="wh3d-feed-empty">Đang tải…</div></div>
+            </div>
+        </div>
     </div>
 </div>
 
 @section Scripts {
     <script>window.PMC_TIERS = @Html.Raw(tiersJson);</script>
+    <script src="~/js/warehouse-i18n.js" asp-append-version="true"></script>
     <script src="~/lib/three/three.min.js" asp-append-version="true"></script>
     <script src="~/lib/signalr/signalr.min.js" asp-append-version="true"></script>
     <script src="~/js/warehouse-map.js" asp-append-version="true"></script>
+    <script src="~/js/warehouse-dashboard.js" asp-append-version="true"></script>
 }

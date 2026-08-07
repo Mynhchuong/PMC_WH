@@ -115,4 +115,69 @@ public class WarehouseController : ControllerBase
             Ordinal = Convert.ToInt32(r["ORDINAL"]),
         });
     }
+
+    /// <summary>
+    /// Dữ liệu cho màn hình giám sát TV: tổng quan toàn kho + 5 lượt lên kệ gần nhất + 5 lượt xuất
+    /// kho gần nhất. Web gọi lại định kỳ / khi có realtime "warehouseChanged" để cập nhật.
+    /// </summary>
+    [HttpGet("dashboard")]
+    public async Task<ActionResult<WarehouseDashboardDto>> Dashboard()
+    {
+        var summaryRows = (await _db.QueryAsync(
+            @"SELECT
+                (SELECT COUNT(*) FROM PMC_Materials
+                  WHERE IsArchived = 0 AND Status IN ('InStock', 'PartiallyIssued')) AS TotalInStock,
+                (SELECT COUNT(*) FROM PMC_StockMovements
+                  WHERE MovementType = 'IssueToWorkshop' AND TRUNC(OccurredAt) = TRUNC(SYSDATE)) AS IssuedToday,
+                (SELECT COUNT(*) FROM PMC_StockMovements
+                  WHERE MovementType = 'Inbound' AND TRUNC(OccurredAt) = TRUNC(SYSDATE)) AS InboundToday
+              FROM DUAL")).ToList();
+
+        var s = summaryRows[0];
+        var summary = new WarehouseSummaryDto
+        {
+            TotalInStock = Convert.ToInt32(s["TOTALINSTOCK"]),
+            IssuedToday = Convert.ToInt32(s["ISSUEDTODAY"]),
+            InboundToday = Convert.ToInt32(s["INBOUNDTODAY"]),
+        };
+
+        var inboundRows = await _db.QueryAsync(
+            @"SELECT * FROM (
+                  SELECT m.Barcode, m.Dev, m.Model, mv.Qty, m.Unit, l.Code AS LocationCode, mv.OccurredAt
+                    FROM PMC_StockMovements mv
+                    JOIN PMC_Materials m ON m.MaterialId = mv.MaterialId
+                    LEFT JOIN PMC_StorageLocations l ON l.LocationId = mv.LocationId
+                   WHERE mv.MovementType = 'Inbound'
+                   ORDER BY mv.OccurredAt DESC
+              ) WHERE ROWNUM <= 5");
+
+        var issueRows = await _db.QueryAsync(
+            @"SELECT * FROM (
+                  SELECT m.Barcode, m.Dev, m.Model, mv.Qty, m.Unit, r.Name AS RecipientName, mv.OccurredAt
+                    FROM PMC_StockMovements mv
+                    JOIN PMC_Materials m ON m.MaterialId = mv.MaterialId
+                    LEFT JOIN PMC_Recipients r ON r.RecipientId = mv.RecipientId
+                   WHERE mv.MovementType = 'IssueToWorkshop'
+                   ORDER BY mv.OccurredAt DESC
+              ) WHERE ROWNUM <= 5");
+
+        return Ok(new WarehouseDashboardDto
+        {
+            Summary = summary,
+            RecentInbound = inboundRows.Select(MapActivity).ToList(),
+            RecentIssue = issueRows.Select(MapActivity).ToList(),
+        });
+    }
+
+    private static RecentActivityDto MapActivity(Dictionary<string, object?> row) => new()
+    {
+        Barcode = row["BARCODE"]?.ToString() ?? string.Empty,
+        Dev = row["DEV"]?.ToString(),
+        Model = row["MODEL"]?.ToString(),
+        Qty = Convert.ToDecimal(row["QTY"]),
+        Unit = row["UNIT"]?.ToString(),
+        LocationCode = row.ContainsKey("LOCATIONCODE") ? row["LOCATIONCODE"]?.ToString() : null,
+        RecipientName = row.ContainsKey("RECIPIENTNAME") ? row["RECIPIENTNAME"]?.ToString() : null,
+        OccurredAt = Convert.ToDateTime(row["OCCURREDAT"]),
+    };
 }
