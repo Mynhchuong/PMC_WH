@@ -1,0 +1,118 @@
+@model PmcWh.Web.Models.IssueReportListViewModel
+@{
+    ViewData["Title"] = "Báo cáo xuất kho";
+}
+
+<div class="card border-0 shadow-sm rounded-4 mb-3">
+    <div class="card-body">
+        <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-4">
+            <div class="d-flex align-items-center gap-3">
+                <span class="d-inline-flex align-items-center justify-content-center rounded-4"
+                      style="width:48px;height:48px;background:linear-gradient(135deg, #495057 0%, #212529 100%); flex-shrink:0;">
+                    <span class="material-icons text-white">summarize</span>
+                </span>
+                <div>
+                    <h5 class="card-title mb-0">Báo cáo xuất kho</h5>
+                    <p class="text-muted small mb-0">Ai đã nhận, xuất lúc nào, mã nào — kèm cảnh báo quá 90 ngày</p>
+                </div>
+            </div>
+            <a asp-controller="Reports" asp-action="ExportIssuesExcel"
+               asp-route-fromDate="@Model.FromDate?.ToString("yyyy-MM-dd")"
+               asp-route-toDate="@Model.ToDate?.ToString("yyyy-MM-dd")"
+               asp-route-recipientId="@Model.RecipientId"
+               asp-route-overdueOnly="@Model.OverdueOnly"
+               class="btn pmc-btn-dark d-inline-flex align-items-center gap-1">
+                <span class="material-icons" style="font-size:18px;">file_download</span> Xuất Excel
+            </a>
+        </div>
+
+        <form asp-controller="Reports" asp-action="Issues" method="get" class="row g-2 align-items-end">
+            <div class="col-sm-4 col-md-2">
+                <label class="form-label small fw-semibold text-secondary">Từ ngày</label>
+                <input type="date" name="fromDate" value="@Model.FromDate?.ToString("yyyy-MM-dd")" class="form-control" />
+            </div>
+            <div class="col-sm-4 col-md-2">
+                <label class="form-label small fw-semibold text-secondary">Đến ngày</label>
+                <input type="date" name="toDate" value="@Model.ToDate?.ToString("yyyy-MM-dd")" class="form-control" />
+            </div>
+            <div class="col-sm-4 col-md-3">
+                <label class="form-label small fw-semibold text-secondary">Xuất cho</label>
+                <select name="recipientId" class="form-select">
+                    <option value="">Tất cả</option>
+                    @foreach (var r in Model.Recipients)
+                    {
+                        <option value="@r.RecipientId" selected="@(Model.RecipientId == r.RecipientId)">@r.Name</option>
+                    }
+                </select>
+            </div>
+            <div class="col-sm-4 col-md-2 d-flex align-items-center">
+                <div class="form-check">
+                    <input type="checkbox" name="overdueOnly" value="true" class="form-check-input" id="overdueOnlyCheck" checked="@Model.OverdueOnly" />
+                    <label class="form-check-label small" for="overdueOnlyCheck">Chỉ quá 90 ngày</label>
+                </div>
+            </div>
+            <div class="col-sm-4 col-md-2">
+                <button type="submit" class="btn btn-outline-dark w-100 d-inline-flex align-items-center justify-content-center gap-1">
+                    <span class="material-icons" style="font-size:18px;">filter_alt</span> Lọc
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="card border-0 shadow-sm rounded-4">
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table align-middle">
+                <thead>
+                    <tr class="text-uppercase text-muted small">
+                        <th>Barcode</th>
+                        <th>Dev / Model</th>
+                        <th>Size</th>
+                        <th class="text-end">SL xuất</th>
+                        <th>Xuất cho</th>
+                        <th>Người xuất</th>
+                        <th>Thời gian xuất</th>
+                        <th>Trạng thái</th>
+                        <th class="text-end">Số ngày đã xuất</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var i in Model.Items)
+                    {
+                        <tr>
+                            <td class="fw-semibold">@i.Barcode</td>
+                            <td>@i.Dev @(!string.IsNullOrEmpty(i.Dev) && !string.IsNullOrEmpty(i.Model) ? "/" : "") @i.Model</td>
+                            <td>@i.SizeSpec</td>
+                            <td class="text-end">@i.Qty @i.Unit</td>
+                            <td>@(i.RecipientName ?? "—")</td>
+                            <td>@(i.Username ?? "—")</td>
+                            <td class="text-muted small">@i.OccurredAt.ToString("dd/MM/yyyy HH:mm")</td>
+                            <td>@i.Status</td>
+                            <td class="text-end">
+                                @if (i.DaysOut.HasValue)
+                                {
+                                    <span class="badge @(i.DaysOut > 90 ? "bg-danger" : "bg-secondary")">@i.DaysOut ngày</span>
+                                }
+                                else
+                                {
+                                    <span class="text-muted">—</span>
+                                }
+                            </td>
+                        </tr>
+                    }
+                    @if (Model.Items.Count == 0)
+                    {
+                        <tr>
+                            <td colspan="9" class="text-center text-muted py-4">Không có dữ liệu phù hợp.</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+
+        <div class="mt-3">
+            @await Html.PartialAsync("_Pagination", Model.Pagination)
+        </div>
+    </div>
+</div>

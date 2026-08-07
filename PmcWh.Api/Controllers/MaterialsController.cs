@@ -112,6 +112,20 @@ public class MaterialsController : ControllerBase
     [HttpPost("{id:int}/edit")]
     public async Task<IActionResult> Edit(int id, [FromBody] EditMaterialRequest req)
     {
+        var statusRows = (await _db.QueryAsync(
+            "SELECT Status FROM PMC_Materials WHERE MaterialId = :id",
+            new OracleParameter("id", id))).ToList();
+
+        if (statusRows.Count == 0)
+        {
+            return NotFound(new { message = "Không tìm thấy liệu." });
+        }
+
+        if (statusRows[0]["STATUS"]?.ToString() == "Disposed")
+        {
+            return Conflict(new { message = "Liệu này đã bị hủy — không thể sửa thông tin." });
+        }
+
         var affected = await _db.ExecuteAsync(
             @"UPDATE PMC_Materials
                  SET Dev = :Dev, PoNo = :PoNo, Supplier = :Supplier, Model = :Model, Season = :Season,
@@ -121,7 +135,7 @@ public class MaterialsController : ControllerBase
                      Remark = :Remark, Testing = :Testing, TestRequire = :TestRequire, TestQty = :TestQty,
                      Category = :Category, RequestBy = :RequestBy, RequestOn = :RequestOn,
                      UpdatedBy = :UserId, UpdatedAt = SYSTIMESTAMP, VersionNo = VersionNo + 1
-               WHERE MaterialId = :MaterialId",
+               WHERE MaterialId = :MaterialId AND Status <> 'Disposed'",
             new OracleParameter("Dev", (object?)req.Dev ?? DBNull.Value),
             new OracleParameter("PoNo", (object?)req.PoNo ?? DBNull.Value),
             new OracleParameter("Supplier", (object?)req.Supplier ?? DBNull.Value),
@@ -223,6 +237,11 @@ public class MaterialsController : ControllerBase
 
         var arrivalQty = Convert.ToDecimal(rows[0]["ARRIVALQTY"]);
 
+        if (!await LocationExistsAsync(req.LocationId))
+        {
+            return BadRequest(new { message = "Vị trí kệ không hợp lệ hoặc không còn hoạt động." });
+        }
+
         var statements = new (string Sql, OracleParameter[] Parameters)[]
         {
             ("UPDATE PMC_Materials " +
@@ -310,6 +329,11 @@ public class MaterialsController : ControllerBase
         if (req.Qty > balance)
         {
             return BadRequest(new { message = $"Số lượng xuất ({req.Qty}) vượt quá tồn hiện tại ({balance})." });
+        }
+
+        if (!await RecipientExistsAsync(req.RecipientId))
+        {
+            return BadRequest(new { message = "Nơi nhận không hợp lệ hoặc không còn hoạt động." });
         }
 
         var remaining = balance - req.Qty;
@@ -408,6 +432,11 @@ public class MaterialsController : ControllerBase
 
         var newStatus = newBalance >= arrivalQty ? "InStock" : "PartiallyIssued";
 
+        if (!await LocationExistsAsync(req.LocationId))
+        {
+            return BadRequest(new { message = "Vị trí kệ không hợp lệ hoặc không còn hoạt động." });
+        }
+
         var statements = new (string Sql, OracleParameter[] Parameters)[]
         {
             ("UPDATE PMC_Materials " +
@@ -491,7 +520,7 @@ public class MaterialsController : ControllerBase
         var statements = new (string Sql, OracleParameter[] Parameters)[]
         {
             ("UPDATE PMC_Materials " +
-             "   SET Status = 'Disposed', Balance = 0, DisposedAt = SYSTIMESTAMP, " +
+             "   SET Status = 'Disposed', Balance = 0, CurrentLocationId = NULL, DisposedAt = SYSTIMESTAMP, " +
              "       UpdatedBy = :UserId, UpdatedAt = SYSTIMESTAMP, VersionNo = VersionNo + 1 " +
              " WHERE MaterialId = :MaterialId AND Status <> 'Disposed'",
              new[]
@@ -550,7 +579,7 @@ public class MaterialsController : ControllerBase
                 result.Skipped.Add(new MaterialImportSkip(row.Barcode ?? "(trống)", "Barcode trống"));
                 continue;
             }
-            if (row.ArrivalQty is null)
+            if (row.ArrivalQty is null || row.ArrivalQty <= 0)
             {
                 result.Skipped.Add(new MaterialImportSkip(barcode, "A.Q'TY (ArrivalQty) trống/không hợp lệ"));
                 continue;
@@ -590,6 +619,22 @@ public class MaterialsController : ControllerBase
         }
 
         return Ok(result);
+    }
+
+    private async Task<bool> LocationExistsAsync(int locationId)
+    {
+        var rows = await _db.QueryAsync(
+            "SELECT 1 FROM PMC_StorageLocations WHERE LocationId = :LocationId AND IsActive = 1",
+            new OracleParameter("LocationId", locationId));
+        return rows.Any();
+    }
+
+    private async Task<bool> RecipientExistsAsync(int recipientId)
+    {
+        var rows = await _db.QueryAsync(
+            "SELECT 1 FROM PMC_Recipients WHERE RecipientId = :RecipientId AND IsActive = 1",
+            new OracleParameter("RecipientId", recipientId));
+        return rows.Any();
     }
 
     private async Task<HashSet<string>> GetExistingBarcodesAsync(List<string> barcodes)

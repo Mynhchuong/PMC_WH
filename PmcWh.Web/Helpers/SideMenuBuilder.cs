@@ -22,7 +22,18 @@ public static class SideMenuBuilder
                     new SideMenuItem { Title = "Bản đồ kho 3D", Controller = "Warehouse", Action = "Map", Icon = "warehouse" },
                 }
             },
-            
+
+            new SideMenuItem
+            {
+                Id = "Reports",
+                Title = "Báo cáo",
+                Icon = "summarize",
+                Children = new List<SideMenuItem>
+                {
+                    new SideMenuItem { Title = "Báo cáo xuất kho", Controller = "Reports", Action = "Issues", Icon = "receipt_long" },
+                }
+            },
+
             new SideMenuItem
             {
                 Id = "Admin",
