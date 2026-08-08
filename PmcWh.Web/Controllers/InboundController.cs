@@ -3,6 +3,7 @@ using System.Security.Claims;
 using System.Text.Json;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.SignalR;
+using PmcWh.Web.Helpers;
 using PmcWh.Web.Hubs;
 using PmcWh.Web.Models;
 
@@ -65,14 +66,14 @@ public class InboundController : Controller
         if (qty.HasValue)
         {
             response = await client.PostAsJsonAsync($"api/Materials/{materialId}/return", new { locationId, qty = qty.Value, userId });
-            successMessage = $"Đã nhận lại {qty.Value} cho barcode '{barcode}'.";
-            failMessage = $"Không thể nhận lại barcode '{barcode}'.";
+            successMessage = FlashHelper.Msg("returnedSuccess", qty.Value.ToString(), barcode);
+            failMessage = FlashHelper.Msg("returnedFailFallback", barcode);
         }
         else
         {
             response = await client.PostAsJsonAsync($"api/Materials/{materialId}/inbound", new { locationId, userId });
-            successMessage = $"Đã lên kệ barcode '{barcode}'.";
-            failMessage = $"Không thể lên kệ barcode '{barcode}'.";
+            successMessage = FlashHelper.Msg("shelvedSuccess", barcode);
+            failMessage = FlashHelper.Msg("shelvedFailFallback", barcode);
         }
 
         if (response.IsSuccessStatusCode)

@@ -2,6 +2,7 @@
 @model PmcWh.Web.Models.WarehouseMapViewModel
 @{
     ViewData["Title"] = "Bản đồ kho 3D";
+    ViewData["TitleKey"] = "menuWarehouseMap";
     var tiersJson = JsonSerializer.Serialize(Model.Tiers, new JsonSerializerOptions(JsonSerializerDefaults.Web));
 }
 
@@ -167,10 +168,6 @@
             </div>
         </div>
         <div class="d-flex align-items-center gap-3">
-            <select class="wh3d-tvbtn" id="wh3d-lang-select" style="cursor:pointer;">
-                <option value="vi">Tiếng Việt</option>
-                <option value="en">English</option>
-            </select>
             <div class="wh3d-clock">
                 <div class="time" id="wh3d-clock-time">--:--:--</div>
                 <div class="date" id="wh3d-clock-date">—</div>
@@ -241,7 +238,6 @@
 
 @section Scripts {
     <script>window.PMC_TIERS = @Html.Raw(tiersJson);</script>
-    <script src="~/js/warehouse-i18n.js" asp-append-version="true"></script>
     <script src="~/lib/three/three.min.js" asp-append-version="true"></script>
     <script src="~/lib/signalr/signalr.min.js" asp-append-version="true"></script>
     <script src="~/js/warehouse-map.js" asp-append-version="true"></script>

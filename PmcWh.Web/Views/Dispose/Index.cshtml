@@ -2,6 +2,7 @@
 @model PmcWh.Web.Models.DisposeViewModel
 @{
     ViewData["Title"] = "Hủy liệu";
+    ViewData["TitleKey"] = "menuDispose";
 }
 
 <div class="card border-0 shadow-sm rounded-4 mb-3">
@@ -12,22 +13,22 @@
                 <span class="material-icons text-white">delete_forever</span>
             </span>
             <div>
-                <h5 class="card-title mb-0">Hủy liệu</h5>
-                <p class="text-muted small mb-0">Liệu hủy sẽ giữ lại 30 ngày rồi tự ẩn khỏi hệ thống</p>
+                <h5 class="card-title mb-0" data-i18n="menuDispose">Hủy liệu</h5>
+                <p class="text-muted small mb-0" data-i18n="disposeSubtitle">Liệu hủy sẽ giữ lại 30 ngày rồi tự ẩn khỏi hệ thống</p>
             </div>
         </div>
 
-        <label class="form-label small fw-semibold text-secondary">Quét barcode</label>
+        <label class="form-label small fw-semibold text-secondary" data-i18n="scanBarcodeLabel">Quét barcode</label>
         <div class="input-group" style="max-width: 420px;">
             <span class="input-group-text bg-white"><span class="material-icons" style="font-size:18px;">qr_code_scanner</span></span>
-            <input type="text" id="scanInput" class="form-control" placeholder="Quét hoặc gõ barcode rồi Enter..." autofocus autocomplete="off" />
+            <input type="text" id="scanInput" class="form-control" placeholder="Quét hoặc gõ barcode rồi Enter..." data-i18n-placeholder="scanBarcodePlaceholder" autofocus autocomplete="off" />
         </div>
     </div>
 </div>
 
 <div class="card border-0 shadow-sm rounded-4">
     <div class="card-body">
-        <h5 class="card-title mb-3">Có thể hủy (@Model.DisposableItems.Count)</h5>
+        <h5 class="card-title mb-3"><span data-i18n="disposableTitle">Có thể hủy</span> (@Model.DisposableItems.Count)</h5>
 
         <div class="table-responsive">
             <table class="table align-middle">
@@ -38,9 +39,9 @@
                         <th>Model</th>
                         <th>Colorway</th>
                         <th>Size</th>
-                        <th class="text-end">Tồn</th>
-                        <th>Trạng thái</th>
-                        <th class="text-end">Hành động</th>
+                        <th class="text-end" data-i18n="colBalance">Tồn</th>
+                        <th data-i18n="colStatus">Trạng thái</th>
+                        <th class="text-end" data-i18n="colAction">Hành động</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -55,13 +56,13 @@
                             <td class="text-end">@m.Balance @m.Unit</td>
                             <td>
                                 @{ var (badgeTextClass, badgeStyle) = MaterialStatusHelper.BadgeStyle(m.Status); }
-                                <span class="badge @badgeTextClass" style="@badgeStyle">@MaterialStatusHelper.Label(m.Status)</span>
+                                <span class="badge @badgeTextClass" style="@badgeStyle" data-i18n="@("status" + m.Status)">@MaterialStatusHelper.Label(m.Status)</span>
                             </td>
                             <td class="text-end">
                                 <form asp-controller="Dispose" asp-action="Scan" method="post" class="d-inline js-dispose-form">
                                     <input type="hidden" name="materialId" value="@m.MaterialId" />
                                     <input type="hidden" name="barcode" value="@m.Barcode" />
-                                    <button type="submit" class="btn btn-sm btn-outline-danger">Hủy</button>
+                                    <button type="submit" class="btn btn-sm btn-outline-danger" data-i18n="btnDispose">Hủy</button>
                                 </form>
                             </td>
                         </tr>
@@ -69,7 +70,7 @@
                     @if (Model.DisposableItems.Count == 0)
                     {
                         <tr>
-                            <td colspan="8" class="text-center text-muted py-4">Không có liệu nào để hủy.</td>
+                            <td colspan="8" class="text-center text-muted py-4" data-i18n="emptyDisposable">Không có liệu nào để hủy.</td>
                         </tr>
                     }
                 </tbody>
@@ -87,14 +88,14 @@
     <script>
         (function () {
             var flash = document.getElementById('pmc-flash');
-            if (flash.dataset.success) PmcUI.success(flash.dataset.success);
-            if (flash.dataset.error) PmcUI.error(flash.dataset.error);
+            if (flash.dataset.success) PmcUI.success(PmcWhI18n.renderFlash(flash.dataset.success));
+            if (flash.dataset.error) PmcUI.error(PmcWhI18n.renderFlash(flash.dataset.error));
 
             document.querySelectorAll('.js-dispose-form').forEach(function (form) {
                 form.addEventListener('submit', async function (e) {
                     e.preventDefault();
                     var barcode = form.querySelector('input[name="barcode"]').value;
-                    var ok = await PmcUI.confirmDelete('Hủy barcode "' + barcode + '"? Liệu sẽ giữ 30 ngày rồi tự ẩn.');
+                    var ok = await PmcUI.confirmDelete(PmcWhI18n.t('confirmDisposeMsg').replace('{barcode}', barcode));
                     if (ok) {
                         form.querySelector('button[type="submit"]').disabled = true;
                         form.submit();
@@ -112,7 +113,7 @@
 
                 var row = document.querySelector('.js-disposable-row[data-barcode="' + CSS.escape(code) + '"]');
                 if (!row) {
-                    PmcUI.error('Không tìm thấy barcode "' + code + '" trong danh sách có thể hủy.');
+                    PmcUI.error(PmcWhI18n.t('notFoundDisposable').replace('{code}', code));
                     return;
                 }
                 row.querySelector('.js-dispose-form').requestSubmit();

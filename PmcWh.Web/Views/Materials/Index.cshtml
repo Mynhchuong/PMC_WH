@@ -2,6 +2,7 @@
 @model PmcWh.Web.Models.MaterialListViewModel
 @{
     ViewData["Title"] = "Cơ sở dữ liệu của PMC";
+    ViewData["TitleKey"] = "matDbTitle";
     var statusOptions = MaterialStatusHelper.AllStatuses;
     var isAdmin = User.IsInRole("Admin");
 }
@@ -15,8 +16,8 @@
                     <span class="material-icons text-white">storage</span>
                 </span>
                 <div>
-                    <h5 class="card-title mb-0">Cơ sở dữ liệu của PMC</h5>
-                    <p class="text-muted small mb-0">Toàn bộ liệu đã nhập vào hệ thống</p>
+                    <h5 class="card-title mb-0" data-i18n="matDbTitle">Cơ sở dữ liệu của PMC</h5>
+                    <p class="text-muted small mb-0" data-i18n="matDbSubtitle">Toàn bộ liệu đã nhập vào hệ thống</p>
                 </div>
             </div>
             <a asp-controller="Materials" asp-action="ExportExcel"
@@ -24,7 +25,7 @@
                asp-route-fromDate="@Model.FromDate?.ToString("yyyy-MM-dd")" asp-route-toDate="@Model.ToDate?.ToString("yyyy-MM-dd")"
                asp-route-isOverdue="@Model.IsOverdue"
                class="btn pmc-btn-dark d-inline-flex align-items-center gap-1">
-                <span class="material-icons" style="font-size:18px;">file_download</span> Xuất Excel
+                <span class="material-icons" style="font-size:18px;">file_download</span> <span data-i18n="btnExportExcel">Xuất Excel</span>
             </a>
         </div>
 
@@ -32,49 +33,49 @@
         {
             <div class="d-flex flex-wrap align-items-center gap-2 mb-3 pb-3 border-bottom">
                 <button type="button" class="btn pmc-btn-dark d-inline-flex align-items-center gap-1" data-bs-toggle="modal" data-bs-target="#importModal">
-                    <span class="material-icons" style="font-size:18px;">cloud_upload</span> Import
+                    <span class="material-icons" style="font-size:18px;">cloud_upload</span> <span data-i18n="btnImport">Import</span>
                 </button>
                 <a asp-controller="Materials" asp-action="DownloadTemplate" class="btn btn-outline-secondary d-inline-flex align-items-center gap-1">
-                    <span class="material-icons" style="font-size:18px;">download</span> Tải file mẫu
+                    <span class="material-icons" style="font-size:18px;">download</span> <span data-i18n="btnDownloadTemplate">Tải file mẫu</span>
                 </a>
             </div>
         }
 
         <form asp-controller="Materials" asp-action="Index" method="get" class="row g-2 align-items-end">
             <div class="col-sm-6 col-md-3">
-                <label class="form-label small fw-semibold text-secondary">Barcode</label>
+                <label class="form-label small fw-semibold text-secondary" data-i18n="filterBarcodeLabel">Barcode</label>
                 <div class="input-group">
                     <span class="input-group-text bg-white"><span class="material-icons" style="font-size:18px;">search</span></span>
-                    <input type="text" name="barcode" value="@Model.Barcode" class="form-control" placeholder="Tìm theo barcode..." />
+                    <input type="text" name="barcode" value="@Model.Barcode" class="form-control" placeholder="Tìm theo barcode..." data-i18n-placeholder="filterBarcodePlaceholder" />
                 </div>
             </div>
             <div class="col-sm-4 col-md-2">
-                <label class="form-label small fw-semibold text-secondary">Trạng thái</label>
+                <label class="form-label small fw-semibold text-secondary" data-i18n="filterStatusLabel">Trạng thái</label>
                 <select name="status" class="form-select">
-                    <option value="">Tất cả</option>
+                    <option value="" data-i18n="filterStatusAll">Tất cả</option>
                     @foreach (var s in statusOptions)
                     {
-                        <option value="@s" selected="@(Model.Status == s)">@MaterialStatusHelper.Label(s)</option>
+                        <option value="@s" selected="@(Model.Status == s)" data-i18n="@("status" + s)">@MaterialStatusHelper.Label(s)</option>
                     }
                 </select>
             </div>
             <div class="col-sm-4 col-md-2">
-                <label class="form-label small fw-semibold text-secondary">Ngày nhập từ</label>
+                <label class="form-label small fw-semibold text-secondary" data-i18n="filterFromDate">Ngày nhập từ</label>
                 <input type="date" name="fromDate" value="@Model.FromDate?.ToString("yyyy-MM-dd")" class="form-control" />
             </div>
             <div class="col-sm-4 col-md-2">
-                <label class="form-label small fw-semibold text-secondary">Đến ngày</label>
+                <label class="form-label small fw-semibold text-secondary" data-i18n="filterToDate">Đến ngày</label>
                 <input type="date" name="toDate" value="@Model.ToDate?.ToString("yyyy-MM-dd")" class="form-control" />
             </div>
             <div class="col-sm-4 col-md-1 d-flex align-items-center">
                 <div class="form-check">
                     <input type="checkbox" name="isOverdue" value="true" class="form-check-input" id="isOverdueCheck" checked="@(Model.IsOverdue == true)" />
-                    <label class="form-check-label small" for="isOverdueCheck">Quá 90 ngày</label>
+                    <label class="form-check-label small" for="isOverdueCheck" data-i18n="overdue90Days">Quá 90 ngày</label>
                 </div>
             </div>
             <div class="col-sm-4 col-md-2">
                 <button type="submit" class="btn btn-outline-dark w-100 d-inline-flex align-items-center justify-content-center gap-1">
-                    <span class="material-icons" style="font-size:18px;">filter_alt</span> Lọc
+                    <span class="material-icons" style="font-size:18px;">filter_alt</span> <span data-i18n="btnFilter">Lọc</span>
                 </button>
             </div>
         </form>
@@ -85,13 +86,13 @@
 {
     <div class="card border-0 shadow-sm rounded-4 mb-3">
         <div class="card-body">
-            <h6 class="card-title mb-3">Dòng bị bỏ qua ở lần import gần nhất (@Model.ImportSkipped.Count)</h6>
+            <h6 class="card-title mb-3"><span data-i18n="importSkippedTitle">Dòng bị bỏ qua ở lần import gần nhất</span> (@Model.ImportSkipped.Count)</h6>
             <div class="table-responsive">
                 <table class="table align-middle table-sm mb-0">
                     <thead>
                         <tr class="text-uppercase text-muted small">
                             <th>Barcode</th>
-                            <th>Lý do</th>
+                            <th data-i18n="colReason">Lý do</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -118,34 +119,34 @@
                     <col style="width: 7%">
                     <col style="width: 6%">
                     <col style="width: 7%">
-                    <col style="width: 18%">
+                    <col style="width: 13%">
                     <col style="width: 6%">
                     <col style="width: 6%">
                     <col style="width: 6%">
                     <col style="width: 6%">
                     <col style="width: 15%">
-                    <col style="width: 6%">
+                    <col style="width: 9%">
                     @if (isAdmin)
                     {
-                        <col style="width: 5%">
+                        <col style="width: 7%">
                     }
                 </colgroup>
                 <thead>
-                    <tr class="text-uppercase text-muted small">
+                    <tr class="text-uppercase text-muted small" style="white-space: normal;">
                         <th>Barcode</th>
                         <th>Dev</th>
                         <th>PO</th>
                         <th>Supplier</th>
-                        <th>Mat'l Description</th>
-                        <th>Color Code</th>
+                        <th data-i18n="colMatlDescription">Mat'l Description</th>
+                        <th data-i18n="colColorCode">Color Code</th>
                         <th class="text-end">A.Q'TY</th>
                         <th class="text-end">Balance</th>
                         <th>ATA</th>
-                        <th>Trạng thái</th>
-                        <th>Kệ hiện tại</th>
+                        <th data-i18n="colStatus">Trạng thái</th>
+                        <th data-i18n="colCurrentShelf">Kệ hiện tại</th>
                         @if (isAdmin)
                         {
-                            <th class="text-end">Hành động</th>
+                            <th class="text-end" data-i18n="colAction">Hành động</th>
                         }
                     </tr>
                 </thead>
@@ -170,10 +171,10 @@
                             <td class="text-muted small">@(m.ArrivalDate?.ToString("dd/MM/yyyy") ?? "—")</td>
                             <td>
                                 <div class="d-flex flex-column align-items-start gap-1">
-                                    <span class="badge @badgeTextClass" style="@badgeStyle">@MaterialStatusHelper.Label(m.Status)</span>
+                                    <span class="badge @badgeTextClass" style="@badgeStyle" data-i18n="@("status" + m.Status)">@MaterialStatusHelper.Label(m.Status)</span>
                                     @if (m.IsOverdue)
                                     {
-                                        <span class="badge bg-danger">Quá 90 ngày</span>
+                                        <span class="badge bg-danger" data-i18n="overdue90Days">Quá 90 ngày</span>
                                     }
                                 </div>
                             </td>
@@ -181,7 +182,7 @@
                             @if (isAdmin)
                             {
                                 <td class="text-end">
-                                    <button type="button" class="btn btn-sm btn-outline-secondary js-edit-btn" data-id="@m.MaterialId" title="Sửa thông tin">
+                                    <button type="button" class="btn btn-sm btn-outline-secondary js-edit-btn" data-id="@m.MaterialId" title="Sửa thông tin" data-i18n-title="editTooltip">
                                         <span class="material-icons" style="font-size:16px;">edit</span>
                                     </button>
                                 </td>
@@ -191,7 +192,7 @@
                     @if (Model.Items.Count == 0)
                     {
                         <tr>
-                            <td colspan="@(isAdmin ? 12 : 11)" class="text-center text-muted py-4">Không có dữ liệu phù hợp.</td>
+                            <td colspan="@(isAdmin ? 12 : 11)" class="text-center text-muted py-4" data-i18n="emptyMaterials">Không có dữ liệu phù hợp.</td>
                         </tr>
                     }
                 </tbody>
@@ -210,18 +211,18 @@
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content border-0 rounded-4 shadow">
                 <div class="modal-header border-0">
-                    <h5 class="modal-title">Import liệu từ Excel</h5>
+                    <h5 class="modal-title" data-i18n="importModalTitle">Import liệu từ Excel</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <form asp-controller="Materials" asp-action="Index" method="post" enctype="multipart/form-data">
                     <div class="modal-body">
-                        <label class="form-label small fw-semibold text-secondary">Chọn file Excel (.xlsx)</label>
+                        <label class="form-label small fw-semibold text-secondary" data-i18n="chooseExcelFile">Chọn file Excel (.xlsx)</label>
                         <input type="file" name="file" accept=".xlsx" class="form-control" required />
                     </div>
                     <div class="modal-footer border-0">
-                        <button type="button" class="btn btn-light" data-bs-dismiss="modal">Hủy</button>
+                        <button type="button" class="btn btn-light" data-bs-dismiss="modal" data-i18n="btnCancel">Hủy</button>
                         <button type="submit" class="btn pmc-btn-dark d-inline-flex align-items-center gap-1">
-                            <span class="material-icons" style="font-size:18px;">cloud_upload</span> Import
+                            <span class="material-icons" style="font-size:18px;">cloud_upload</span> <span data-i18n="btnImport">Import</span>
                         </button>
                     </div>
                 </form>
@@ -233,7 +234,7 @@
         <div class="modal-dialog modal-dialog-centered modal-lg">
             <div class="modal-content border-0 rounded-4 shadow">
                 <div class="modal-header border-0">
-                    <h5 class="modal-title">Sửa thông tin liệu</h5>
+                    <h5 class="modal-title" data-i18n="editModalTitle">Sửa thông tin liệu</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <form asp-controller="Materials" asp-action="Edit" method="post" id="editForm">
@@ -241,7 +242,7 @@
                     <input type="hidden" name="ReturnUrl" id="edit_ReturnUrl" />
                     <div class="modal-body">
                         <div class="row row-cols-2 g-3">
-                            <div><label class="form-label small fw-semibold text-secondary">Số lượng (A.Q'TY)</label><input type="number" step="any" min="0.01" class="form-control" name="ArrivalQty" id="edit_ArrivalQty" required /></div>
+                            <div><label class="form-label small fw-semibold text-secondary" data-i18n="editArrivalQty">Số lượng (A.Q'TY)</label><input type="number" step="any" min="0.01" class="form-control" name="ArrivalQty" id="edit_ArrivalQty" required /></div>
                             <div><label class="form-label small fw-semibold text-secondary">Dev</label><input class="form-control" name="Dev" id="edit_Dev" /></div>
                             <div><label class="form-label small fw-semibold text-secondary">PO</label><input class="form-control" name="PoNo" id="edit_PoNo" /></div>
                             <div><label class="form-label small fw-semibold text-secondary">Supplier</label><input class="form-control" name="Supplier" id="edit_Supplier" /></div>
@@ -250,19 +251,19 @@
                             <div><label class="form-label small fw-semibold text-secondary">Stage</label><input class="form-control" name="Stage" id="edit_Stage" /></div>
                             <div><label class="form-label small fw-semibold text-secondary">Colorway</label><input class="form-control" name="Colorway" id="edit_Colorway" /></div>
                             <div><label class="form-label small fw-semibold text-secondary">Component</label><input class="form-control" name="Component" id="edit_Component" /></div>
-                            <div class="col-12"><label class="form-label small fw-semibold text-secondary">Mô tả liệu</label><input class="form-control" name="MatlDescription" id="edit_MatlDescription" /></div>
+                            <div class="col-12"><label class="form-label small fw-semibold text-secondary" data-i18n="editMatlDescription">Mô tả liệu</label><input class="form-control" name="MatlDescription" id="edit_MatlDescription" /></div>
                             <div><label class="form-label small fw-semibold text-secondary">Color code</label><input class="form-control" name="ColorCode" id="edit_ColorCode" /></div>
                             <div><label class="form-label small fw-semibold text-secondary">Color name</label><input class="form-control" name="ColorName" id="edit_ColorName" /></div>
                             <div><label class="form-label small fw-semibold text-secondary">Size</label><input class="form-control" name="SizeSpec" id="edit_SizeSpec" /></div>
-                            <div><label class="form-label small fw-semibold text-secondary">Đơn vị</label><input class="form-control" name="Unit" id="edit_Unit" /></div>
+                            <div><label class="form-label small fw-semibold text-secondary" data-i18n="editUnit">Đơn vị</label><input class="form-control" name="Unit" id="edit_Unit" /></div>
                             <div><label class="form-label small fw-semibold text-secondary">FOC</label><input class="form-control" name="FocFlag" id="edit_FocFlag" /></div>
-                            <div><label class="form-label small fw-semibold text-secondary">Ngày nhập (ATA)</label><input type="date" class="form-control" name="ArrivalDate" id="edit_ArrivalDate" /></div>
+                            <div><label class="form-label small fw-semibold text-secondary" data-i18n="editArrivalDate">Ngày nhập (ATA)</label><input type="date" class="form-control" name="ArrivalDate" id="edit_ArrivalDate" /></div>
                             <div>
                                 <label class="form-label small fw-semibold text-secondary">Testing</label>
                                 <select class="form-select" name="Testing" id="edit_Testing">
                                     <option value="">—</option>
-                                    <option value="1">Có</option>
-                                    <option value="0">Không</option>
+                                    <option value="1" data-i18n="yesOption">Có</option>
+                                    <option value="0" data-i18n="noOption">Không</option>
                                 </select>
                             </div>
                             <div><label class="form-label small fw-semibold text-secondary">Test require</label><input class="form-control" name="TestRequire" id="edit_TestRequire" /></div>
@@ -276,9 +277,9 @@
                         </div>
                     </div>
                     <div class="modal-footer border-0">
-                        <button type="button" class="btn btn-light" data-bs-dismiss="modal">Hủy</button>
+                        <button type="button" class="btn btn-light" data-bs-dismiss="modal" data-i18n="btnCancel">Hủy</button>
                         <button type="submit" class="btn pmc-btn-dark d-inline-flex align-items-center gap-1">
-                            <span class="material-icons" style="font-size:18px;">save</span> Lưu
+                            <span class="material-icons" style="font-size:18px;">save</span> <span data-i18n="btnSave">Lưu</span>
                         </button>
                     </div>
                 </form>
@@ -298,9 +299,9 @@
     <script>
         (function () {
             var flash = document.getElementById('pmc-flash');
-            if (flash.dataset.success) PmcUI.success(flash.dataset.success);
-            if (flash.dataset.warning) PmcUI.warning(flash.dataset.warning);
-            if (flash.dataset.error) PmcUI.error(flash.dataset.error);
+            if (flash.dataset.success) PmcUI.success(PmcWhI18n.renderFlash(flash.dataset.success));
+            if (flash.dataset.warning) PmcUI.warning(PmcWhI18n.renderFlash(flash.dataset.warning));
+            if (flash.dataset.error) PmcUI.error(PmcWhI18n.renderFlash(flash.dataset.error));
 
             var editModalEl = document.getElementById('editModal');
             if (editModalEl) {
@@ -313,7 +314,7 @@
                         var id = btn.dataset.id;
                         try {
                             var detail = await PmcUI.withLoading(() =>
-                                fetch('/Materials/' + id + '/EditData').then(function (r) {
+                                fetch('Materials/' + id + '/EditData').then(function (r) {
                                     if (!r.ok) throw new Error('Không tải được thông tin liệu.');
                                     return r.json();
                                 })
@@ -333,7 +334,7 @@
                             document.getElementById('edit_RequestOn').value = detail.requestOn ? detail.requestOn.substring(0, 10) : '';
                             editModal.show();
                         } catch (err) {
-                            PmcUI.error('Không tải được thông tin liệu.');
+                            PmcUI.error(PmcWhI18n.t('loadMaterialInfoError'));
                         }
                     });
                 });

@@ -1,6 +1,8 @@
+@using PmcWh.Web.Helpers
 @model PmcWh.Web.Models.IssueReportListViewModel
 @{
     ViewData["Title"] = "Báo cáo xuất kho";
+    ViewData["TitleKey"] = "menuReportsIssues";
 }
 
 <div class="card border-0 shadow-sm rounded-4 mb-3">
@@ -12,8 +14,8 @@
                     <span class="material-icons text-white">summarize</span>
                 </span>
                 <div>
-                    <h5 class="card-title mb-0">Báo cáo xuất kho</h5>
-                    <p class="text-muted small mb-0">Ai đã nhận, xuất lúc nào, mã nào — kèm cảnh báo quá 90 ngày</p>
+                    <h5 class="card-title mb-0" data-i18n="menuReportsIssues">Báo cáo xuất kho</h5>
+                    <p class="text-muted small mb-0" data-i18n="reportsSubtitle">Ai đã nhận, xuất lúc nào, mã nào — kèm cảnh báo quá 90 ngày</p>
                 </div>
             </div>
             <a asp-controller="Reports" asp-action="ExportIssuesExcel"
@@ -22,23 +24,23 @@
                asp-route-recipientId="@Model.RecipientId"
                asp-route-overdueOnly="@Model.OverdueOnly"
                class="btn pmc-btn-dark d-inline-flex align-items-center gap-1">
-                <span class="material-icons" style="font-size:18px;">file_download</span> Xuất Excel
+                <span class="material-icons" style="font-size:18px;">file_download</span> <span data-i18n="btnExportExcel">Xuất Excel</span>
             </a>
         </div>
 
         <form asp-controller="Reports" asp-action="Issues" method="get" class="row g-2 align-items-end">
             <div class="col-sm-4 col-md-2">
-                <label class="form-label small fw-semibold text-secondary">Từ ngày</label>
+                <label class="form-label small fw-semibold text-secondary" data-i18n="fromDateLabel">Từ ngày</label>
                 <input type="date" name="fromDate" value="@Model.FromDate?.ToString("yyyy-MM-dd")" class="form-control" />
             </div>
             <div class="col-sm-4 col-md-2">
-                <label class="form-label small fw-semibold text-secondary">Đến ngày</label>
+                <label class="form-label small fw-semibold text-secondary" data-i18n="filterToDate">Đến ngày</label>
                 <input type="date" name="toDate" value="@Model.ToDate?.ToString("yyyy-MM-dd")" class="form-control" />
             </div>
             <div class="col-sm-4 col-md-3">
-                <label class="form-label small fw-semibold text-secondary">Xuất cho</label>
+                <label class="form-label small fw-semibold text-secondary" data-i18n="issuedForLabel">Xuất cho</label>
                 <select name="recipientId" class="form-select">
-                    <option value="">Tất cả</option>
+                    <option value="" data-i18n="filterStatusAll">Tất cả</option>
                     @foreach (var r in Model.Recipients)
                     {
                         <option value="@r.RecipientId" selected="@(Model.RecipientId == r.RecipientId)">@r.Name</option>
@@ -48,12 +50,12 @@
             <div class="col-sm-4 col-md-2 d-flex align-items-center">
                 <div class="form-check">
                     <input type="checkbox" name="overdueOnly" value="true" class="form-check-input" id="overdueOnlyCheck" checked="@Model.OverdueOnly" />
-                    <label class="form-check-label small" for="overdueOnlyCheck">Chỉ quá 90 ngày</label>
+                    <label class="form-check-label small" for="overdueOnlyCheck" data-i18n="overdueOnlyLabel">Chỉ quá 90 ngày</label>
                 </div>
             </div>
             <div class="col-sm-4 col-md-2">
                 <button type="submit" class="btn btn-outline-dark w-100 d-inline-flex align-items-center justify-content-center gap-1">
-                    <span class="material-icons" style="font-size:18px;">filter_alt</span> Lọc
+                    <span class="material-icons" style="font-size:18px;">filter_alt</span> <span data-i18n="btnFilter">Lọc</span>
                 </button>
             </div>
         </form>
@@ -69,12 +71,12 @@
                         <th>Barcode</th>
                         <th>Dev / Model</th>
                         <th>Size</th>
-                        <th class="text-end">SL xuất</th>
-                        <th>Xuất cho</th>
-                        <th>Người xuất</th>
-                        <th>Thời gian xuất</th>
-                        <th>Trạng thái</th>
-                        <th class="text-end">Số ngày đã xuất</th>
+                        <th class="text-end" data-i18n="colQtyIssued">SL xuất</th>
+                        <th data-i18n="issuedForLabel">Xuất cho</th>
+                        <th data-i18n="colIssuedBy">Người xuất</th>
+                        <th data-i18n="colIssuedTime">Thời gian xuất</th>
+                        <th data-i18n="colStatus">Trạng thái</th>
+                        <th class="text-end" data-i18n="colDaysIssued">Số ngày đã xuất</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -88,11 +90,11 @@
                             <td>@(i.RecipientName ?? "—")</td>
                             <td>@(i.Username ?? "—")</td>
                             <td class="text-muted small">@i.OccurredAt.ToString("dd/MM/yyyy HH:mm")</td>
-                            <td>@i.Status</td>
+                            <td data-i18n="@("status" + i.Status)">@MaterialStatusHelper.Label(i.Status)</td>
                             <td class="text-end">
                                 @if (i.DaysOut.HasValue)
                                 {
-                                    <span class="badge @(i.DaysOut > 90 ? "bg-danger" : "bg-secondary")">@i.DaysOut ngày</span>
+                                    <span class="badge @(i.DaysOut > 90 ? "bg-danger" : "bg-secondary")">@i.DaysOut<span data-i18n="daysWord"> ngày</span></span>
                                 }
                                 else
                                 {
@@ -104,7 +106,7 @@
                     @if (Model.Items.Count == 0)
                     {
                         <tr>
-                            <td colspan="9" class="text-center text-muted py-4">Không có dữ liệu phù hợp.</td>
+                            <td colspan="9" class="text-center text-muted py-4" data-i18n="emptyMaterials">Không có dữ liệu phù hợp.</td>
                         </tr>
                     }
                 </tbody>

@@ -1,6 +1,7 @@
 @model PmcWh.Web.Models.RecipientListViewModel
 @{
     ViewData["Title"] = "Nơi nhận";
+    ViewData["TitleKey"] = "menuRecipients";
 }
 
 <div class="card border-0 shadow-sm rounded-4 mb-3">
@@ -11,8 +12,8 @@
                 <span class="material-icons text-white">add_location_alt</span>
             </span>
             <div>
-                <h5 class="card-title mb-0">Thêm nơi nhận</h5>
-                <p class="text-muted small mb-0">Danh sách nơi nhận hiện lên combobox lúc xuất hàng (DEV / Workshop / ...)</p>
+                <h5 class="card-title mb-0" data-i18n="addRecipientTitle">Thêm nơi nhận</h5>
+                <p class="text-muted small mb-0" data-i18n="addRecipientSubtitle">Danh sách nơi nhận hiện lên combobox lúc xuất hàng (DEV / Workshop / ...)</p>
             </div>
         </div>
 
@@ -31,7 +32,7 @@
 
         <form asp-controller="Recipients" asp-action="Create" method="post" class="row g-3 align-items-end">
             <div class="col-sm-8 col-md-4">
-                <label asp-for="NewRecipient.Name" class="form-label small fw-semibold text-secondary"></label>
+                <label asp-for="NewRecipient.Name" class="form-label small fw-semibold text-secondary" data-i18n="recipientLabel"></label>
                 <div class="input-group">
                     <span class="input-group-text bg-white"><span class="material-icons" style="font-size:18px;">place</span></span>
                     <input asp-for="NewRecipient.Name" class="form-control" placeholder="Workshop, DEV, Laminate..." />
@@ -39,7 +40,7 @@
             </div>
             <div class="col-sm-4 col-md-2">
                 <button type="submit" class="btn pmc-btn-dark w-100 d-inline-flex align-items-center justify-content-center gap-1">
-                    <span class="material-icons" style="font-size:18px;">add</span> Thêm
+                    <span class="material-icons" style="font-size:18px;">add</span> <span data-i18n="btnAdd">Thêm</span>
                 </button>
             </div>
         </form>
@@ -48,15 +49,15 @@
 
 <div class="card border-0 shadow-sm rounded-4">
     <div class="card-body">
-        <h5 class="card-title mb-3">Danh sách nơi nhận</h5>
+        <h5 class="card-title mb-3" data-i18n="recipientListTitle">Danh sách nơi nhận</h5>
 
         <div class="table-responsive">
             <table class="table align-middle">
                 <thead>
                     <tr class="text-uppercase text-muted small">
-                        <th>Nơi nhận</th>
-                        <th>Trạng thái</th>
-                        <th class="text-end">Hành động</th>
+                        <th data-i18n="recipientLabel">Nơi nhận</th>
+                        <th data-i18n="colStatus">Trạng thái</th>
+                        <th class="text-end" data-i18n="colAction">Hành động</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -78,7 +79,7 @@
                                 <form asp-controller="Recipients" asp-action="ToggleActive" method="post" class="d-inline">
                                     <input type="hidden" name="recipientId" value="@r.RecipientId" />
                                     <input type="hidden" name="name" value="@r.Name" />
-                                    <button type="submit" class="btn btn-sm @(r.IsActive ? "btn-outline-secondary" : "btn-outline-success")">
+                                    <button type="submit" class="btn btn-sm @(r.IsActive ? "btn-outline-secondary" : "btn-outline-success")" data-i18n="@(r.IsActive ? "btnDisable" : "btnEnable")">
                                         @(r.IsActive ? "Tắt" : "Bật lại")
                                     </button>
                                 </form>
@@ -88,7 +89,7 @@
                     @if (Model.Items.Count == 0)
                     {
                         <tr>
-                            <td colspan="3" class="text-center text-muted py-4">Chưa có nơi nhận nào.</td>
+                            <td colspan="3" class="text-center text-muted py-4" data-i18n="emptyRecipients">Chưa có nơi nhận nào.</td>
                         </tr>
                     }
                 </tbody>
@@ -106,8 +107,8 @@
     <script>
         (function () {
             var flash = document.getElementById('pmc-flash');
-            if (flash.dataset.success) PmcUI.success(flash.dataset.success);
-            if (flash.dataset.error) PmcUI.error(flash.dataset.error);
+            if (flash.dataset.success) PmcUI.success(PmcWhI18n.renderFlash(flash.dataset.success));
+            if (flash.dataset.error) PmcUI.error(PmcWhI18n.renderFlash(flash.dataset.error));
         })();
     </script>
 }

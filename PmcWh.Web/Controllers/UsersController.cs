@@ -2,6 +2,7 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using PmcWh.Web.Helpers;
 using PmcWh.Web.Models;
 
 namespace PmcWh.Web.Controllers;
@@ -62,7 +63,7 @@ public class UsersController : Controller
             return await RenderIndexWithErrors(newUser, page, pageSize);
         }
 
-        TempData["FlashSuccess"] = $"Đã tạo người dùng '{newUser.Username}'.";
+        TempData["FlashSuccess"] = FlashHelper.Msg("createdUserSuccess", newUser.Username);
         return RedirectToAction(nameof(Index), new { page, pageSize });
     }
 
@@ -74,8 +75,8 @@ public class UsersController : Controller
         var response = await client.PostAsync($"api/Users/{userId}/reset-password", null);
 
         TempData[response.IsSuccessStatusCode ? "FlashSuccess" : "FlashError"] = response.IsSuccessStatusCode
-            ? $"Đã đặt lại mật khẩu của '{username}' về '123456'."
-            : $"Không thể đặt lại mật khẩu của '{username}'.";
+            ? FlashHelper.Msg("resetPasswordSuccess", username)
+            : FlashHelper.Msg("resetPasswordFailFallback", username);
 
         return RedirectToAction(nameof(Index), new { page, pageSize });
     }

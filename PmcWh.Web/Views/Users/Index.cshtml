@@ -1,6 +1,7 @@
 @model PmcWh.Web.Models.UserListViewModel
 @{
     ViewData["Title"] = "Người dùng";
+    ViewData["TitleKey"] = "menuUsers";
 
     (string cls, string style) RoleBadge(string role) => role == "Admin"
         ? ("bg-dark text-white", "")
@@ -17,8 +18,8 @@
                 <span class="material-icons text-white">person_add</span>
             </span>
             <div>
-                <h5 class="card-title mb-0">Thêm người dùng</h5>
-                <p class="text-muted small mb-0">Tạo tài khoản đăng nhập cho nhân viên kho</p>
+                <h5 class="card-title mb-0" data-i18n="addUserTitle">Thêm người dùng</h5>
+                <p class="text-muted small mb-0" data-i18n="addUserSubtitle">Tạo tài khoản đăng nhập cho nhân viên kho</p>
             </div>
         </div>
 
@@ -40,28 +41,28 @@
             <input type="hidden" name="pageSize" value="@Model.Pagination.PageSize" />
 
             <div class="col-sm-6 col-md-2">
-                <label asp-for="NewUser.Username" class="form-label small fw-semibold text-secondary"></label>
+                <label asp-for="NewUser.Username" class="form-label small fw-semibold text-secondary" data-i18n="loginUsername"></label>
                 <div class="input-group">
                     <span class="input-group-text bg-white"><span class="material-icons" style="font-size:18px;">person</span></span>
                     <input asp-for="NewUser.Username" class="form-control" placeholder="worker1" />
                 </div>
             </div>
             <div class="col-sm-6 col-md-2">
-                <label asp-for="NewUser.Password" class="form-label small fw-semibold text-secondary"></label>
+                <label asp-for="NewUser.Password" class="form-label small fw-semibold text-secondary" data-i18n="loginPassword"></label>
                 <div class="input-group">
                     <span class="input-group-text bg-white"><span class="material-icons" style="font-size:18px;">lock</span></span>
                     <input asp-for="NewUser.Password" type="password" class="form-control" placeholder="••••••" />
                 </div>
             </div>
             <div class="col-sm-6 col-md-3">
-                <label asp-for="NewUser.FullName" class="form-label small fw-semibold text-secondary"></label>
+                <label asp-for="NewUser.FullName" class="form-label small fw-semibold text-secondary" data-i18n="fullNameLabel"></label>
                 <div class="input-group">
                     <span class="input-group-text bg-white"><span class="material-icons" style="font-size:18px;">badge</span></span>
                     <input asp-for="NewUser.FullName" class="form-control" placeholder="Nguyễn Văn A" />
                 </div>
             </div>
             <div class="col-sm-6 col-md-2">
-                <label asp-for="NewUser.Role" class="form-label small fw-semibold text-secondary"></label>
+                <label asp-for="NewUser.Role" class="form-label small fw-semibold text-secondary" data-i18n="roleLabel"></label>
                 <select asp-for="NewUser.Role" class="form-select">
                     <option value="Member">Member</option>
                     <option value="Admin">Admin</option>
@@ -69,7 +70,7 @@
             </div>
             <div class="col-sm-6 col-md-2">
                 <button type="submit" class="btn pmc-btn-dark w-100 d-inline-flex align-items-center justify-content-center gap-1">
-                    <span class="material-icons" style="font-size:18px;">add</span> Tạo
+                    <span class="material-icons" style="font-size:18px;">add</span> <span data-i18n="btnCreate">Tạo</span>
                 </button>
             </div>
         </form>
@@ -78,17 +79,17 @@
 
 <div class="card border-0 shadow-sm rounded-4">
     <div class="card-body">
-        <h5 class="card-title mb-3">Danh sách người dùng</h5>
+        <h5 class="card-title mb-3" data-i18n="userListTitle">Danh sách người dùng</h5>
 
         <div class="table-responsive">
             <table class="table align-middle">
                 <thead>
                     <tr class="text-uppercase text-muted small">
-                        <th>Người dùng</th>
-                        <th>Vai trò</th>
-                        <th>Trạng thái</th>
-                        <th>Ngày tạo</th>
-                        <th class="text-end">Hành động</th>
+                        <th data-i18n="colUser">Người dùng</th>
+                        <th data-i18n="roleLabel">Vai trò</th>
+                        <th data-i18n="colStatus">Trạng thái</th>
+                        <th data-i18n="detailCreatedAt">Ngày tạo</th>
+                        <th class="text-end" data-i18n="colAction">Hành động</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -126,7 +127,7 @@
                                     <input type="hidden" name="page" value="@Model.Pagination.Page" />
                                     <input type="hidden" name="pageSize" value="@Model.Pagination.PageSize" />
                                     <button type="submit" class="btn btn-sm btn-outline-warning d-inline-flex align-items-center gap-1">
-                                        <span class="material-icons" style="font-size:16px;">restart_alt</span> Reset mật khẩu
+                                        <span class="material-icons" style="font-size:16px;">restart_alt</span> <span data-i18n="btnResetPassword">Reset mật khẩu</span>
                                     </button>
                                 </form>
                             </td>
@@ -148,14 +149,14 @@
     <script>
         (function () {
             var flash = document.getElementById('pmc-flash');
-            if (flash.dataset.success) PmcUI.success(flash.dataset.success);
-            if (flash.dataset.error) PmcUI.error(flash.dataset.error);
+            if (flash.dataset.success) PmcUI.success(PmcWhI18n.renderFlash(flash.dataset.success));
+            if (flash.dataset.error) PmcUI.error(PmcWhI18n.renderFlash(flash.dataset.error));
 
             document.querySelectorAll('.js-reset-password-form').forEach(function (form) {
                 form.addEventListener('submit', async function (e) {
                     e.preventDefault();
                     var username = form.querySelector('input[name="username"]').value;
-                    var ok = await PmcUI.confirm('Đặt lại mật khẩu của "' + username + '" về 123456?', { title: 'Reset mật khẩu', variant: 'warning' });
+                    var ok = await PmcUI.confirm(PmcWhI18n.t('confirmResetPasswordMsg').replace('{username}', username), { title: PmcWhI18n.t('btnResetPassword'), variant: 'warning' });
                     if (ok) form.submit();
                 });
             });

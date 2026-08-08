@@ -2,6 +2,7 @@
 @model PmcWh.Web.Models.OverdueViewModel
 @{
     ViewData["Title"] = "Hàng xuất quá 90 ngày";
+    ViewData["TitleKey"] = "menuOverdue";
 }
 
 <div class="card border-0 shadow-sm rounded-4 mb-3">
@@ -12,8 +13,8 @@
                 <span class="material-icons text-white">warning_amber</span>
             </span>
             <div>
-                <h5 class="card-title mb-0">Hàng xuất quá 90 ngày chưa nhận lại</h5>
-                <p class="text-muted small mb-0">Cả xuất 1 phần lẫn xuất hết — kiểm tra thực tế bên nhận: còn liệu thì để đó, hết liệu thì bấm Xóa.</p>
+                <h5 class="card-title mb-0" data-i18n="overduePageTitle">Hàng xuất quá 90 ngày chưa nhận lại</h5>
+                <p class="text-muted small mb-0" data-i18n="overdueSubtitle">Cả xuất 1 phần lẫn xuất hết — kiểm tra thực tế bên nhận: còn liệu thì để đó, hết liệu thì bấm Xóa.</p>
             </div>
         </div>
     </div>
@@ -21,7 +22,7 @@
 
 <div class="card border-0 shadow-sm rounded-4">
     <div class="card-body">
-        <h5 class="card-title mb-3">Danh sách (@Model.Items.Count)</h5>
+        <h5 class="card-title mb-3"><span data-i18n="listTitle">Danh sách</span> (@Model.Items.Count)</h5>
 
         <div class="table-responsive">
             <table class="table align-middle">
@@ -30,13 +31,13 @@
                         <th>Barcode</th>
                         <th>Dev</th>
                         <th>PO</th>
-                        <th>Mat'l Description</th>
-                        <th>Nơi nhận</th>
-                        <th class="text-end">Còn lại</th>
-                        <th>Trạng thái</th>
-                        <th>Kệ hiện tại</th>
-                        <th class="text-end">Số ngày</th>
-                        <th class="text-end">Hành động</th>
+                        <th data-i18n="colMatlDescription">Mat'l Description</th>
+                        <th data-i18n="recipientLabel">Nơi nhận</th>
+                        <th class="text-end" data-i18n="colRemaining">Còn lại</th>
+                        <th data-i18n="colStatus">Trạng thái</th>
+                        <th data-i18n="colCurrentShelf">Kệ hiện tại</th>
+                        <th class="text-end" data-i18n="colDaysOut">Số ngày</th>
+                        <th class="text-end" data-i18n="colAction">Hành động</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -51,15 +52,15 @@
                             <td class="text-end">@m.Balance @m.Unit</td>
                             <td>
                                 @{ var (badgeTextClass, badgeStyle) = MaterialStatusHelper.BadgeStyle(m.Status); }
-                                <span class="badge @badgeTextClass" style="@badgeStyle">@MaterialStatusHelper.Label(m.Status)</span>
+                                <span class="badge @badgeTextClass" style="@badgeStyle" data-i18n="@("status" + m.Status)">@MaterialStatusHelper.Label(m.Status)</span>
                             </td>
                             <td>@(m.LocationCode ?? "—")</td>
-                            <td class="text-end">@m.DaysOut ngày</td>
+                            <td class="text-end">@m.DaysOut<span data-i18n="daysWord"> ngày</span></td>
                             <td class="text-end">
                                 <form asp-controller="Overdue" asp-action="Scan" method="post" class="d-inline js-overdue-form">
                                     <input type="hidden" name="materialId" value="@m.MaterialId" />
                                     <input type="hidden" name="barcode" value="@m.Barcode" />
-                                    <button type="submit" class="btn btn-sm btn-outline-danger">Xóa</button>
+                                    <button type="submit" class="btn btn-sm btn-outline-danger" data-i18n="btnDelete">Xóa</button>
                                 </form>
                             </td>
                         </tr>
@@ -67,7 +68,7 @@
                     @if (Model.Items.Count == 0)
                     {
                         <tr>
-                            <td colspan="10" class="text-center text-muted py-4">Không có liệu nào quá 90 ngày.</td>
+                            <td colspan="10" class="text-center text-muted py-4" data-i18n="emptyOverdue">Không có liệu nào quá 90 ngày.</td>
                         </tr>
                     }
                 </tbody>
@@ -85,14 +86,14 @@
     <script>
         (function () {
             var flash = document.getElementById('pmc-flash');
-            if (flash.dataset.success) PmcUI.success(flash.dataset.success);
-            if (flash.dataset.error) PmcUI.error(flash.dataset.error);
+            if (flash.dataset.success) PmcUI.success(PmcWhI18n.renderFlash(flash.dataset.success));
+            if (flash.dataset.error) PmcUI.error(PmcWhI18n.renderFlash(flash.dataset.error));
 
             document.querySelectorAll('.js-overdue-form').forEach(function (form) {
                 form.addEventListener('submit', async function (e) {
                     e.preventDefault();
                     var barcode = form.querySelector('input[name="barcode"]').value;
-                    var ok = await PmcUI.confirmDelete('Xác nhận "' + barcode + '" đã hết liệu, không còn chờ nhận lại? Sẽ hủy hẳn liệu này.');
+                    var ok = await PmcUI.confirmDelete(PmcWhI18n.t('confirmOverdueDeleteMsg').replace('{barcode}', barcode));
                     if (ok) {
                         form.querySelector('button[type="submit"]').disabled = true;
                         form.submit();

@@ -12,14 +12,15 @@
         if (!materialId) return;
         try {
             var html = await PmcUI.withLoading(() =>
-                fetch('/Materials/' + materialId + '/Detail').then(function (r) {
+                fetch('Materials/' + materialId + '/Detail').then(function (r) {
                     if (!r.ok) throw new Error('Không tải được chi tiết.');
                     return r.text();
                 })
             );
-            PmcUI.popup('Chi tiết liệu — ' + (barcode || ''), html, { size: 'xl' });
+            PmcUI.popup(PmcWhI18n.t('detailTitlePrefix') + (barcode || ''), html, { size: 'xl' });
+            PmcWhI18n.applyDom(document.getElementById('pmc-popup-body'));
         } catch (e) {
-            PmcUI.error('Không tải được chi tiết liệu.');
+            PmcUI.error(PmcWhI18n.t('loadDetailError'));
         }
     }
 

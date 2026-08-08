@@ -2,6 +2,7 @@
 @model PmcWh.Web.Models.InboundViewModel
 @{
     ViewData["Title"] = "Quét lên kệ";
+    ViewData["TitleKey"] = "menuInbound";
     var locationsJson = JsonSerializer.Serialize(Model.Locations, new JsonSerializerOptions(JsonSerializerDefaults.Web));
 }
 
@@ -13,15 +14,15 @@
                 <span class="material-icons text-white">qr_code_scanner</span>
             </span>
             <div>
-                <h5 class="card-title mb-0">Quét lên kệ</h5>
-                <p class="text-muted small mb-0">Lên kệ liệu mới từ khu vực chờ, hoặc nhận lại hàng đã xuất về kệ</p>
+                <h5 class="card-title mb-0" data-i18n="menuInbound">Quét lên kệ</h5>
+                <p class="text-muted small mb-0" data-i18n="inboundSubtitle">Lên kệ liệu mới từ khu vực chờ, hoặc nhận lại hàng đã xuất về kệ</p>
             </div>
         </div>
 
-        <label class="form-label small fw-semibold text-secondary">Quét barcode</label>
+        <label class="form-label small fw-semibold text-secondary" data-i18n="scanBarcodeLabel">Quét barcode</label>
         <div class="input-group" style="max-width: 420px;">
             <span class="input-group-text bg-white"><span class="material-icons" style="font-size:18px;">qr_code_scanner</span></span>
-            <input type="text" id="scanInput" class="form-control" placeholder="Quét hoặc gõ barcode rồi Enter..." autofocus autocomplete="off" />
+            <input type="text" id="scanInput" class="form-control" placeholder="Quét hoặc gõ barcode rồi Enter..." data-i18n-placeholder="scanBarcodePlaceholder" autofocus autocomplete="off" />
         </div>
     </div>
 </div>
@@ -29,24 +30,24 @@
 <div class="card border-0 shadow-sm rounded-4">
     <div class="card-body">
         <div class="d-flex flex-wrap align-items-center gap-2 mb-4">
-            <h5 class="card-title mb-0 me-1">Cần lên kệ</h5>
+            <h5 class="card-title mb-0 me-1" data-i18n="needShelving">Cần lên kệ</h5>
 
             <span class="d-inline-flex align-items-center gap-1 rounded-pill px-3 py-1 small fw-semibold"
                   style="background-color:rgba(33,37,41,0.06);color:#212529;">
                 <span class="material-icons" style="font-size:16px;">inventory_2</span>
-                Tổng @(Model.StagingItems.Count + Model.ReturnableItems.Count)
+                <span data-i18n="totalLabel">Tổng</span> @(Model.StagingItems.Count + Model.ReturnableItems.Count)
             </span>
 
             <span class="d-inline-flex align-items-center gap-1 rounded-pill px-3 py-1 small fw-semibold"
                   style="background-color:rgba(13,110,253,0.12);color:#0d6efd;">
                 <span class="material-icons" style="font-size:16px;">new_releases</span>
-                Mới nhập @Model.StagingItems.Count
+                <span data-i18n="newlyAddedLabel">Mới nhập</span> @Model.StagingItems.Count
             </span>
 
             <span class="d-inline-flex align-items-center gap-1 rounded-pill px-3 py-1 small fw-semibold"
                   style="background-color:rgba(255,193,7,0.15);color:#997404;">
                 <span class="material-icons" style="font-size:16px;">assignment_return</span>
-                Nhận lại @Model.ReturnableItems.Count
+                <span data-i18n="returnableLabel">Nhận lại</span> @Model.ReturnableItems.Count
             </span>
         </div>
 
@@ -59,10 +60,10 @@
                         <th>Model</th>
                         <th>Colorway</th>
                         <th>Size</th>
-                        <th>Loại</th>
-                        <th class="text-end">Số lượng</th>
-                        <th>Kệ hiện tại</th>
-                        <th class="text-end">Hành động</th>
+                        <th data-i18n="colType">Loại</th>
+                        <th class="text-end" data-i18n="colQty">Số lượng</th>
+                        <th data-i18n="colCurrentShelf">Kệ hiện tại</th>
+                        <th class="text-end" data-i18n="colAction">Hành động</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -74,13 +75,13 @@
                             <td>@m.Model</td>
                             <td>@m.Colorway</td>
                             <td>@m.SizeSpec</td>
-                            <td><span class="badge" style="background-color:rgba(13,110,253,0.12);color:#0d6efd;">Mới nhập</span></td>
+                            <td><span class="badge" style="background-color:rgba(13,110,253,0.12);color:#0d6efd;" data-i18n="newlyAddedLabel">Mới nhập</span></td>
                             <td class="text-end">@m.ArrivalQty @m.Unit</td>
                             <td>@(m.LocationCode ?? "—")</td>
                             <td class="text-end">
                                 <button type="button" class="btn btn-sm pmc-btn-dark js-open-shelf"
                                         data-material-id="@m.MaterialId" data-barcode="@m.Barcode" data-kind="new">
-                                    Lên kệ
+                                    <span data-i18n="btnShelve">Lên kệ</span>
                                 </button>
                             </td>
                         </tr>
@@ -94,14 +95,14 @@
                             <td>@m.Model</td>
                             <td>@m.Colorway</td>
                             <td>@m.SizeSpec</td>
-                            <td><span class="badge" style="background-color:rgba(255,193,7,0.15);color:#997404;">Nhận lại</span></td>
+                            <td><span class="badge" style="background-color:rgba(255,193,7,0.15);color:#997404;" data-i18n="returnableLabel">Nhận lại</span></td>
                             <td class="text-end">@outstanding @m.Unit</td>
                             <td>@(m.LocationCode ?? "—")</td>
                             <td class="text-end">
                                 <button type="button" class="btn btn-sm pmc-btn-dark js-open-shelf"
                                         data-material-id="@m.MaterialId" data-barcode="@m.Barcode" data-kind="return"
                                         data-outstanding="@outstanding" data-unit="@m.Unit" data-location-code="@m.LocationCode">
-                                    Nhận lại
+                                    <span data-i18n="returnableLabel">Nhận lại</span>
                                 </button>
                             </td>
                         </tr>
@@ -109,7 +110,7 @@
                     @if (Model.StagingItems.Count == 0 && Model.ReturnableItems.Count == 0)
                     {
                         <tr>
-                            <td colspan="9" class="text-center text-muted py-4">Không có liệu nào cần lên kệ.</td>
+                            <td colspan="9" class="text-center text-muted py-4" data-i18n="emptyNeedShelving">Không có liệu nào cần lên kệ.</td>
                         </tr>
                     }
                 </tbody>
@@ -130,27 +131,27 @@
                 <input type="hidden" name="barcode" id="shelfBarcode" />
                 <div class="modal-body">
                     <div id="qtyGroup" class="d-none">
-                        <p class="text-muted small mb-2">Đã xuất còn thiếu: <span id="outstandingLabel" class="fw-semibold"></span></p>
-                        <label class="form-label small fw-semibold text-secondary">Số lượng nhận lại</label>
+                        <p class="text-muted small mb-2"><span data-i18n="outstandingLabel">Đã xuất còn thiếu:</span> <span id="outstandingLabel" class="fw-semibold"></span></p>
+                        <label class="form-label small fw-semibold text-secondary" data-i18n="returnQtyLabel">Số lượng nhận lại</label>
                         <input type="number" name="qty" id="qtyInput" class="form-control mb-3" step="0.01" min="0.01" disabled />
                     </div>
 
                     <div id="keepShelfInfo" class="d-none alert alert-secondary py-2 px-3 small mb-0">
-                        Liệu chưa từng rời kệ — giữ nguyên vị trí <span id="keepShelfCode" class="fw-semibold"></span>.
+                        <span data-i18n="keepShelfPrefix">Liệu chưa từng rời kệ — giữ nguyên vị trí</span> <span id="keepShelfCode" class="fw-semibold"></span>.
                     </div>
 
                     <div id="shelfPickGroup">
-                        <label class="form-label small fw-semibold text-secondary">Kệ</label>
+                        <label class="form-label small fw-semibold text-secondary" data-i18n="rackLabel">Kệ</label>
                         <select id="rackSelect" class="form-select mb-3"></select>
 
-                        <label class="form-label small fw-semibold text-secondary">Tầng</label>
+                        <label class="form-label small fw-semibold text-secondary" data-i18n="levelLabel">Tầng</label>
                         <select name="locationId" id="levelSelect" class="form-select" required></select>
                     </div>
                 </div>
                 <div class="modal-footer border-0">
-                    <button type="button" class="btn btn-light" data-bs-dismiss="modal">Hủy</button>
+                    <button type="button" class="btn btn-light" data-bs-dismiss="modal" data-i18n="btnCancel">Hủy</button>
                     <button type="submit" class="btn pmc-btn-dark d-inline-flex align-items-center gap-1">
-                        <span class="material-icons" style="font-size:18px;">check</span> Xác nhận
+                        <span class="material-icons" style="font-size:18px;">check</span> <span data-i18n="btnConfirm">Xác nhận</span>
                     </button>
                 </div>
             </form>
@@ -167,8 +168,8 @@
     <script>
         (function () {
             var flash = document.getElementById('pmc-flash');
-            if (flash.dataset.success) PmcUI.success(flash.dataset.success);
-            if (flash.dataset.error) PmcUI.error(flash.dataset.error);
+            if (flash.dataset.success) PmcUI.success(PmcWhI18n.renderFlash(flash.dataset.success));
+            if (flash.dataset.error) PmcUI.error(PmcWhI18n.renderFlash(flash.dataset.error));
 
             var locations = @Html.Raw(locationsJson);
             var byRack = {};
@@ -180,22 +181,32 @@
             var rackSelect = document.getElementById('rackSelect');
             var levelSelect = document.getElementById('levelSelect');
 
-            racks.forEach(function (rack) {
-                var opt = document.createElement('option');
-                opt.value = rack;
-                opt.textContent = 'Kệ ' + rack;
-                rackSelect.appendChild(opt);
-            });
+            function renderRackOptions() {
+                rackSelect.innerHTML = '';
+                racks.forEach(function (rack) {
+                    var opt = document.createElement('option');
+                    opt.value = rack;
+                    opt.textContent = PmcWhI18n.t('rackPrefix') + rack;
+                    rackSelect.appendChild(opt);
+                });
+            }
 
             function populateLevels(rack) {
                 levelSelect.innerHTML = '';
                 (byRack[rack] || []).sort(function (a, b) { return a.levelNo - b.levelNo; }).forEach(function (loc) {
                     var opt = document.createElement('option');
                     opt.value = loc.locationId;
-                    opt.textContent = 'Tầng ' + loc.levelNo + ' (' + loc.code + ')';
+                    opt.textContent = PmcWhI18n.t('levelPrefix') + loc.levelNo + ' (' + loc.code + ')';
                     levelSelect.appendChild(opt);
                 });
             }
+            renderRackOptions();
+            PmcWhI18n.onChange(function () {
+                var currentRack = rackSelect.value;
+                renderRackOptions();
+                rackSelect.value = currentRack;
+                populateLevels(currentRack);
+            });
 
             rackSelect.addEventListener('change', function () { populateLevels(rackSelect.value); });
             if (racks.length > 0) {
@@ -215,7 +226,7 @@
                 document.getElementById('shelfMaterialId').value = materialId;
                 document.getElementById('shelfBarcode').value = barcode;
                 document.getElementById('shelfBarcodeLabel').textContent = barcode;
-                document.getElementById('shelfModalTitle').textContent = kind === 'return' ? 'Nhận lại' : 'Lên kệ';
+                document.getElementById('shelfModalTitle').textContent = kind === 'return' ? PmcWhI18n.t('returnableLabel') : PmcWhI18n.t('btnShelve');
 
                 if (kind === 'return') {
                     qtyGroup.classList.remove('d-none');
@@ -269,7 +280,7 @@
 
                 var row = document.querySelector('.js-shelf-row[data-barcode="' + CSS.escape(code) + '"]');
                 if (!row) {
-                    PmcUI.error('Không tìm thấy barcode "' + code + '" trong danh sách cần lên kệ.');
+                    PmcUI.error(PmcWhI18n.t('notFoundInList').replace('{code}', code));
                     return;
                 }
                 var btn = row.querySelector('.js-open-shelf');

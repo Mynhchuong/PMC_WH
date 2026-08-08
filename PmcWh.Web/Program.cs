@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Mvc.Authorization;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -14,6 +15,12 @@ if (builder.Environment.IsDevelopment())
 {
     mvcBuilder.AddRazorRuntimeCompilation();
 }
+
+// Ghi key vào 1 folder cố định trong app thay vì user profile mặc định — App Pool Identity trên
+// IIS thường không có user profile load sẵn, thiếu dòng này thì SignInAsync() lúc Login sẽ ném
+// exception (không mã hoá/ký được cookie). Cùng pattern với HR_web (đã chạy ổn trên server này).
+builder.Services.AddDataProtection()
+    .PersistKeysToFileSystem(new DirectoryInfo(Path.Combine(builder.Environment.ContentRootPath, "DataProtectionKeys")));
 
 builder.Services.AddHttpClient("PmcApi", client =>
 {
@@ -38,11 +45,11 @@ var app = builder.Build();
 if (!app.Environment.IsDevelopment())
 {
     app.UseExceptionHandler("/Home/Error");
-    // The default HSTS value is 30 days. You may want to change this for production scenarios, see https://aka.ms/aspnetcore-hsts.
-    app.UseHsts();
+    // Không dùng UseHsts() — HSTS ép trình duyệt luôn đòi HTTPS cho domain này, sẽ làm mất
+    // luôn quyền truy cập vì server chỉ chạy HTTP nội bộ, chưa có SSL cert.
 }
 
-app.UseHttpsRedirection();
+// Không dùng HTTPS redirect — IIS server nội bộ chưa có SSL cert, chỉ chạy HTTP.
 app.UseRouting();
 
 app.UseAuthentication();

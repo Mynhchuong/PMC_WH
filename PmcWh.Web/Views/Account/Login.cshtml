@@ -104,17 +104,23 @@
 <body>
     <div class="login-page">
         <div class="login-card">
+            <div class="d-flex justify-content-end mb-2">
+                <select id="site-lang-select" class="form-select form-select-sm" style="width:auto;cursor:pointer;">
+                    <option value="vi">Tiếng Việt</option>
+                    <option value="en">English</option>
+                </select>
+            </div>
             <div class="login-brand">
                 <span class="material-icons">warehouse</span>
             </div>
             <h4 class="text-center mb-1">PMC WH</h4>
-            <p class="text-center text-muted mb-4">Đăng nhập để tiếp tục</p>
+            <p class="text-center text-muted mb-4" data-i18n="loginSubtitle">Đăng nhập để tiếp tục</p>
 
             <form asp-controller="Account" asp-action="Login" asp-route-returnUrl="@returnUrl" method="post" novalidate>
                 <div asp-validation-summary="ModelOnly"></div>
 
                 <div class="mb-3">
-                    <label asp-for="Username" class="form-label small fw-semibold text-secondary"></label>
+                    <label asp-for="Username" class="form-label small fw-semibold text-secondary" data-i18n="loginUsername"></label>
                     <div class="login-input-group">
                         <span class="material-icons">person</span>
                         <input asp-for="Username" class="form-control-plaintext" autocomplete="username" autofocus />
@@ -123,7 +129,7 @@
                 </div>
 
                 <div class="mb-3">
-                    <label asp-for="Password" class="form-label small fw-semibold text-secondary"></label>
+                    <label asp-for="Password" class="form-label small fw-semibold text-secondary" data-i18n="loginPassword"></label>
                     <div class="login-input-group">
                         <span class="material-icons">lock</span>
                         <input asp-for="Password" class="form-control-plaintext" type="password" autocomplete="current-password" />
@@ -133,10 +139,10 @@
 
                 <div class="form-check mb-4">
                     <input asp-for="RememberMe" class="form-check-input" />
-                    <label asp-for="RememberMe" class="form-check-label small text-secondary"></label>
+                    <label asp-for="RememberMe" class="form-check-label small text-secondary" data-i18n="loginRememberMe"></label>
                 </div>
 
-                <button type="submit" class="btn pmc-btn-dark w-100 py-2 rounded-3">Đăng nhập</button>
+                <button type="submit" class="btn pmc-btn-dark w-100 py-2 rounded-3" data-i18n="loginSubmit">Đăng nhập</button>
             </form>
         </div>
     </div>
@@ -145,5 +151,13 @@
     <script src="~/lib/jquery-validation/dist/jquery.validate.min.js"></script>
     <script src="~/lib/jquery-validation-unobtrusive/dist/jquery.validate.unobtrusive.min.js"></script>
     <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="~/js/warehouse-i18n.js" asp-append-version="true"></script>
+    <script>
+        (function () {
+            var langSelect = document.getElementById('site-lang-select');
+            langSelect.value = PmcWhI18n.getLang();
+            langSelect.addEventListener('change', function () { PmcWhI18n.setLang(langSelect.value); });
+        })();
+    </script>
 </body>
 </html>

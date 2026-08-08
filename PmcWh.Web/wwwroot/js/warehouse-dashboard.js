@@ -124,7 +124,7 @@
   }
 
   function loadDashboard() {
-    fetch('/Warehouse/Dashboard').then(function (r) { return r.json(); }).then(function (d) {
+    fetch('Warehouse/Dashboard').then(function (r) { return r.json(); }).then(function (d) {
       if (!d) return;
       var s = d.summary || {};
       setTxt('wh3d-big-instock', s.totalInStock);
@@ -147,7 +147,7 @@
     try {
       // Dùng chung 1 kết nối /warehouseHub với warehouse-map.js (window.PmcWhHub) — xem ghi chú
       // cùng chỗ bên đó. warehouse-map.js chạy trước nên thường đã tạo sẵn, ở đây chỉ gắn thêm handler.
-      var conn = window.PmcWhHub || new signalR.HubConnectionBuilder().withUrl('/warehouseHub').withAutomaticReconnect().build();
+      var conn = window.PmcWhHub || new signalR.HubConnectionBuilder().withUrl('warehouseHub').withAutomaticReconnect().build();
       window.PmcWhHub = conn;
       conn.on('warehouseChanged', loadDashboard);
       if (conn.state === signalR.HubConnectionState.Disconnected) {

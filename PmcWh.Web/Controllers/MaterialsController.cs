@@ -129,12 +129,12 @@ public class MaterialsController : Controller
 
         if (response.IsSuccessStatusCode)
         {
-            TempData["FlashSuccess"] = "Đã lưu thay đổi.";
+            TempData["FlashSuccess"] = FlashHelper.Msg("savedChangesSuccess");
         }
         else
         {
             var problem = await response.Content.ReadFromJsonAsync<ApiMessage>(ApiJsonOptions);
-            TempData["FlashError"] = problem?.Message ?? "Không thể lưu thay đổi.";
+            TempData["FlashError"] = problem?.Message ?? FlashHelper.Msg("saveChangesFailFallback");
         }
 
         return RedirectToLocal(form.ReturnUrl);
@@ -211,7 +211,7 @@ public class MaterialsController : Controller
     {
         if (file == null || file.Length == 0)
         {
-            TempData["FlashError"] = "Chưa chọn file Excel.";
+            TempData["FlashError"] = FlashHelper.Msg("noExcelFileSelected");
             return RedirectToAction(nameof(Index));
         }
 
@@ -288,17 +288,31 @@ public class MaterialsController : Controller
 
         if (insertedCount > 0)
         {
-            TempData["FlashSuccess"] = $"Đã import {insertedCount}/{parsedRows.Count} dòng vào Staging" +
-                                        (inboundedCount > 0 ? $", tự lên kệ {inboundedCount} dòng theo cột Rack No." : "") +
-                                        (skipped.Count > 0 ? $", bỏ qua {skipped.Count} dòng." : ".");
+            var parts = new List<(string Key, string?[] Args)>
+            {
+                ("importedRowsBase", new[] { insertedCount.ToString(), parsedRows.Count.ToString() }),
+            };
+            if (inboundedCount > 0)
+            {
+                parts.Add(("importedAutoShelvedSuffix", new[] { inboundedCount.ToString() }));
+            }
+            if (skipped.Count > 0)
+            {
+                parts.Add(("importedSkippedSuffix", new[] { skipped.Count.ToString() }));
+            }
+            else if (inboundedCount == 0)
+            {
+                parts.Add(("periodOnly", Array.Empty<string?>()));
+            }
+            TempData["FlashSuccess"] = FlashHelper.Compose(parts.ToArray());
         }
         else if (parsedRows.Count > 0)
         {
-            TempData["FlashWarning"] = "Không có dòng nào được import — xem chi tiết bên dưới.";
+            TempData["FlashWarning"] = FlashHelper.Msg("importNoRowsWarning");
         }
         else
         {
-            TempData["FlashWarning"] = "File không có dòng dữ liệu nào để import.";
+            TempData["FlashWarning"] = FlashHelper.Msg("importEmptyFileWarning");
         }
 
         if (batchErrors.Count > 0)

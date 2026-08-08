@@ -2,6 +2,7 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using PmcWh.Web.Helpers;
 using PmcWh.Web.Models;
 
 namespace PmcWh.Web.Controllers;
@@ -51,7 +52,7 @@ public class RecipientsController : Controller
             return await RenderIndexWithErrors(newRecipient);
         }
 
-        TempData["FlashSuccess"] = $"Đã thêm nơi nhận '{newRecipient.Name}'.";
+        TempData["FlashSuccess"] = FlashHelper.Msg("addedRecipientSuccess", newRecipient.Name);
         return RedirectToAction(nameof(Index));
     }
 
@@ -63,8 +64,8 @@ public class RecipientsController : Controller
         var response = await client.PostAsync($"api/Recipients/{recipientId}/toggle-active", null);
 
         TempData[response.IsSuccessStatusCode ? "FlashSuccess" : "FlashError"] = response.IsSuccessStatusCode
-            ? $"Đã cập nhật trạng thái '{name}'."
-            : $"Không thể cập nhật '{name}'.";
+            ? FlashHelper.Msg("toggledRecipientSuccess", name)
+            : FlashHelper.Msg("toggleRecipientFailFallback", name);
 
         return RedirectToAction(nameof(Index));
     }

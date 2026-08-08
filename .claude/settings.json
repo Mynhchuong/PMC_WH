@@ -174,7 +174,27 @@
       "Bash(curl -s -X POST http://localhost:5073/api/Materials/636/edit -H 'Content-Type: application/json' -d '{\"arrivalQty\":50,\"userId\":1}' -w '\\\\nstatus=%{http_code}\\\\n')",
       "Bash(curl -s http://localhost:5073/api/Materials/636)",
       "Bash(curl -s -X POST http://localhost:5073/api/Materials/636/edit -H 'Content-Type: application/json' -d '{\"arrivalQty\":60,\"userId\":1}' -w '\\\\nstatus=%{http_code}\\\\n')",
-      "Bash(rm -f /tmp/l.html /tmp/lr.html /tmp/inb*.html /tmp/iss*.html /tmp/scan*.html /tmp/disp.html /tmp/mat_check.html /tmp/detail_check2.html /tmp/export_check.xlsx /tmp/demo_check.txt *)"
+      "Bash(rm -f /tmp/l.html /tmp/lr.html /tmp/inb*.html /tmp/iss*.html /tmp/scan*.html /tmp/disp.html /tmp/mat_check.html /tmp/detail_check2.html /tmp/export_check.xlsx /tmp/demo_check.txt *)",
+      "Bash(python3 -c \"import json,sys; d=json.load\\(sys.stdin\\); print\\(json.dumps\\(d.get\\('profiles',{}\\), indent=2\\)\\)\")",
+      "Bash(zip -r -q PmcWh_Api_publish.zip Api)",
+      "Bash(zip -r -q PmcWh_Web_publish.zip Web)",
+      "Bash(unzip -l publish/PmcWh_Api_publish.zip)",
+      "Bash(curl -s -m 5 -X POST \"http://192.168.1.24/PmcWh.Api/api/Users/authenticate\" -H \"Content-Type: application/json\" -d '{\"username\":\"admin\",\"password\":\"admin123\"}' -w \"\\\\nHTTP_STATUS=%{http_code}\\\\n\")",
+      "Bash(cd /Users/minhtruong/Documents/Project/PMC/PMC_WH *)",
+      "Read(//private/tmp/publish/Web/Views/Shared/**)",
+      "Bash(curl -s -m 8 http://localhost:5073/api/Health -w \"\\\\nstatus=%{http_code}\\\\n\")",
+      "Bash(curl -s -m 8 \"http://localhost:5139/Account/AccessDenied\" -o denied.html -w \"status=%{http_code}\\\\n\")",
+      "Bash(rm -f /tmp/l.html /tmp/lr.html /tmp/mat.html /tmp/inb.html /tmp/phase2_test.txt /tmp/phase2_test2.txt)",
+      "Bash(rm -rf publish/Web)",
+      "Bash(curl -s \"http://localhost:5073/api/Materials/637\")",
+      "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\('testing=', d.get\\('testing'\\)\\)\")",
+      "Bash(rm -f /tmp/l.html /tmp/lr.html /tmp/mat.html /tmp/detail.html /tmp/detail_test.txt /tmp/detail_test2.txt)",
+      "Bash(rm -f /tmp/l.html /tmp/lr.html /tmp/rpt.html /tmp/users.html /tmp/recip.html /tmp/map.html /tmp/phase4_test.txt)",
+      "Bash(rm -f /tmp/l.html /tmp/lr.html /tmp/p1.html /tmp/p2.html /tmp/p3.html /tmp/p4.html /tmp/p5.html /tmp/p6.html /tmp/p7.html /tmp/bugcheck.txt /tmp/vi_keys.txt /tmp/en_keys.txt /tmp/used_static.txt /tmp/used_js.txt /tmp/used_all.txt /tmp/vi_keys2.txt)",
+      "Bash(grep -rohE '\\\\\\(\"[a-zA-Z0-9]+\", new\\\\[\\\\] \\\\{ \"[a-zA-Z0-9]+\"' Controllers/)",
+      "Bash(rm -f /tmp/l.html /tmp/lr.html /tmp/recip.html /tmp/recip2.html /tmp/create_result.html /tmp/toggle_result.html /tmp/mat.html /tmp/mat3.html /tmp/import_noselect*.html /tmp/resp_headers.txt /tmp/after_import.html /tmp/inb.html /tmp/inb2.html /tmp/users.html /tmp/users2.html /tmp/phase5_test.txt /tmp/csharp_keys.txt /tmp/csharp_keys_sorted.txt)",
+      "Bash(rm -f /tmp/l.html /tmp/lr.html /tmp/mat.html /tmp/footer_test.txt)",
+      "Bash(rm -f /tmp/l.html /tmp/lr.html /tmp/mat.html /tmp/colwidth_test.txt)"
     ],
     "additionalDirectories": [
       "/tmp"

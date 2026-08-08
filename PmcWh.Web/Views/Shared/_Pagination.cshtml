@@ -23,16 +23,16 @@
             <input type="hidden" name="@kv.Key" value="@kv.Value" />
         }
         <input type="hidden" name="page" value="1" />
-        <label class="small text-muted mb-0 text-nowrap">Hiển thị</label>
+        <label class="small text-muted mb-0 text-nowrap" data-i18n="pageSizeLabel">Hiển thị</label>
         <select name="pageSize" class="form-select form-select-sm" style="width:auto;" onchange="this.form.submit()">
             @foreach (var size in PaginationHelper.PageSizeOptions)
             {
                 <option value="@size" selected="@(Model.PageSize == size)">@size</option>
             }
-            <option value="0" selected="@(Model.PageSize <= 0)">Tất cả</option>
+            <option value="0" selected="@(Model.PageSize <= 0)" data-i18n="filterStatusAll">Tất cả</option>
         </select>
         <span class="small text-muted text-nowrap">
-            / trang &mdash; @rangeStart&ndash;@rangeEnd trên tổng @Model.TotalCount dòng
+            <span data-i18n="pageSizeSuffix">/ trang</span> &mdash; @rangeStart&ndash;@rangeEnd <span data-i18n="ofTotalRows">trên tổng</span> @Model.TotalCount <span data-i18n="rowsWord">dòng</span>
         </span>
     </form>
 

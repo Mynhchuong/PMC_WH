@@ -4,6 +4,7 @@ using System.Text.Json;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.SignalR;
+using PmcWh.Web.Helpers;
 using PmcWh.Web.Hubs;
 using PmcWh.Web.Models;
 
@@ -47,13 +48,13 @@ public class DisposeController : Controller
 
         if (response.IsSuccessStatusCode)
         {
-            TempData["FlashSuccess"] = $"Đã hủy barcode '{barcode}'.";
+            TempData["FlashSuccess"] = FlashHelper.Msg("disposedSuccess", barcode);
             await _hub.Clients.All.SendAsync("warehouseChanged");
         }
         else
         {
             var problem = await response.Content.ReadFromJsonAsync<ApiMessage>(ApiJsonOptions);
-            TempData["FlashError"] = problem?.Message ?? $"Không thể hủy barcode '{barcode}'.";
+            TempData["FlashError"] = problem?.Message ?? FlashHelper.Msg("disposeFailFallback", barcode);
         }
 
         return RedirectToAction(nameof(Index));

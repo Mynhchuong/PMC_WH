@@ -380,7 +380,7 @@
   }
   function loadPage(p) {
     dLoc.textContent = I18N.t('feedLoading'); dBody.innerHTML = '<div class="wh3d-empty">' + I18N.t('feedLoading') + '</div>';
-    fetch('/Warehouse/LocationMaterials?id=' + curLoc + '&page=' + p)
+    fetch('Warehouse/LocationMaterials?id=' + curLoc + '&page=' + p)
       .then(function (r) { return r.json(); })
       .then(function (data) { renderDrawer(data); })
       .catch(function () { dBody.innerHTML = '<div class="wh3d-empty">' + I18N.t('loadError') + '</div>'; });
@@ -406,7 +406,7 @@
   function setMsg(t, err) { sMsg.textContent = t || ''; sMsg.classList.toggle('err', !!err); }
   function doSearch(q) {
     q = (q || '').trim(); if (!q) return; setMsg(I18N.t('searching'));
-    fetch('/Warehouse/Find?barcode=' + encodeURIComponent(q))
+    fetch('Warehouse/Find?barcode=' + encodeURIComponent(q))
       .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, d: d }; }); })
       .then(function (res) {
         if (!res.ok) { setMsg(res.d && res.d.message ? res.d.message : I18N.t('notFound'), true); hlBox.visible = false; return; }
@@ -463,13 +463,13 @@
     if (drawer.classList.contains('open') && curLoc) loadPage(1);
   }
   function refreshLayout() {
-    fetch('/Warehouse/LayoutData').then(function (r) { return r.json(); }).then(function (d) { applyOccupancy(d || []); }).catch(function () {});
+    fetch('Warehouse/LayoutData').then(function (r) { return r.json(); }).then(function (d) { applyOccupancy(d || []); }).catch(function () {});
   }
   if (window.signalR) {
     try {
       // Dùng chung 1 kết nối /warehouseHub với warehouse-dashboard.js (window.PmcWhHub) thay vì
       // mỗi file tự mở 1 socket riêng — file nào chạy trước thì tạo, file sau chỉ gắn thêm handler.
-      var conn = window.PmcWhHub || new signalR.HubConnectionBuilder().withUrl('/warehouseHub').withAutomaticReconnect().build();
+      var conn = window.PmcWhHub || new signalR.HubConnectionBuilder().withUrl('warehouseHub').withAutomaticReconnect().build();
       window.PmcWhHub = conn;
       conn.on('warehouseChanged', refreshLayout);
       if (conn.state === signalR.HubConnectionState.Disconnected) {
