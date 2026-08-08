@@ -255,7 +255,23 @@
   })();
   scene.add(escSign);
 
+  // ----- Vạch đỏ ranh giới bao quanh 4 cạnh toàn bộ khu kho, nối liền cổng vào và cổng thoát
+  // hiểm — giống vạch sơn ranh giới an toàn thật ở kho (khác màu vàng của lối đi chính bên trong).
+  var boundMinX = xLeft - 40, boundMaxX = L / 2 + RACK_W / 2 + 40;
+  var boundMinZ = Z1 + shiftZ - RACK_D / 2 - 40, boundMaxZ = zEscOuter + 40;
+  var boundMat = new THREE.MeshStandardMaterial({ color: 0xe0393f, roughness: 0.55, metalness: 0.1, emissive: 0x4a0d0d, emissiveIntensity: 0.35 });
+  var boundThick = 10;
+  function boundaryEdge(w, h, cx, cz) {
+    var m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), boundMat);
+    m.rotation.x = -Math.PI / 2; m.position.set(cx, 0.45, cz); m.receiveShadow = true; scene.add(m);
+  }
+  boundaryEdge(boundMaxX - boundMinX, boundThick, (boundMinX + boundMaxX) / 2, boundMinZ); // cạnh nam
+  boundaryEdge(boundMaxX - boundMinX, boundThick, (boundMinX + boundMaxX) / 2, boundMaxZ); // cạnh bắc (qua cổng thoát hiểm)
+  boundaryEdge(boundThick, boundMaxZ - boundMinZ, boundMinX, (boundMinZ + boundMaxZ) / 2); // cạnh tây (qua cổng vào)
+  boundaryEdge(boundThick, boundMaxZ - boundMinZ, boundMaxX, (boundMinZ + boundMaxZ) / 2); // cạnh đông
+
   // ----- Bàn làm việc + PC trước kệ 32 (chỗ nhân viên ngồi quản lý khu vực) -----
+  var updateDeskPerson = null;
   (function buildOfficeDesk() {
     var deskWoodMat = new THREE.MeshStandardMaterial({ color: 0x8a5a34, roughness: 0.75, metalness: 0.05 });
     var deskTopMat = new THREE.MeshStandardMaterial({ color: 0xc59a63, roughness: 0.5, metalness: 0.05 });
@@ -304,7 +320,197 @@
     var chairPost = new THREE.Mesh(new THREE.CylinderGeometry(2, 2, 22, 10), chromeMat); chairPost.position.set(0, 15, 26); desk.add(chairPost);
     var chairBase = new THREE.Mesh(new THREE.CylinderGeometry(13, 13, 1.6, 5), chromeMat); chairBase.position.set(0, 4, 26); desk.add(chairBase);
 
+    // Nhân viên ngồi giám sát — dáng đơn giản (khối hộp/cầu), ngồi trên ghế quay mặt vào màn hình.
+    var skinMat = new THREE.MeshStandardMaterial({ color: 0xd8a878, roughness: 0.8 });
+    var shirtMat = new THREE.MeshStandardMaterial({ color: 0x123259, roughness: 0.7 });
+    var pantsMat = new THREE.MeshStandardMaterial({ color: 0x2b2f36, roughness: 0.8 });
+    var hairMat = new THREE.MeshStandardMaterial({ color: 0x1c1c1c, roughness: 0.6 });
+
+    // Ghi chú toạ độ z (chiều sâu bàn/ghế): mặt bàn phủ tới z=29, lưng ghế bắt đầu từ z=38 — thân
+    // người phải nằm gọn TRONG khoảng z=29..38 đó, không thì sẽ bị mặt bàn cắt ngang qua bụng.
+    var hips = new THREE.Mesh(new THREE.BoxGeometry(18, 8, 14), pantsMat); hips.position.set(0, 31, 28); hips.castShadow = true; desk.add(hips);
+    var thighs = new THREE.Mesh(new THREE.BoxGeometry(18, 7, 22), pantsMat); thighs.position.set(0, 30, 10); thighs.castShadow = true; desk.add(thighs);
+    var torso = new THREE.Mesh(new THREE.BoxGeometry(19, 24, 7), shirtMat); torso.position.set(0, 47, 33.5); torso.castShadow = true; desk.add(torso);
+    var head = new THREE.Mesh(new THREE.SphereGeometry(7, 16, 12), skinMat); head.position.set(0, 66, 33.5); head.castShadow = true; desk.add(head);
+    var hair = new THREE.Mesh(new THREE.SphereGeometry(7.3, 16, 12, 0, Math.PI * 2, 0, Math.PI * 0.5), hairMat); hair.position.set(0, 67.3, 33.5); desk.add(hair);
+    connect(desk, -9.5, 57, 33.5, -8, 45.2, 9, 5, shirtMat);
+    connect(desk, 9.5, 57, 33.5, 8, 45.2, 9, 5, shirtMat);
+    var handL = new THREE.Mesh(new THREE.BoxGeometry(5, 3, 6), skinMat); handL.position.set(-8, 45.2, 9); desk.add(handL);
+    var handR = new THREE.Mesh(new THREE.BoxGeometry(5, 3, 6), skinMat); handR.position.set(8, 45.2, 9); desk.add(handR);
+
     scene.add(desk);
+
+    // Hoạt cảnh gõ phím + ngó màn hình cho có vẻ đang thao tác thật, không ngồi đơ.
+    var HAND_BASE_Y = 45.2;
+    updateDeskPerson = function (t) {
+      handL.position.y = HAND_BASE_Y + Math.max(0, Math.sin(t * 9)) * 0.9;
+      handR.position.y = HAND_BASE_Y + Math.max(0, Math.sin(t * 9 + Math.PI)) * 0.9;
+      head.rotation.y = Math.sin(t * 0.7) * 0.12;
+      head.rotation.x = Math.sin(t * 0.9) * 0.04 - 0.04;
+    };
+  })();
+
+  // ----- Công nhân đi lại + 1 người vác thang leo kiểm tra kệ (hoạt cảnh trang trí cho sinh động,
+  // không gắn với dữ liệu thật) — cùng phong cách khối hộp/cầu với người ngồi bàn ở trên. -----
+  var patrolWorkers = [], ladderWorker = null, placedLadder = null, carriedLadder = null, updateWorkers = null;
+  (function buildWorkers() {
+    var wSkinMat = new THREE.MeshStandardMaterial({ color: 0xd8a878, roughness: 0.8 });
+    var wPantsMat = new THREE.MeshStandardMaterial({ color: 0x394452, roughness: 0.8 });
+    var wVestMat = new THREE.MeshStandardMaterial({ color: 0x9cc9f0, roughness: 0.6, emissive: 0x0e2440, emissiveIntensity: 0.1 });
+    var wHelmetMat = new THREE.MeshStandardMaterial({ color: 0xf4d21b, roughness: 0.4, metalness: 0.1 });
+    var ladderMat = new THREE.MeshStandardMaterial({ color: 0xd7d2c4, roughness: 0.6, metalness: 0.2 });
+    var LADDER_LEN = 100;
+
+    function buildWorker(isFemale) {
+      var g = new THREE.Group(), legLen = isFemale ? 20 : 22, hipY = legLen;
+      function leg(side) {
+        var piv = new THREE.Group(); piv.position.set(side * 5, hipY, 0);
+        var m = new THREE.Mesh(new THREE.BoxGeometry(6, legLen, 7), wPantsMat); m.position.set(0, -legLen / 2, 0); m.castShadow = true; piv.add(m);
+        g.add(piv); return piv;
+      }
+      function arm(side) {
+        var piv = new THREE.Group(); piv.position.set(side * (isFemale ? 8.5 : 10), hipY + 22, 0);
+        var m = new THREE.Mesh(new THREE.BoxGeometry(5, 18, 6), wVestMat); m.position.set(0, -9, 0); m.castShadow = true; piv.add(m);
+        var hand = new THREE.Mesh(new THREE.BoxGeometry(4.5, 4, 5), wSkinMat); hand.position.set(0, -18, 0); piv.add(hand);
+        g.add(piv); return piv;
+      }
+      var legL = leg(-1), legR = leg(1), armL = arm(-1), armR = arm(1);
+      var hips = new THREE.Mesh(new THREE.BoxGeometry(isFemale ? 14 : 15, 7, 9), wPantsMat); hips.position.set(0, hipY + 2, 0); hips.castShadow = true; g.add(hips);
+      var torso = new THREE.Mesh(new THREE.BoxGeometry(isFemale ? 14 : 16, 20, 9), wVestMat); torso.position.set(0, hipY + 15, 0); torso.castShadow = true; g.add(torso);
+      var head = new THREE.Mesh(new THREE.SphereGeometry(6, 14, 10), wSkinMat); head.position.set(0, hipY + 29, 0); head.castShadow = true; g.add(head);
+      var helmet = new THREE.Mesh(new THREE.SphereGeometry(6.3, 14, 10, 0, Math.PI * 2, 0, Math.PI * 0.52), wHelmetMat); helmet.position.set(0, hipY + 30.3, 0); g.add(helmet);
+      scene.add(g);
+      return { group: g, legL: legL, legR: legR, armL: armL, armR: armR, head: head };
+    }
+    function buildLadderMesh() {
+      var g = new THREE.Group();
+      [-8, 8].forEach(function (x) { var r = new THREE.Mesh(new THREE.BoxGeometry(2.6, LADDER_LEN, 2.6), ladderMat); r.position.set(x, LADDER_LEN / 2, 0); r.castShadow = true; g.add(r); });
+      for (var ry = 10; ry < LADDER_LEN; ry += 14) { var rung = new THREE.Mesh(new THREE.BoxGeometry(19, 2.2, 2.6), ladderMat); rung.position.set(0, ry, 0); g.add(rung); }
+      return g;
+    }
+
+    // 3 người đi tuần + 1 người ôm thùng hàng, qua lại dọc 2 lối đi chính (line vàng).
+    var laneZs = [(Z1 + ZA) / 2 + shiftZ, (ZB + Z3) / 2 + shiftZ], patrolSpan = L / 2 - 60;
+    [{ z: laneZs[0], speed: 55, phase: 0 }, { z: laneZs[0], speed: 42, phase: 3, female: true }, { z: laneZs[1], speed: 48, phase: 6 },
+     { z: laneZs[1], speed: 36, phase: 9, carry: true, female: true }].forEach(function (cfg) {
+      var w = buildWorker(cfg.female);
+      if (cfg.carry) {
+        var box = new THREE.Mesh(new THREE.BoxGeometry(16, 14, 13), stockMats[0]); box.castShadow = true;
+        box.position.set(0, 42, 16); w.group.add(box);
+        w.armL.rotation.x = w.armR.rotation.x = -1.5; // ôm thùng phía trước, tay không đánh đung đưa nữa
+      }
+      patrolWorkers.push({ w: w, z: cfg.z, xMin: -patrolSpan, xMax: patrolSpan, speed: cfg.speed, phase: cfg.phase, carry: !!cfg.carry });
+    });
+    function updatePatrol(p, t) {
+      var span = p.xMax - p.xMin, cyc = (span * 2) / p.speed;
+      var tt = ((t + p.phase) % cyc + cyc) % cyc, half = cyc / 2, x, dir;
+      if (tt < half) { x = p.xMin + (tt / half) * span; dir = 1; } else { x = p.xMax - ((tt - half) / half) * span; dir = -1; }
+      p.w.group.position.set(x, Math.abs(Math.sin(t * p.speed * 0.12)) * 1.6, p.z);
+      p.w.group.rotation.y = dir > 0 ? Math.PI / 2 : -Math.PI / 2;
+      var swing = Math.sin(t * p.speed * 0.12) * 0.55;
+      p.w.legL.rotation.x = swing; p.w.legR.rotation.x = -swing;
+      if (!p.carry) { p.w.armL.rotation.x = -swing * 0.8; p.w.armR.rotation.x = swing * 0.8; }
+    }
+
+    // 1 người vác thang tới 1 kệ có thật trong layout, dựng thang, leo lên tầng giữa kiểm tra, leo
+    // xuống rồi vác thang đi — chọn tầng tối đa là 3 để không leo tít nóc kệ cao.
+    var rackNos = Object.keys(padByRackLevel);
+    if (rackNos.length) {
+      var no = rackNos[Math.floor(rackNos.length / 2)];
+      var levels = Object.keys(padByRackLevel[no]).map(Number);
+      var lvl = Math.min(Math.max.apply(null, levels), 3);
+      var pad = padByRackLevel[no][lvl];
+      pad.updateWorldMatrix(true, false);
+      var tp = pad.getWorldPosition(new THREE.Vector3());
+      var tq = new THREE.Quaternion(); pad.getWorldQuaternion(tq);
+      var fwd = new THREE.Vector3(0, 0, 1).applyQuaternion(tq); fwd.y = 0; fwd.normalize();
+      var standoff = 46;
+      var frontPt = tp.clone().addScaledVector(fwd, RACK_D / 2 + 3); frontPt.y = tp.y;
+      var footPt = frontPt.clone().addScaledVector(fwd, standoff); footPt.y = 0;
+
+      // Đi vào/ra phải bám theo lối đi vàng (line vàng) rồi mới rẽ vào kệ, không cắt thẳng qua sàn:
+      // chọn lane gần kệ mục tiêu nhất, đi dọc lane tới đúng cột kệ (đổi x), rồi mới rẽ vào (đổi z).
+      var laneZ = Math.abs(laneZs[0] - frontPt.z) < Math.abs(laneZs[1] - frontPt.z) ? laneZs[0] : laneZs[1];
+      var cornerPt = new THREE.Vector3(tp.x, 0, laneZ);
+      var startPt = new THREE.Vector3(tp.x - 260, 0, laneZ);
+
+      placedLadder = buildLadderMesh();
+      var ldir = frontPt.clone().sub(footPt), llen = ldir.length(); ldir.normalize();
+      placedLadder.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), ldir);
+      placedLadder.scale.set(1, llen / LADDER_LEN, 1);
+      placedLadder.position.copy(footPt); placedLadder.visible = false; scene.add(placedLadder);
+
+      var lw = buildWorker();
+      carriedLadder = buildLadderMesh(); carriedLadder.scale.set(1, 0.6, 1);
+      carriedLadder.position.set(24, 0, 0); carriedLadder.rotation.z = 0;
+      lw.group.add(carriedLadder);
+      ladderWorker = { w: lw, fwd: fwd, frontPt: frontPt, footPt: footPt, cornerPt: cornerPt, startPt: startPt };
+    }
+
+    var WALK_SPEED = 60, CLIMB_SPEED = 26;
+    function faceDir(dx, dz) { return Math.atan2(dx, dz); }
+    function segDur(a, b) { return Math.max(a.distanceTo(b) / WALK_SPEED, 0.15); }
+    var PH = null;
+    if (ladderWorker) {
+      var L2b = ladderWorker;
+      PH = {
+        walkLane: segDur(L2b.startPt, L2b.cornerPt),
+        walkIn: segDur(L2b.cornerPt, L2b.footPt),
+        climbUp: Math.max(L2b.frontPt.distanceTo(L2b.footPt) / CLIMB_SPEED, 0.15),
+        hold: 1.6,
+        walkOut: segDur(L2b.footPt, L2b.cornerPt),
+        walkLaneOut: segDur(L2b.cornerPt, L2b.startPt)
+      };
+      PH.climbDown = PH.climbUp;
+    }
+    var LW_TOTAL = PH ? (PH.walkLane + PH.walkIn + PH.climbUp + PH.hold + PH.climbDown + PH.walkOut + PH.walkLaneOut + 1.2) : 0;
+    function updateLadderWorker(t) {
+      if (!ladderWorker) return;
+      var L2 = ladderWorker, w = L2.w;
+      var a = PH.walkLane, b = a + PH.walkIn, c = b + PH.climbUp, d = c + PH.hold, e = d + PH.climbDown, f = e + PH.walkOut, g = f + PH.walkLaneOut;
+      var tt = ((t % LW_TOTAL) + LW_TOTAL) % LW_TOTAL;
+      var swing = Math.sin(t * 6) * 0.45, climbSwing = Math.sin(t * 10) * 0.5;
+      if (tt < a) { // đi dọc line vàng, tiến vào đúng cột kệ
+        var p = tt / a; w.group.position.lerpVectors(L2.startPt, L2.cornerPt, p); w.group.position.y += Math.abs(Math.sin(t * 6)) * 1.4;
+        w.group.rotation.y = faceDir(L2.cornerPt.x - L2.startPt.x, 0);
+        carriedLadder.visible = true; placedLadder.visible = false;
+        w.legL.rotation.x = swing; w.legR.rotation.x = -swing; w.armL.rotation.x = -swing * 0.7; w.armR.rotation.x = swing * 0.7;
+      } else if (tt < b) { // rẽ khỏi line vàng, tiến vào kệ
+        var p1 = (tt - a) / PH.walkIn; w.group.position.lerpVectors(L2.cornerPt, L2.footPt, p1); w.group.position.y += Math.abs(Math.sin(t * 6)) * 1.4;
+        w.group.rotation.y = faceDir(-L2.fwd.x, -L2.fwd.z);
+        carriedLadder.visible = true; placedLadder.visible = false;
+        w.legL.rotation.x = swing; w.legR.rotation.x = -swing; w.armL.rotation.x = -swing * 0.7; w.armR.rotation.x = swing * 0.7;
+      } else if (tt < c) { // dựng thang xong, leo lên
+        var p2 = (tt - b) / PH.climbUp; carriedLadder.visible = false; placedLadder.visible = true;
+        w.group.position.copy(L2.footPt.clone().lerp(L2.frontPt, p2));
+        w.group.rotation.y = faceDir(-L2.fwd.x, -L2.fwd.z);
+        w.legL.rotation.x = climbSwing; w.legR.rotation.x = -climbSwing;
+        w.armL.rotation.x = -0.9 + climbSwing * 0.3; w.armR.rotation.x = -0.9 - climbSwing * 0.3;
+      } else if (tt < d) { // đứng trên cao kiểm tra kệ
+        w.group.position.copy(L2.frontPt); w.group.rotation.y = faceDir(-L2.fwd.x, -L2.fwd.z);
+        w.head.rotation.y = Math.sin(t * 2.2) * 0.35; w.legL.rotation.x = w.legR.rotation.x = 0; w.armL.rotation.x = w.armR.rotation.x = -0.9;
+      } else if (tt < e) { // leo xuống
+        var p3 = (tt - d) / PH.climbDown;
+        w.group.position.copy(L2.frontPt.clone().lerp(L2.footPt, p3));
+        w.group.rotation.y = faceDir(-L2.fwd.x, -L2.fwd.z); w.head.rotation.y = 0;
+        w.legL.rotation.x = climbSwing; w.legR.rotation.x = -climbSwing; w.armL.rotation.x = w.armR.rotation.x = -0.9;
+      } else if (tt < f) { // vác thang, lùi ra khỏi kệ về line vàng
+        var p4 = (tt - e) / PH.walkOut; placedLadder.visible = false; carriedLadder.visible = true;
+        w.group.position.lerpVectors(L2.footPt, L2.cornerPt, p4); w.group.position.y += Math.abs(Math.sin(t * 6)) * 1.4;
+        w.group.rotation.y = faceDir(L2.fwd.x, L2.fwd.z);
+        w.legL.rotation.x = swing; w.legR.rotation.x = -swing; w.armL.rotation.x = -swing * 0.7; w.armR.rotation.x = swing * 0.7;
+      } else if (tt < g) { // đi dọc line vàng về điểm xuất phát
+        var p5 = (tt - f) / PH.walkLaneOut; w.group.position.lerpVectors(L2.cornerPt, L2.startPt, p5); w.group.position.y += Math.abs(Math.sin(t * 6)) * 1.4;
+        w.group.rotation.y = faceDir(L2.startPt.x - L2.cornerPt.x, 0);
+        w.legL.rotation.x = swing; w.legR.rotation.x = -swing; w.armL.rotation.x = -swing * 0.7; w.armR.rotation.x = swing * 0.7;
+      } else {
+        w.group.position.copy(L2.startPt); w.group.rotation.y = faceDir(L2.startPt.x - L2.cornerPt.x, 0);
+        carriedLadder.visible = true; placedLadder.visible = false;
+        w.legL.rotation.x = w.legR.rotation.x = w.armL.rotation.x = w.armR.rotation.x = 0;
+      }
+    }
+
+    updateWorkers = function (t) { patrolWorkers.forEach(function (p) { updatePatrol(p, t); }); updateLadderWorker(t); };
   })();
 
   // ----- HUD stats -----
@@ -369,10 +575,15 @@
 
   // ----- Drawer: danh sách mã QR thật (fetch có phân trang) -----
   var drawer = document.getElementById('wh3d-drawer'), dCode = document.getElementById('wh3d-drawer-code'), dLoc = document.getElementById('wh3d-drawer-loc'), dBody = document.getElementById('wh3d-drawer-body');
+  var searchBox = document.querySelector('.wh3d-search');
   var curLoc = null, curHl = null, curRack = null, curLevel = null;
   function openTierByPad(pad, hlBarcode, startPage) {
     var u = pad.userData; curLoc = u.locationId; curHl = hlBarcode || null; curRack = u.rack; curLevel = u.level;
     dCode.textContent = I18N.t('rackWord') + u.rack + I18N.t('levelWord') + u.level;
+    // Đóng tooltip hover + ẩn thanh tìm kiếm khi mở drawer — 2 cái này che/đè lên nhau khi camera
+    // bay sát vào 1 kệ (tooltip đứng yên ở vị trí hover cuối, drawer 300px bên phải cắt ngang nó).
+    tooltip.classList.remove('show');
+    if (searchBox) searchBox.classList.add('wh3d-hide');
     drawer.classList.add('open'); focusPad(pad); showHighlight(pad);
     autoSpin = false; if (btnSpin) { btnSpin.classList.remove('on'); btnSpin.textContent = I18N.t('spinBtnStart'); }
     if (!u.qrCount || !u.locationId) { dLoc.textContent = I18N.t('emptyTier'); dBody.innerHTML = '<div class="wh3d-empty">' + I18N.t('noQrInTier') + '</div>'; return; }
@@ -389,8 +600,8 @@
     var items = data.items || [], total = data.totalPages || 1, page = data.page || 1;
     dLoc.textContent = (data.totalCount != null ? data.totalCount : items.length) + I18N.t('qrInTierSuffix');
     var rows = items.map(function (it) {
-      var hl = (curHl && it.barcode === curHl) ? ' class="hl"' : '';
-      return '<tr' + hl + '><td class="mono">' + it.barcode + '</td><td>' + (it.dev || '') + '</td><td>' + (it.model || '') + '</td><td class="mono" style="text-align:right">' + (it.balance != null ? it.balance : '') + '</td></tr>';
+      var cls = 'js-detail-row' + ((curHl && it.barcode === curHl) ? ' hl' : '');
+      return '<tr class="' + cls + '" data-material-id="' + it.materialId + '" data-barcode="' + it.barcode + '" title="Double-click để xem chi tiết"><td class="mono">' + it.barcode + '</td><td>' + (it.dev || '') + '</td><td>' + (it.model || '') + '</td><td class="mono" style="text-align:right">' + (it.balance != null ? it.balance : '') + '</td></tr>';
     }).join('');
     var pager = total > 1 ? '<div class="wh3d-pager"><button id="wh3d-pg-prev"' + (page <= 1 ? ' disabled' : '') + '>‹</button><span>' + I18N.t('pageWord') + page + ' / ' + total + '</span><button id="wh3d-pg-next"' + (page >= total ? ' disabled' : '') + '>›</button></div>' : '';
     dBody.innerHTML = '<span class="wh3d-status">' + I18N.t('statusHasStock') + '</span><table class="wh3d-mini"><thead><tr><th>' + I18N.t('colBarcode') + '</th><th>' + I18N.t('colDev') + '</th><th>' + I18N.t('colModel') + '</th><th style="text-align:right">' + I18N.t('colQty') + '</th></tr></thead><tbody>' + rows + '</tbody></table>' + pager;
@@ -399,7 +610,10 @@
     if (nx) nx.onclick = function () { if (page < total) loadPage(page + 1); };
   }
   function handleClick(e) { var o = pickAt(e.clientX, e.clientY); if (o) openTierByPad(o, null, 1); }
-  document.getElementById('wh3d-drawer-close').addEventListener('click', function () { drawer.classList.remove('open'); hlBox.visible = false; });
+  document.getElementById('wh3d-drawer-close').addEventListener('click', function () {
+    drawer.classList.remove('open'); hlBox.visible = false;
+    if (searchBox) searchBox.classList.remove('wh3d-hide');
+  });
 
   // ----- Tìm barcode -----
   var sInput = document.getElementById('wh3d-search-input'), sMsg = document.getElementById('wh3d-search-msg');
@@ -420,7 +634,11 @@
   document.getElementById('wh3d-search-btn').addEventListener('click', function () { doSearch(sInput.value); });
   sInput.addEventListener('keydown', function (e) { if (e.key === 'Enter') doSearch(sInput.value); });
 
-  function resetView() { animCamPos = null; hlBox.visible = false; target.set(0, 70, 0); radius = 1550; theta = -0.7; phi = 1.0; updateCamera(); }
+  function resetView() {
+    animCamPos = null; hlBox.visible = false; target.set(0, 70, 0); radius = 1550; theta = -0.7; phi = 1.0; updateCamera();
+    drawer.classList.remove('open'); tooltip.classList.remove('show');
+    if (searchBox) searchBox.classList.remove('wh3d-hide');
+  }
   var btnReset = document.getElementById('wh3d-btnReset');
   if (btnReset) btnReset.addEventListener('click', resetView);
   var btnSpin = document.getElementById('wh3d-btnSpin');
@@ -479,12 +697,17 @@
   }
 
   resize(); updateCamera();
+  var wClock = new THREE.Clock();
   (function loop() {
     requestAnimationFrame(loop);
     if (animCamPos) {
       camera.position.lerp(animCamPos, 0.12); target.lerp(animTarget, 0.12); camera.lookAt(target);
       if (camera.position.distanceTo(animCamPos) < 1.2 && target.distanceTo(animTarget) < 1.2) { animCamPos = null; syncOrbit(); }
     } else if (autoSpin && !reduceMotion) { theta += 0.0025; updateCamera(); }
+    // Tôn trọng prefers-reduced-motion: nếu bật thì công nhân đứng yên ở tư thế ban đầu (t=0), không đi lại.
+    var wt = reduceMotion ? 0 : wClock.getElapsedTime();
+    if (updateWorkers) updateWorkers(wt);
+    if (updateDeskPerson) updateDeskPerson(wt);
     renderer.render(scene, camera);
   })();
 })();

@@ -69,7 +69,8 @@
         .wh3d-loading { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; background: #eef1f4; color: #64748b; z-index: 8; }
         .wh3d-hint { position: absolute; bottom: 14px; right: 14px; z-index: 4; font-size: 11px; color: #64748b; background: rgba(255,255,255,0.75); border: 1px solid #e2e6ea; padding: 5px 10px; border-radius: 999px; }
 
-        .wh3d-search { position: absolute; top: 56px; left: 50%; transform: translateX(-50%); z-index: 6; display: flex; gap: 7px; align-items: center; background: rgba(15,18,24,0.9); border: 1px solid #2a3040; border-radius: 11px; padding: 6px 8px 6px 12px; backdrop-filter: blur(6px); box-shadow: 0 8px 24px rgba(0,0,0,0.25); }
+        .wh3d-search { position: absolute; top: 56px; left: 50%; transform: translateX(-50%); z-index: 6; display: flex; gap: 7px; align-items: center; background: rgba(15,18,24,0.9); border: 1px solid #2a3040; border-radius: 11px; padding: 6px 8px 6px 12px; backdrop-filter: blur(6px); box-shadow: 0 8px 24px rgba(0,0,0,0.25); transition: opacity 0.2s ease, transform 0.2s ease; }
+        .wh3d-search.wh3d-hide { opacity: 0; transform: translateX(-50%) translateY(-6px); pointer-events: none; }
         .wh3d-search input { width: 230px; border: none; outline: none; background: transparent; color: #e9edf5; font-family: monospace; font-size: 13px; }
         .wh3d-search input::placeholder { color: #5c6478; font-family: var(--font-body, sans-serif); }
         .wh3d-search button { border: 1px solid #2a3040; background: #1d2230; color: #e9edf5; font-size: 12px; font-weight: 600; padding: 5px 11px; border-radius: 8px; cursor: pointer; }
@@ -119,14 +120,34 @@
         /* ---- Bảng thống kê lớn (đọc được từ xa trên TV) ---- */
         .wh3d-bignums { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; flex: 0 0 auto; }
         .wh3d-bignum {
-            background: #12151d; border: 1px solid #2a3040; border-radius: 12px; padding: 10px 8px; text-align: center;
+            position: relative; overflow: hidden;
+            background: linear-gradient(160deg, #171b26 0%, #0e1118 100%);
+            border: 1px solid #2a3040; border-radius: 12px; padding: 12px 8px 10px; text-align: center;
         }
+        .wh3d-bignum::before {
+            content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px;
+            background: linear-gradient(90deg, transparent, #4a5164, transparent);
+        }
+        .wh3d-bignum .icon {
+            width: 26px; height: 26px; margin: 0 auto 4px; border-radius: 8px;
+            display: flex; align-items: center; justify-content: center;
+            background: rgba(148, 163, 184, 0.12); color: #8a93a6;
+        }
+        .wh3d-bignum .icon .material-icons { font-size: 15px; }
         .wh3d-bignum .n { font-size: 26px; font-weight: 800; line-height: 1.05; color: #e9edf5; font-variant-numeric: tabular-nums; }
         .wh3d-bignum .l { font-size: 10px; color: #8a93a6; text-transform: uppercase; letter-spacing: 0.04em; margin-top: 3px; }
+        .wh3d-bignum.occ::before { background: linear-gradient(90deg, transparent, #2fbf7a, transparent); }
+        .wh3d-bignum.occ .icon { background: rgba(47,191,122,0.14); color: #2fbf7a; }
         .wh3d-bignum.occ .n { color: #2fbf7a; }
+        .wh3d-bignum.out::before { background: linear-gradient(90deg, transparent, #ffb84d, transparent); }
+        .wh3d-bignum.out .icon { background: rgba(255,184,77,0.14); color: #ffb84d; }
         .wh3d-bignum.out .n { color: #ffb84d; }
+        .wh3d-bignum.inb::before { background: linear-gradient(90deg, transparent, #5b9bff, transparent); }
+        .wh3d-bignum.inb .icon { background: rgba(91,155,255,0.14); color: #5b9bff; }
+        .wh3d-bignum.inb .n { color: #5b9bff; }
         @@media (max-width: 700px) { .wh3d-bignums { grid-template-columns: 1fr; } }
-        .wh3d-summary-updated { flex: 0 0 auto; text-align: right; font-size: 10.5px; color: #6b7385; margin-top: -2px; }
+        .wh3d-updated-row { flex: 0 0 auto; text-align: right; font-size: 10.5px; color: #6b7385; margin-top: -6px; display: flex; align-items: center; justify-content: flex-end; gap: 4px; }
+        .wh3d-updated-row .material-icons { font-size: 12px; }
 
         /* ---- Panel hoạt động gần đây (cột bên cạnh bản đồ 3D) ---- */
         .wh3d-feed {
@@ -179,11 +200,20 @@
     </div>
 
     <div class="wh3d-bignums">
-        <div class="wh3d-bignum occ"><div class="n" id="wh3d-big-instock">—</div><div class="l" id="wh3d-big-instock-label">Tổng số hàng trong kho</div></div>
-        <div class="wh3d-bignum out"><div class="n" id="wh3d-big-issued-today">—</div><div class="l" id="wh3d-big-issued-today-label">Đã xuất hôm nay</div></div>
-        <div class="wh3d-bignum"><div class="n" id="wh3d-big-inbound-today">—</div><div class="l" id="wh3d-big-inbound-today-label">Lên kệ hôm nay</div></div>
+        <div class="wh3d-bignum occ">
+            <div class="icon"><span class="material-icons">inventory_2</span></div>
+            <div class="n" id="wh3d-big-instock">—</div><div class="l" id="wh3d-big-instock-label">Tổng số hàng trong kho</div>
+        </div>
+        <div class="wh3d-bignum out">
+            <div class="icon"><span class="material-icons">local_shipping</span></div>
+            <div class="n" id="wh3d-big-issued-today">—</div><div class="l" id="wh3d-big-issued-today-label">Đã xuất hôm nay</div>
+        </div>
+        <div class="wh3d-bignum inb">
+            <div class="icon"><span class="material-icons">move_to_inbox</span></div>
+            <div class="n" id="wh3d-big-inbound-today">—</div><div class="l" id="wh3d-big-inbound-today-label">Lên kệ hôm nay</div>
+        </div>
     </div>
-    <div class="wh3d-summary-updated" id="wh3d-summary-updated">—</div>
+    <div class="wh3d-updated-row"><span class="material-icons">schedule</span><span id="wh3d-summary-updated">—</span></div>
 
     <div class="wh3d-mainrow">
         <div id="wh3d-wrap">

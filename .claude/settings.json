@@ -194,7 +194,10 @@
       "Bash(grep -rohE '\\\\\\(\"[a-zA-Z0-9]+\", new\\\\[\\\\] \\\\{ \"[a-zA-Z0-9]+\"' Controllers/)",
       "Bash(rm -f /tmp/l.html /tmp/lr.html /tmp/recip.html /tmp/recip2.html /tmp/create_result.html /tmp/toggle_result.html /tmp/mat.html /tmp/mat3.html /tmp/import_noselect*.html /tmp/resp_headers.txt /tmp/after_import.html /tmp/inb.html /tmp/inb2.html /tmp/users.html /tmp/users2.html /tmp/phase5_test.txt /tmp/csharp_keys.txt /tmp/csharp_keys_sorted.txt)",
       "Bash(rm -f /tmp/l.html /tmp/lr.html /tmp/mat.html /tmp/footer_test.txt)",
-      "Bash(rm -f /tmp/l.html /tmp/lr.html /tmp/mat.html /tmp/colwidth_test.txt)"
+      "Bash(rm -f /tmp/l.html /tmp/lr.html /tmp/mat.html /tmp/colwidth_test.txt)",
+      "Bash(curl -s -m 8 \"http://localhost:5073/api/Warehouse/location/229/materials?page=1&pageSize=8\")",
+      "Bash(rm -f /tmp/l.html /tmp/lr.html /tmp/map.html /tmp/map_polish.txt)",
+      "Bash(node -c PmcWh.Web/wwwroot/js/warehouse-map.js)"
     ],
     "additionalDirectories": [
       "/tmp"
