@@ -80,7 +80,7 @@
                 <tbody>
                     @foreach (var i in Model.Items)
                     {
-                        <tr>
+                        <tr class="js-detail-row" data-material-id="@i.MaterialId" data-barcode="@i.Barcode" title="Double-click để xem chi tiết">
                             <td class="fw-semibold">@i.Barcode</td>
                             <td>@i.Dev @(!string.IsNullOrEmpty(i.Dev) && !string.IsNullOrEmpty(i.Model) ? "/" : "") @i.Model</td>
                             <td>@i.SizeSpec</td>

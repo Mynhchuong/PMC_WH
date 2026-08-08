@@ -11,8 +11,3 @@ public class MovementHistoryItem
     public DateTime OccurredAt { get; set; }
     public string? Note { get; set; }
 }
-
-public class ArchiveOverdueRequest
-{
-    public int UserId { get; set; }
-}

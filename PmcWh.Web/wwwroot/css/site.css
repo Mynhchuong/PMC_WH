@@ -108,3 +108,11 @@ body {
   --bs-pagination-active-bg: #212529;
   --bs-pagination-active-border-color: #212529;
 }
+
+/* PmcMaterialDetail helper (wwwroot/js/material-detail.js) — double-click để xem chi tiết liệu. */
+.js-detail-row {
+  cursor: pointer;
+}
+.js-detail-row:hover {
+  background-color: rgba(0, 0, 0, 0.03);
+}

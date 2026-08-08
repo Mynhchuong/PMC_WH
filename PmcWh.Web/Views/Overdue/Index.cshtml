@@ -1,0 +1,104 @@
+@using PmcWh.Web.Helpers
+@model PmcWh.Web.Models.OverdueViewModel
+@{
+    ViewData["Title"] = "Hàng xuất quá 90 ngày";
+}
+
+<div class="card border-0 shadow-sm rounded-4 mb-3">
+    <div class="card-body">
+        <div class="d-flex align-items-center gap-3 mb-2">
+            <span class="d-inline-flex align-items-center justify-content-center rounded-4"
+                  style="width:48px;height:48px;background:linear-gradient(135deg, #dc3545 0%, #842029 100%); flex-shrink:0;">
+                <span class="material-icons text-white">warning_amber</span>
+            </span>
+            <div>
+                <h5 class="card-title mb-0">Hàng xuất quá 90 ngày chưa nhận lại</h5>
+                <p class="text-muted small mb-0">Cả xuất 1 phần lẫn xuất hết — kiểm tra thực tế bên nhận: còn liệu thì để đó, hết liệu thì bấm Xóa.</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card border-0 shadow-sm rounded-4">
+    <div class="card-body">
+        <h5 class="card-title mb-3">Danh sách (@Model.Items.Count)</h5>
+
+        <div class="table-responsive">
+            <table class="table align-middle">
+                <thead>
+                    <tr class="text-uppercase text-muted small">
+                        <th>Barcode</th>
+                        <th>Dev</th>
+                        <th>PO</th>
+                        <th>Mat'l Description</th>
+                        <th>Nơi nhận</th>
+                        <th class="text-end">Còn lại</th>
+                        <th>Trạng thái</th>
+                        <th>Kệ hiện tại</th>
+                        <th class="text-end">Số ngày</th>
+                        <th class="text-end">Hành động</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var m in Model.Items)
+                    {
+                        <tr class="js-overdue-row js-detail-row" data-material-id="@m.MaterialId" data-barcode="@m.Barcode" title="Double-click để xem chi tiết">
+                            <td class="fw-semibold">@m.Barcode</td>
+                            <td>@m.Dev</td>
+                            <td>@m.PoNo</td>
+                            <td>@m.MatlDescription</td>
+                            <td>@(m.RecipientName ?? "—")</td>
+                            <td class="text-end">@m.Balance @m.Unit</td>
+                            <td>
+                                @{ var (badgeTextClass, badgeStyle) = MaterialStatusHelper.BadgeStyle(m.Status); }
+                                <span class="badge @badgeTextClass" style="@badgeStyle">@MaterialStatusHelper.Label(m.Status)</span>
+                            </td>
+                            <td>@(m.LocationCode ?? "—")</td>
+                            <td class="text-end">@m.DaysOut ngày</td>
+                            <td class="text-end">
+                                <form asp-controller="Overdue" asp-action="Scan" method="post" class="d-inline js-overdue-form">
+                                    <input type="hidden" name="materialId" value="@m.MaterialId" />
+                                    <input type="hidden" name="barcode" value="@m.Barcode" />
+                                    <button type="submit" class="btn btn-sm btn-outline-danger">Xóa</button>
+                                </form>
+                            </td>
+                        </tr>
+                    }
+                    @if (Model.Items.Count == 0)
+                    {
+                        <tr>
+                            <td colspan="10" class="text-center text-muted py-4">Không có liệu nào quá 90 ngày.</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<div id="pmc-flash"
+     data-success="@(ViewData["FlashSuccess"] as string)"
+     data-error="@(ViewData["FlashError"] as string)"
+     style="display:none"></div>
+
+@section Scripts {
+    <script>
+        (function () {
+            var flash = document.getElementById('pmc-flash');
+            if (flash.dataset.success) PmcUI.success(flash.dataset.success);
+            if (flash.dataset.error) PmcUI.error(flash.dataset.error);
+
+            document.querySelectorAll('.js-overdue-form').forEach(function (form) {
+                form.addEventListener('submit', async function (e) {
+                    e.preventDefault();
+                    var barcode = form.querySelector('input[name="barcode"]').value;
+                    var ok = await PmcUI.confirmDelete('Xác nhận "' + barcode + '" đã hết liệu, không còn chờ nhận lại? Sẽ hủy hẳn liệu này.');
+                    if (ok) {
+                        form.querySelector('button[type="submit"]').disabled = true;
+                        form.submit();
+                    }
+                });
+            });
+        })();
+    </script>
+}

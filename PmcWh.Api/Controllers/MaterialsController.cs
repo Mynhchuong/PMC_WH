@@ -11,15 +11,17 @@ public class MaterialsController : ControllerBase
 {
     private const int MaxBatchSize = 40;
 
+    // Balance = 0 lúc mới import — liệu đang "chờ lên kệ" (Staging) thì chưa có gì trong kho cả,
+    // dù A.Q'TY đã biết. Balance chỉ bắt đầu = A.Q'TY khi Inbound (lên kệ) thật sự diễn ra.
     private const string InsertSql = @"
         INSERT INTO PMC_Materials
             (Barcode, CsCode, Dev, PoNo, Supplier, Model, Season, Stage, Colorway, Component,
              MatlDescription, ColorCode, ColorName, SizeSpec, ArrivalQty, Unit, FocFlag, ArrivalDate,
-             Remark, Testing, TestRequire, TestQty, Category, RequestOn, MatlType, Pic, Mat)
+             Remark, Testing, TestRequire, TestQty, Category, RequestOn, MatlType, Pic, Mat, Balance)
         VALUES
             (:Barcode, :CsCode, :Dev, :PoNo, :Supplier, :Model, :Season, :Stage, :Colorway, :Component,
              :MatlDescription, :ColorCode, :ColorName, :SizeSpec, :ArrivalQty, :Unit, :FocFlag, :ArrivalDate,
-             :Remark, :Testing, :TestRequire, :TestQty, :Category, :RequestOn, :MatlType, :Pic, :Mat)";
+             :Remark, :Testing, :TestRequire, :TestQty, :Category, :RequestOn, :MatlType, :Pic, :Mat, 0)";
 
     private readonly OracleDataService _db;
 
@@ -174,15 +176,26 @@ public class MaterialsController : ControllerBase
 
         var oldArrivalQty = Convert.ToDecimal(rows[0]["ARRIVALQTY"]);
         var oldBalance = rows[0]["BALANCE"] != null ? Convert.ToDecimal(rows[0]["BALANCE"]) : (decimal?)null;
-        var delta = req.ArrivalQty.Value - oldArrivalQty;
-        var newBalance = oldBalance.HasValue ? oldBalance.Value + delta : (decimal?)null;
 
-        if (oldBalance.HasValue && newBalance!.Value < 0)
+        // Staging (chưa lên kệ): Balance luôn = 0 bất kể sửa A.Q'TY thế nào — chưa có gì thật sự
+        // trong kho để mà cộng/trừ theo chênh lệch cả. Balance chỉ bắt đầu = A.Q'TY khi Inbound.
+        decimal? newBalance;
+        if (status == "Staging")
         {
-            return BadRequest(new
+            newBalance = 0m;
+        }
+        else
+        {
+            var delta = req.ArrivalQty.Value - oldArrivalQty;
+            newBalance = oldBalance.HasValue ? oldBalance.Value + delta : (decimal?)null;
+
+            if (oldBalance.HasValue && newBalance!.Value < 0)
             {
-                message = $"Không thể sửa số lượng xuống {req.ArrivalQty.Value} — liệu đã xuất {oldArrivalQty - oldBalance.Value}, số lượng mới phải >= số đã xuất.",
-            });
+                return BadRequest(new
+                {
+                    message = $"Không thể sửa số lượng xuống {req.ArrivalQty.Value} — liệu đã xuất {oldArrivalQty - oldBalance.Value}, số lượng mới phải >= số đã xuất.",
+                });
+            }
         }
 
         var affected = await _db.ExecuteAsync(
@@ -235,25 +248,34 @@ public class MaterialsController : ControllerBase
     }
 
     /// <summary>
-    /// Admin xóa (đánh cờ IsArchived) 1 liệu đang quá 90 ngày chưa nhận lại — xóa mềm, vẫn giữ
-    /// lịch sử StockMovements. KHÔNG tự động chạy — chỉ Admin bấm tay (chặn ở tầng Web).
+    /// Danh sách liệu đang xuất quá 90 ngày chưa nhận lại (IsOverdue=1, cả xuất 1 phần lẫn xuất hết) —
+    /// PMC đi kiểm tra thực tế: còn liệu thì để đó, hết liệu thì hủy (dùng luôn action Dispose).
     /// </summary>
-    [HttpPost("{id:int}/archive-overdue")]
-    public async Task<IActionResult> ArchiveOverdue(int id, [FromBody] ArchiveOverdueRequest req)
+    [HttpGet("overdue-issued")]
+    public async Task<ActionResult<List<OverdueIssuedItem>>> OverdueIssued()
     {
-        var affected = await _db.ExecuteAsync(
-            @"UPDATE PMC_Materials
-                 SET IsArchived = 1, UpdatedBy = :UserId, UpdatedAt = SYSTIMESTAMP, VersionNo = VersionNo + 1
-               WHERE MaterialId = :MaterialId AND IsOverdue = 1 AND IsArchived = 0",
-            new OracleParameter("UserId", req.UserId),
-            new OracleParameter("MaterialId", id));
+        var rows = await _db.QueryAsync(
+            @"SELECT m.MaterialId, m.Barcode, m.Dev, m.PoNo, m.MatlDescription, m.ColorCode,
+                     m.ArrivalQty, m.Balance, m.Unit, m.Status, l.Code AS LocationCode, m.LastIssuedAt,
+                     TRUNC(SYSDATE) - TRUNC(m.LastIssuedAt) AS DaysOut,
+                     (SELECT r.Name
+                        FROM PMC_StockMovements mv
+                        JOIN PMC_Recipients r ON r.RecipientId = mv.RecipientId
+                       WHERE mv.MaterialId = m.MaterialId
+                         AND mv.MovementType = 'IssueToWorkshop'
+                         AND mv.MovementId = (
+                               SELECT MAX(mv2.MovementId)
+                                 FROM PMC_StockMovements mv2
+                                WHERE mv2.MaterialId = m.MaterialId AND mv2.MovementType = 'IssueToWorkshop'
+                             )
+                     ) AS RecipientName
+                FROM PMC_Materials m
+                LEFT JOIN PMC_StorageLocations l ON l.LocationId = m.CurrentLocationId
+               WHERE m.IsOverdue = 1 AND m.IsArchived = 0
+                 AND m.Status IN ('IssuedOut', 'PartiallyIssued')
+               ORDER BY m.LastIssuedAt NULLS FIRST");
 
-        if (affected == 0)
-        {
-            return Conflict(new { message = "Liệu này không còn ở trạng thái quá hạn chưa xóa — có thể đã được nhận lại hoặc xóa trước đó." });
-        }
-
-        return Ok();
+        return Ok(rows.Select(MapOverdueIssuedItem).ToList());
     }
 
     /// <summary>
@@ -376,7 +398,7 @@ public class MaterialsController : ControllerBase
         }
 
         var rows = (await _db.QueryAsync(
-            "SELECT Balance, Status FROM PMC_Materials WHERE MaterialId = :id",
+            "SELECT Balance, Status, CurrentLocationId FROM PMC_Materials WHERE MaterialId = :id",
             new OracleParameter("id", id))).ToList();
 
         if (rows.Count == 0)
@@ -395,6 +417,8 @@ public class MaterialsController : ControllerBase
         {
             return BadRequest(new { message = $"Số lượng xuất ({req.Qty}) vượt quá tồn hiện tại ({balance})." });
         }
+
+        var currentLocationId = rows[0]["CURRENTLOCATIONID"] != null ? Convert.ToInt32(rows[0]["CURRENTLOCATIONID"]) : (int?)null;
 
         if (!await RecipientExistsAsync(req.RecipientId))
         {
@@ -419,12 +443,13 @@ public class MaterialsController : ControllerBase
                  new OracleParameter("MaterialId", id),
                  new OracleParameter("OldBalance", balance),
              }),
-            ("INSERT INTO PMC_StockMovements (MaterialId, MovementType, Qty, UserId, RecipientId) " +
-             "VALUES (:MaterialId, 'IssueToWorkshop', :Qty, :UserId, :RecipientId)",
+            ("INSERT INTO PMC_StockMovements (MaterialId, MovementType, Qty, LocationId, UserId, RecipientId) " +
+             "VALUES (:MaterialId, 'IssueToWorkshop', :Qty, :LocationId, :UserId, :RecipientId)",
              new[]
              {
                  new OracleParameter("MaterialId", id),
                  new OracleParameter("Qty", req.Qty),
+                 new OracleParameter("LocationId", (object?)currentLocationId ?? DBNull.Value),
                  new OracleParameter("UserId", req.UserId),
                  new OracleParameter("RecipientId", req.RecipientId),
              }),
@@ -473,7 +498,7 @@ public class MaterialsController : ControllerBase
         }
 
         var rows = (await _db.QueryAsync(
-            "SELECT Balance, ArrivalQty, Status FROM PMC_Materials WHERE MaterialId = :id",
+            "SELECT Balance, ArrivalQty, Status, CurrentLocationId FROM PMC_Materials WHERE MaterialId = :id",
             new OracleParameter("id", id))).ToList();
 
         if (rows.Count == 0)
@@ -497,9 +522,25 @@ public class MaterialsController : ControllerBase
 
         var newStatus = newBalance >= arrivalQty ? "InStock" : "PartiallyIssued";
 
-        if (!await LocationExistsAsync(req.LocationId))
+        // PartiallyIssued: liệu chưa từng rời kệ (CurrentLocationId vẫn còn) — giữ nguyên, bỏ qua LocationId gửi lên.
+        // IssuedOut: liệu đã bị xóa khỏi kệ lúc xuất hết — bắt buộc chọn kệ mới để lên lại.
+        var existingLocationId = rows[0]["CURRENTLOCATIONID"] != null ? Convert.ToInt32(rows[0]["CURRENTLOCATIONID"]) : (int?)null;
+        int resolvedLocationId;
+        if (status == "PartiallyIssued" && existingLocationId.HasValue)
         {
-            return BadRequest(new { message = "Vị trí kệ không hợp lệ hoặc không còn hoạt động." });
+            resolvedLocationId = existingLocationId.Value;
+        }
+        else
+        {
+            if (!req.LocationId.HasValue)
+            {
+                return BadRequest(new { message = "Liệu đã xuất hết khỏi kệ — vui lòng chọn kệ để lên lại." });
+            }
+            if (!await LocationExistsAsync(req.LocationId.Value))
+            {
+                return BadRequest(new { message = "Vị trí kệ không hợp lệ hoặc không còn hoạt động." });
+            }
+            resolvedLocationId = req.LocationId.Value;
         }
 
         var statements = new (string Sql, OracleParameter[] Parameters)[]
@@ -512,7 +553,7 @@ public class MaterialsController : ControllerBase
              {
                  new OracleParameter("NewBalance", newBalance),
                  new OracleParameter("NewStatus", newStatus),
-                 new OracleParameter("LocationId", req.LocationId),
+                 new OracleParameter("LocationId", resolvedLocationId),
                  new OracleParameter("UserId", req.UserId),
                  new OracleParameter("MaterialId", id),
                  new OracleParameter("OldBalance", balance),
@@ -523,7 +564,7 @@ public class MaterialsController : ControllerBase
              {
                  new OracleParameter("MaterialId", id),
                  new OracleParameter("Qty", req.Qty),
-                 new OracleParameter("LocationId", req.LocationId),
+                 new OracleParameter("LocationId", resolvedLocationId),
                  new OracleParameter("UserId", req.UserId),
              }),
         };
@@ -585,7 +626,7 @@ public class MaterialsController : ControllerBase
         var statements = new (string Sql, OracleParameter[] Parameters)[]
         {
             ("UPDATE PMC_Materials " +
-             "   SET Status = 'Disposed', Balance = 0, CurrentLocationId = NULL, DisposedAt = SYSTIMESTAMP, " +
+             "   SET Status = 'Disposed', Balance = 0, CurrentLocationId = NULL, DisposedAt = SYSTIMESTAMP, IsOverdue = 0, " +
              "       UpdatedBy = :UserId, UpdatedAt = SYSTIMESTAMP, VersionNo = VersionNo + 1 " +
              " WHERE MaterialId = :MaterialId AND Status <> 'Disposed'",
              new[]
@@ -747,6 +788,24 @@ public class MaterialsController : ControllerBase
         IsOverdue = row["ISOVERDUE"] != null && Convert.ToInt32(row["ISOVERDUE"]) == 1,
         ArrivalDate = row["ARRIVALDATE"] != null ? Convert.ToDateTime(row["ARRIVALDATE"]) : null,
         CreatedAt = Convert.ToDateTime(row["CREATEDAT"]),
+    };
+
+    private static OverdueIssuedItem MapOverdueIssuedItem(Dictionary<string, object?> row) => new()
+    {
+        MaterialId = Convert.ToInt32(row["MATERIALID"]),
+        Barcode = row["BARCODE"]?.ToString() ?? string.Empty,
+        Dev = row["DEV"]?.ToString(),
+        PoNo = row["PONO"]?.ToString(),
+        MatlDescription = row["MATLDESCRIPTION"]?.ToString(),
+        ColorCode = row["COLORCODE"]?.ToString(),
+        ArrivalQty = row["ARRIVALQTY"] != null ? Convert.ToDecimal(row["ARRIVALQTY"]) : null,
+        Balance = row["BALANCE"] != null ? Convert.ToDecimal(row["BALANCE"]) : null,
+        Unit = row["UNIT"]?.ToString(),
+        Status = row["STATUS"]?.ToString() ?? string.Empty,
+        LocationCode = row["LOCATIONCODE"]?.ToString(),
+        RecipientName = row["RECIPIENTNAME"]?.ToString(),
+        LastIssuedAt = row["LASTISSUEDAT"] != null ? Convert.ToDateTime(row["LASTISSUEDAT"]) : null,
+        DaysOut = row["DAYSOUT"] != null ? Convert.ToInt32(row["DAYSOUT"]) : 0,
     };
 
     private static MaterialDetail MapMaterialDetail(Dictionary<string, object?> row) => new()

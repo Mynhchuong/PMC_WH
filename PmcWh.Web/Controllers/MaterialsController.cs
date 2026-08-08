@@ -140,29 +140,6 @@ public class MaterialsController : Controller
         return RedirectToLocal(form.ReturnUrl);
     }
 
-    [HttpPost]
-    [Authorize(Roles = "Admin")]
-    [ValidateAntiForgeryToken]
-    public async Task<IActionResult> ArchiveOverdue(int id, string? returnUrl)
-    {
-        var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
-        var client = _httpClientFactory.CreateClient("PmcApi");
-
-        var response = await client.PostAsJsonAsync($"api/Materials/{id}/archive-overdue", new { UserId = userId });
-
-        if (response.IsSuccessStatusCode)
-        {
-            TempData["FlashSuccess"] = "Đã xóa liệu quá hạn khỏi danh sách.";
-        }
-        else
-        {
-            var problem = await response.Content.ReadFromJsonAsync<ApiMessage>(ApiJsonOptions);
-            TempData["FlashError"] = problem?.Message ?? "Không thể xóa liệu này.";
-        }
-
-        return RedirectToLocal(returnUrl);
-    }
-
     /// <summary>Redirect an toàn tới URL do client gửi lên (returnUrl) — chỉ chấp nhận local path,
     /// tránh open-redirect nếu returnUrl bị chỉnh thành 1 domain khác.</summary>
     private IActionResult RedirectToLocal(string? returnUrl)
@@ -198,23 +175,28 @@ public class MaterialsController : Controller
         var items = await client.GetFromJsonAsync<List<MaterialDetail>>(query, ApiJsonOptions) ?? new List<MaterialDetail>();
 
         // Đủ cột như file PMC yêu cầu (giống hệt file mẫu import, TRỪ "RACK NO." vì đó là cột chỉ
-        // dẫn lúc nhập, không có ý nghĩa khi xuất) + 3 cột trạng thái hiện tại ở cuối.
+        // dẫn lúc nhập, không có ý nghĩa khi xuất) + toàn bộ thông tin vận hành/lịch sử còn lại —
+        // PMC yêu cầu xuất FULL, không được thiếu trường nào có trong hệ thống.
         var headers = new List<string>
         {
-            "DEV", "PO", "SUPPLIER", "MODEL", "SEASON", "STAGE", "COLORWAY", "COMPONENT", "MAT",
+            "MATERIAL ID", "DEV", "PO", "SUPPLIER", "MODEL", "SEASON", "STAGE", "COLORWAY", "COMPONENT", "MAT",
             "MAT'L DESCRIPTION", "COLOR CODE", "COLOR NAME", "SIZE", "A.Q'TY", "UNIT", "FOC", "ATA",
             "CS_CODE", "REMARK", "BARCODE", "TESTING", "TEST REQUIRE", "TEST Q'TY", "CATEGORY",
             "REQUEST ON", "MAT'L TYPE", "PIC",
             "STATUS", "BALANCE", "RACK NO. (hiện tại)",
+            "NGÀY LÊN KỆ", "XUẤT GẦN NHẤT", "NGÀY HỦY", "QUÁ 90 NGÀY", "NGÀY TẠO", "CẬP NHẬT GẦN NHẤT",
         };
         var rows = items.Select(m => (IReadOnlyList<object?>)new List<object?>
         {
-            m.Dev, m.PoNo, m.Supplier, m.Model, m.Season, m.Stage, m.Colorway, m.Component, m.Mat,
+            m.MaterialId, m.Dev, m.PoNo, m.Supplier, m.Model, m.Season, m.Stage, m.Colorway, m.Component, m.Mat,
             m.MatlDescription, m.ColorCode, m.ColorName, m.SizeSpec, m.ArrivalQty, m.Unit, m.FocFlag,
             m.ArrivalDate?.ToString("yyyy-MM-dd"), m.CsCode, m.Remark, m.Barcode,
             m.Testing == 1 ? "YES" : m.Testing == 0 ? "NO" : null, m.TestRequire, m.TestQty,
             m.Category, m.RequestOn?.ToString("yyyy-MM-dd"), m.MatlType, m.Pic,
             m.Status, m.Balance, m.LocationCode,
+            m.StockedInAt?.ToString("yyyy-MM-dd HH:mm"), m.LastIssuedAt?.ToString("yyyy-MM-dd HH:mm"),
+            m.DisposedAt?.ToString("yyyy-MM-dd HH:mm"), m.IsOverdue ? "YES" : "NO",
+            m.CreatedAt.ToString("yyyy-MM-dd HH:mm"), m.UpdatedAt?.ToString("yyyy-MM-dd HH:mm"),
         });
 
         var bytes = ExcelHelper.WriteRows(headers, rows);

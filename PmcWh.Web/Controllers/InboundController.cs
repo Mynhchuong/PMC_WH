@@ -53,7 +53,7 @@ public class InboundController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> Scan(int materialId, int locationId, string barcode, decimal? qty)
+    public async Task<IActionResult> Scan(int materialId, int? locationId, string barcode, decimal? qty)
     {
         var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
         var client = _httpClientFactory.CreateClient("PmcApi");

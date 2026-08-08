@@ -19,6 +19,7 @@ public class WarehouseMapViewModel
 
 public class RecentActivity
 {
+    public int MaterialId { get; set; }
     public string Barcode { get; set; } = string.Empty;
     public string? Dev { get; set; }
     public string? Model { get; set; }

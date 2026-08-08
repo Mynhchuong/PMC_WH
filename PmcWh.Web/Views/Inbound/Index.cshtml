@@ -68,7 +68,7 @@
                 <tbody>
                     @foreach (var m in Model.StagingItems)
                     {
-                        <tr class="js-shelf-row" data-barcode="@m.Barcode">
+                        <tr class="js-shelf-row js-detail-row" data-material-id="@m.MaterialId" data-barcode="@m.Barcode" title="Double-click để xem chi tiết">
                             <td class="fw-semibold">@m.Barcode</td>
                             <td>@m.Dev</td>
                             <td>@m.Model</td>
@@ -88,7 +88,7 @@
                     @foreach (var m in Model.ReturnableItems)
                     {
                         var outstanding = (m.ArrivalQty ?? 0) - (m.Balance ?? 0);
-                        <tr class="js-shelf-row" data-barcode="@m.Barcode">
+                        <tr class="js-shelf-row js-detail-row" data-material-id="@m.MaterialId" data-barcode="@m.Barcode" title="Double-click để xem chi tiết">
                             <td class="fw-semibold">@m.Barcode</td>
                             <td>@m.Dev</td>
                             <td>@m.Model</td>
@@ -96,11 +96,11 @@
                             <td>@m.SizeSpec</td>
                             <td><span class="badge" style="background-color:rgba(255,193,7,0.15);color:#997404;">Nhận lại</span></td>
                             <td class="text-end">@outstanding @m.Unit</td>
-                            <td>—</td>
+                            <td>@(m.LocationCode ?? "—")</td>
                             <td class="text-end">
                                 <button type="button" class="btn btn-sm pmc-btn-dark js-open-shelf"
                                         data-material-id="@m.MaterialId" data-barcode="@m.Barcode" data-kind="return"
-                                        data-outstanding="@outstanding" data-unit="@m.Unit">
+                                        data-outstanding="@outstanding" data-unit="@m.Unit" data-location-code="@m.LocationCode">
                                     Nhận lại
                                 </button>
                             </td>
@@ -135,11 +135,17 @@
                         <input type="number" name="qty" id="qtyInput" class="form-control mb-3" step="0.01" min="0.01" disabled />
                     </div>
 
-                    <label class="form-label small fw-semibold text-secondary">Kệ</label>
-                    <select id="rackSelect" class="form-select mb-3"></select>
+                    <div id="keepShelfInfo" class="d-none alert alert-secondary py-2 px-3 small mb-0">
+                        Liệu chưa từng rời kệ — giữ nguyên vị trí <span id="keepShelfCode" class="fw-semibold"></span>.
+                    </div>
 
-                    <label class="form-label small fw-semibold text-secondary">Tầng</label>
-                    <select name="locationId" id="levelSelect" class="form-select" required></select>
+                    <div id="shelfPickGroup">
+                        <label class="form-label small fw-semibold text-secondary">Kệ</label>
+                        <select id="rackSelect" class="form-select mb-3"></select>
+
+                        <label class="form-label small fw-semibold text-secondary">Tầng</label>
+                        <select name="locationId" id="levelSelect" class="form-select" required></select>
+                    </div>
                 </div>
                 <div class="modal-footer border-0">
                     <button type="button" class="btn btn-light" data-bs-dismiss="modal">Hủy</button>
@@ -201,8 +207,11 @@
             var qtyGroup = document.getElementById('qtyGroup');
             var qtyInput = document.getElementById('qtyInput');
             var outstandingLabel = document.getElementById('outstandingLabel');
+            var keepShelfInfo = document.getElementById('keepShelfInfo');
+            var keepShelfCode = document.getElementById('keepShelfCode');
+            var shelfPickGroup = document.getElementById('shelfPickGroup');
 
-            function openShelfFor(materialId, barcode, kind, outstanding, unit) {
+            function openShelfFor(materialId, barcode, kind, outstanding, unit, locationCode) {
                 document.getElementById('shelfMaterialId').value = materialId;
                 document.getElementById('shelfBarcode').value = barcode;
                 document.getElementById('shelfBarcodeLabel').textContent = barcode;
@@ -222,12 +231,26 @@
                     qtyInput.value = '';
                 }
 
+                // Nhận lại 1 phần: liệu chưa rời kệ (đã có locationCode) — giữ nguyên, không cho chọn kệ mới.
+                if (kind === 'return' && locationCode) {
+                    keepShelfInfo.classList.remove('d-none');
+                    keepShelfCode.textContent = locationCode;
+                    shelfPickGroup.classList.add('d-none');
+                    levelSelect.disabled = true;
+                    levelSelect.required = false;
+                } else {
+                    keepShelfInfo.classList.add('d-none');
+                    shelfPickGroup.classList.remove('d-none');
+                    levelSelect.disabled = false;
+                    levelSelect.required = true;
+                }
+
                 shelfModal.show();
             }
 
             document.querySelectorAll('.js-open-shelf').forEach(function (btn) {
                 btn.addEventListener('click', function () {
-                    openShelfFor(btn.dataset.materialId, btn.dataset.barcode, btn.dataset.kind, btn.dataset.outstanding, btn.dataset.unit);
+                    openShelfFor(btn.dataset.materialId, btn.dataset.barcode, btn.dataset.kind, btn.dataset.outstanding, btn.dataset.unit, btn.dataset.locationCode);
                 });
             });
 
@@ -250,7 +273,7 @@
                     return;
                 }
                 var btn = row.querySelector('.js-open-shelf');
-                openShelfFor(btn.dataset.materialId, btn.dataset.barcode, btn.dataset.kind, btn.dataset.outstanding, btn.dataset.unit);
+                openShelfFor(btn.dataset.materialId, btn.dataset.barcode, btn.dataset.kind, btn.dataset.outstanding, btn.dataset.unit, btn.dataset.locationCode);
             });
         })();
     </script>

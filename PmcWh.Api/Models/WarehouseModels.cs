@@ -38,6 +38,7 @@ public class FindLocationDto
 /// LocationCode chỉ có khi là Inbound, RecipientName chỉ có khi là Issue.</summary>
 public class RecentActivityDto
 {
+    public int MaterialId { get; set; }
     public string Barcode { get; set; } = string.Empty;
     public string? Dev { get; set; }
     public string? Model { get; set; }

@@ -19,6 +19,7 @@ public static class SideMenuBuilder
                     new SideMenuItem { Title = "Quét lên kệ", Controller = "Inbound", Action = "Index", Icon = "qr_code_scanner" },
                     new SideMenuItem { Title = "Xuất hàng", Controller = "Issue", Action = "Index", Icon = "local_shipping" },
                     new SideMenuItem { Title = "Hủy liệu", Controller = "Dispose", Action = "Index", Icon = "delete_forever", VisibleWhen = () => isAdmin },
+                    new SideMenuItem { Title = "Hàng xuất quá 90 ngày", Controller = "Overdue", Action = "Index", Icon = "warning_amber", VisibleWhen = () => isAdmin },
                     new SideMenuItem { Title = "Bản đồ kho 3D", Controller = "Warehouse", Action = "Map", Icon = "warehouse" },
                 }
             },

@@ -104,7 +104,7 @@
       var devModel = [it.dev, it.model].filter(Boolean).join(' / ');
       var where = locLabel === 'loc' ? (it.locationCode ? I18N.t('whereLoc') + it.locationCode : '—') : (it.recipientName || '—');
       return '' +
-        '<div class="wh3d-feed-item">' +
+        '<div class="wh3d-feed-item js-detail-row" data-material-id="' + it.materialId + '" data-barcode="' + it.barcode + '" title="Double-click để xem chi tiết">' +
           '<div class="fi-main">' +
             '<div class="fi-code">' + it.barcode + '</div>' +
             '<div class="fi-sub">' + (devModel || '—') + ' · ' + where + '</div>' +

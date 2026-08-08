@@ -143,7 +143,7 @@ public class WarehouseController : ControllerBase
 
         var inboundRows = await _db.QueryAsync(
             @"SELECT * FROM (
-                  SELECT m.Barcode, m.Dev, m.Model, mv.Qty, m.Unit, l.Code AS LocationCode, mv.OccurredAt
+                  SELECT mv.MaterialId, m.Barcode, m.Dev, m.Model, mv.Qty, m.Unit, l.Code AS LocationCode, mv.OccurredAt
                     FROM PMC_StockMovements mv
                     JOIN PMC_Materials m ON m.MaterialId = mv.MaterialId
                     LEFT JOIN PMC_StorageLocations l ON l.LocationId = mv.LocationId
@@ -153,7 +153,7 @@ public class WarehouseController : ControllerBase
 
         var issueRows = await _db.QueryAsync(
             @"SELECT * FROM (
-                  SELECT m.Barcode, m.Dev, m.Model, mv.Qty, m.Unit, r.Name AS RecipientName, mv.OccurredAt
+                  SELECT mv.MaterialId, m.Barcode, m.Dev, m.Model, mv.Qty, m.Unit, r.Name AS RecipientName, mv.OccurredAt
                     FROM PMC_StockMovements mv
                     JOIN PMC_Materials m ON m.MaterialId = mv.MaterialId
                     LEFT JOIN PMC_Recipients r ON r.RecipientId = mv.RecipientId
@@ -171,6 +171,7 @@ public class WarehouseController : ControllerBase
 
     private static RecentActivityDto MapActivity(Dictionary<string, object?> row) => new()
     {
+        MaterialId = Convert.ToInt32(row["MATERIALID"]),
         Barcode = row["BARCODE"]?.ToString() ?? string.Empty,
         Dev = row["DEV"]?.ToString(),
         Model = row["MODEL"]?.ToString(),

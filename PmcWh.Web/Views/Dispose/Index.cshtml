@@ -46,7 +46,7 @@
                 <tbody>
                     @foreach (var m in Model.DisposableItems)
                     {
-                        <tr class="js-disposable-row" data-barcode="@m.Barcode">
+                        <tr class="js-disposable-row js-detail-row" data-material-id="@m.MaterialId" data-barcode="@m.Barcode" title="Double-click để xem chi tiết">
                             <td class="fw-semibold">@m.Barcode</td>
                             <td>@m.Dev</td>
                             <td>@m.Model</td>

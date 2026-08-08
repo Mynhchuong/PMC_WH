@@ -153,7 +153,31 @@
       "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\('pageSize=50 -> totalCount=',d.get\\('totalCount'\\)\\)\")",
       "Bash(curl -s -b pmc_cookies.txt \"http://localhost:5139/Users\" -o users.html -w \"users status: %{http_code}\\\\n\")",
       "Bash(curl -s -b pmc_cookies.txt \"http://localhost:5139/Materials?pageSize=20\" -o materials.html -w \"materials status: %{http_code}\\\\n\")",
-      "Bash(sort -tu -k1,1 -n -u -t= -k2)"
+      "Bash(sort -tu -k1,1 -n -u -t= -k2)",
+      "Bash(xargs -I{} sh -c 'echo ==={}===; cat {}')",
+      "Bash(curl -s \"http://localhost:5073/api/Recipients?pageSize=5\")",
+      "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\(json.dumps\\(d[:3], indent=2\\)\\)\")",
+      "Bash(curl -s -X POST http://localhost:5073/api/Materials/import-batch -H 'Content-Type: application/json' -d '[{\"barcode\":\"__TRACKED_VAR__\",\"dev\":\"QA\",\"poNo\":\"PO-QA\",\"arrivalQty\":50,\"unit\":\"pcs\"}]')",
+      "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\('balance=',d['balance'],'status=',d['status'],'location=',d['locationCode']\\)\")",
+      "Bash(curl -s -X POST http://localhost:5073/api/Materials/634/issue -H 'Content-Type: application/json' -d '{\"qty\":30,\"recipientId\":5,\"userId\":1}' -w '\\\\nstatus=%{http_code}\\\\n')",
+      "Bash(curl -s http://localhost:5073/api/Materials/634)",
+      "Bash(curl -s -X POST http://localhost:5073/api/Materials/634/return -H 'Content-Type: application/json' -d '{\"qty\":30,\"userId\":1}' -w '\\\\nstatus=%{http_code}\\\\n')",
+      "Bash(curl -s -X POST http://localhost:5073/api/Materials/634/issue -H 'Content-Type: application/json' -d '{\"qty\":50,\"recipientId\":5,\"userId\":1}' -w '\\\\nstatus=%{http_code}\\\\n')",
+      "Bash(mkdir -p /private/tmp/claude-501/-Users-minhtruong-Documents-Project-PMC-PMC-WH/dc65cd5b-37f0-4d5f-bf0f-941a8a43bbc0/scratchpad/DbRunner)",
+      "Bash(cp /private/tmp/claude-501/-Users-minhtruong-Documents-Project-PMC-PMC-WH/43a32b69-e4e1-4fae-907f-81826781bfb5/scratchpad/DbRunner/Program.cs /private/tmp/claude-501/-Users-minhtruong-Documents-Project-PMC-PMC-WH/43a32b69-e4e1-4fae-907f-81826781bfb5/scratchpad/DbRunner/DbRunner.csproj /private/tmp/claude-501/-Users-minhtruong-Documents-Project-PMC-PMC-WH/dc65cd5b-37f0-4d5f-bf0f-941a8a43bbc0/scratchpad/DbRunner/)",
+      "Bash(curl -s -X POST http://localhost:5073/api/Materials/634/issue -H 'Content-Type: application/json' -d '{\"qty\":20,\"recipientId\":5,\"userId\":1}' -w '\\\\nstatus=%{http_code}\\\\n')",
+      "Bash(curl -s \"http://localhost:5073/api/Materials/overdue-issued\")",
+      "Bash(curl -s -w \"\\\\nHTTP_STATUS=%{http_code}\\\\n\" \"http://localhost:5073/api/Materials/overdue-issued\")",
+      "Bash(curl -s -w \"\\\\nstatus=%{http_code}\\\\n\" \"http://localhost:5073/api/Materials/overdue-issued\")",
+      "Bash(curl -s -X POST http://localhost:5073/api/Materials/import-batch -H 'Content-Type: application/json' -d '[{\"barcode\":\"__TRACKED_VAR__\",\"dev\":\"QA2\",\"arrivalQty\":40,\"unit\":\"pcs\"}]')",
+      "Bash(curl -s -b pmc_cookies6.txt \"http://localhost:5139/Materials/635/Detail\" -o detail_check.html -w \"status=%{http_code}\\\\n\")",
+      "Bash(curl -s -X POST http://localhost:5073/api/Materials/636/edit -H 'Content-Type: application/json' -d '{\"arrivalQty\":50,\"userId\":1}' -w '\\\\nstatus=%{http_code}\\\\n')",
+      "Bash(curl -s http://localhost:5073/api/Materials/636)",
+      "Bash(curl -s -X POST http://localhost:5073/api/Materials/636/edit -H 'Content-Type: application/json' -d '{\"arrivalQty\":60,\"userId\":1}' -w '\\\\nstatus=%{http_code}\\\\n')",
+      "Bash(rm -f /tmp/l.html /tmp/lr.html /tmp/inb*.html /tmp/iss*.html /tmp/scan*.html /tmp/disp.html /tmp/mat_check.html /tmp/detail_check2.html /tmp/export_check.xlsx /tmp/demo_check.txt *)"
+    ],
+    "additionalDirectories": [
+      "/tmp"
     ]
   }
 }

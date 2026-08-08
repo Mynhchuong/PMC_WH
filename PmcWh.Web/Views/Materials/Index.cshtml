@@ -114,15 +114,16 @@
         <div class="table-responsive">
             <table class="table align-middle" style="table-layout: fixed; width: 100%;">
                 <colgroup>
-                    <col style="width: 11%">
-                    <col style="width: 9%">
-                    <col style="width: 9%">
-                    <col style="width: 10%">
-                    <col style="width: 19%">
-                    <col style="width: 9%">
+                    <col style="width: 12%">
+                    <col style="width: 7%">
                     <col style="width: 6%">
                     <col style="width: 7%">
-                    <col style="width: 9%">
+                    <col style="width: 18%">
+                    <col style="width: 6%">
+                    <col style="width: 6%">
+                    <col style="width: 6%">
+                    <col style="width: 6%">
+                    <col style="width: 15%">
                     <col style="width: 6%">
                     @if (isAdmin)
                     {
@@ -138,6 +139,7 @@
                         <th>Mat'l Description</th>
                         <th>Color Code</th>
                         <th class="text-end">A.Q'TY</th>
+                        <th class="text-end">Balance</th>
                         <th>ATA</th>
                         <th>Trạng thái</th>
                         <th>Kệ hiện tại</th>
@@ -151,7 +153,7 @@
                     @foreach (var m in Model.Items)
                     {
                         var (badgeTextClass, badgeStyle) = MaterialStatusHelper.BadgeStyle(m.Status);
-                        <tr class="js-material-row" style="cursor:pointer;" data-id="@m.MaterialId" data-barcode="@m.Barcode" title="Double-click để xem chi tiết">
+                        <tr class="js-detail-row" data-material-id="@m.MaterialId" data-barcode="@m.Barcode" title="Double-click để xem chi tiết">
                             <td class="fw-semibold">
                                 @m.Barcode
                                 <div class="text-muted small fw-normal">@m.CreatedAt.ToString("dd/MM/yyyy")</div>
@@ -164,13 +166,16 @@
                             </td>
                             <td class="text-truncate" style="max-width: 0;" title="@m.ColorCode">@m.ColorCode</td>
                             <td class="text-end">@m.ArrivalQty @m.Unit</td>
+                            <td class="text-end">@m.Balance @m.Unit</td>
                             <td class="text-muted small">@(m.ArrivalDate?.ToString("dd/MM/yyyy") ?? "—")</td>
                             <td>
-                                <span class="badge @badgeTextClass" style="@badgeStyle">@MaterialStatusHelper.Label(m.Status)</span>
-                                @if (m.IsOverdue)
-                                {
-                                    <span class="badge bg-danger ms-1">Quá 90 ngày</span>
-                                }
+                                <div class="d-flex flex-column align-items-start gap-1">
+                                    <span class="badge @badgeTextClass" style="@badgeStyle">@MaterialStatusHelper.Label(m.Status)</span>
+                                    @if (m.IsOverdue)
+                                    {
+                                        <span class="badge bg-danger">Quá 90 ngày</span>
+                                    }
+                                </div>
                             </td>
                             <td>@(m.LocationCode ?? "—")</td>
                             @if (isAdmin)
@@ -179,13 +184,6 @@
                                     <button type="button" class="btn btn-sm btn-outline-secondary js-edit-btn" data-id="@m.MaterialId" title="Sửa thông tin">
                                         <span class="material-icons" style="font-size:16px;">edit</span>
                                     </button>
-                                    @if (m.IsOverdue)
-                                    {
-                                        <button type="button" class="btn btn-sm btn-outline-danger js-archive-btn ms-1"
-                                                data-id="@m.MaterialId" data-barcode="@m.Barcode" title="Xóa liệu quá hạn">
-                                            <span class="material-icons" style="font-size:16px;">delete_forever</span>
-                                        </button>
-                                    }
                                 </td>
                             }
                         </tr>
@@ -193,7 +191,7 @@
                     @if (Model.Items.Count == 0)
                     {
                         <tr>
-                            <td colspan="@(isAdmin ? 11 : 10)" class="text-center text-muted py-4">Không có dữ liệu phù hợp.</td>
+                            <td colspan="@(isAdmin ? 12 : 11)" class="text-center text-muted py-4">Không có dữ liệu phù hợp.</td>
                         </tr>
                     }
                 </tbody>
@@ -288,10 +286,6 @@
         </div>
     </div>
 
-    <form asp-controller="Materials" asp-action="ArchiveOverdue" method="post" id="archiveForm">
-        <input type="hidden" name="id" id="archive_id" />
-        <input type="hidden" name="returnUrl" id="archive_returnUrl" />
-    </form>
 }
 
 <div id="pmc-flash"
@@ -307,24 +301,6 @@
             if (flash.dataset.success) PmcUI.success(flash.dataset.success);
             if (flash.dataset.warning) PmcUI.warning(flash.dataset.warning);
             if (flash.dataset.error) PmcUI.error(flash.dataset.error);
-
-            document.querySelectorAll('.js-material-row').forEach(function (row) {
-                row.addEventListener('dblclick', async function () {
-                    var id = row.dataset.id;
-                    var barcode = row.dataset.barcode;
-                    try {
-                        var html = await PmcUI.withLoading(() =>
-                            fetch('/Materials/' + id + '/Detail').then(function (r) {
-                                if (!r.ok) throw new Error('Không tải được chi tiết.');
-                                return r.text();
-                            })
-                        );
-                        PmcUI.popup('Chi tiết liệu — ' + barcode, html, { size: 'lg' });
-                    } catch (e) {
-                        PmcUI.error('Không tải được chi tiết liệu.');
-                    }
-                });
-            });
 
             var editModalEl = document.getElementById('editModal');
             if (editModalEl) {
@@ -366,19 +342,6 @@
                     editForm.querySelector('button[type="submit"]').disabled = true;
                 });
             }
-
-            document.querySelectorAll('.js-archive-btn').forEach(function (btn) {
-                btn.addEventListener('click', async function (e) {
-                    e.stopPropagation();
-                    var barcode = btn.dataset.barcode;
-                    var ok = await PmcUI.confirmDelete('Xóa liệu quá hạn "' + barcode + '" khỏi danh sách? Lịch sử vẫn được giữ lại.');
-                    if (ok) {
-                        document.getElementById('archive_id').value = btn.dataset.id;
-                        document.getElementById('archive_returnUrl').value = window.location.pathname + window.location.search;
-                        document.getElementById('archiveForm').submit();
-                    }
-                });
-            });
         })();
     </script>
 }
