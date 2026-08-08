@@ -26,7 +26,7 @@ public class MaterialsController : Controller
         "DEV", "PO", "SUPPLIER", "MODEL", "SEASON", "STAGE", "COLORWAY", "COMPONENT", "MAT",
         "MAT'L DESCRIPTION", "COLOR CODE", "COLOR NAME", "SIZE", "A.Q'TY", "UNIT", "FOC", "ATA",
         "CS_CODE", "REMARK", "BARCODE", "TESTING", "TEST REQUIRE", "TEST Q'TY", "CATEGORY",
-        "REQUEST BY", "REQUEST ON",
+        "REQUEST ON", "MAT'L TYPE", "PIC", "RACK NO.",
     };
 
     [HttpGet]
@@ -118,10 +118,12 @@ public class MaterialsController : Controller
 
         var response = await client.PostAsJsonAsync($"api/Materials/{form.MaterialId}/edit", new
         {
+            form.ArrivalQty,
             form.Dev, form.PoNo, form.Supplier, form.Model, form.Season, form.Stage,
             form.Colorway, form.Component, form.MatlDescription, form.ColorCode, form.ColorName,
             form.SizeSpec, form.Unit, form.FocFlag, form.ArrivalDate, form.Remark, form.Testing,
-            form.TestRequire, form.TestQty, form.Category, form.RequestBy, form.RequestOn,
+            form.TestRequire, form.TestQty, form.Category, form.RequestOn,
+            form.MatlType, form.Pic, form.Mat,
             UserId = userId,
         });
 
@@ -180,6 +182,46 @@ public class MaterialsController : Controller
         return File(bytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "PMC_Import_Template.xlsx");
     }
 
+    /// <summary>Xuất Excel danh sách liệu theo đúng bộ lọc đang xem — đủ cột như file PMC yêu cầu,
+    /// kèm 3 cột trạng thái hiện tại (STATUS/BALANCE/RACK NO.) ở cuối.</summary>
+    [HttpGet]
+    public async Task<IActionResult> ExportExcel(string? barcode, string? status, DateTime? fromDate, DateTime? toDate, bool? isOverdue)
+    {
+        var client = _httpClientFactory.CreateClient("PmcApi");
+        var query = "api/Materials/export" +
+                    $"?barcode={Uri.EscapeDataString(barcode ?? string.Empty)}" +
+                    $"&status={Uri.EscapeDataString(status ?? string.Empty)}" +
+                    $"&fromDate={Uri.EscapeDataString(fromDate?.ToString("yyyy-MM-dd") ?? string.Empty)}" +
+                    $"&toDate={Uri.EscapeDataString(toDate?.ToString("yyyy-MM-dd") ?? string.Empty)}" +
+                    $"&isOverdue={Uri.EscapeDataString(isOverdue?.ToString() ?? string.Empty)}";
+
+        var items = await client.GetFromJsonAsync<List<MaterialDetail>>(query, ApiJsonOptions) ?? new List<MaterialDetail>();
+
+        // Đủ cột như file PMC yêu cầu (giống hệt file mẫu import, TRỪ "RACK NO." vì đó là cột chỉ
+        // dẫn lúc nhập, không có ý nghĩa khi xuất) + 3 cột trạng thái hiện tại ở cuối.
+        var headers = new List<string>
+        {
+            "DEV", "PO", "SUPPLIER", "MODEL", "SEASON", "STAGE", "COLORWAY", "COMPONENT", "MAT",
+            "MAT'L DESCRIPTION", "COLOR CODE", "COLOR NAME", "SIZE", "A.Q'TY", "UNIT", "FOC", "ATA",
+            "CS_CODE", "REMARK", "BARCODE", "TESTING", "TEST REQUIRE", "TEST Q'TY", "CATEGORY",
+            "REQUEST ON", "MAT'L TYPE", "PIC",
+            "STATUS", "BALANCE", "RACK NO. (hiện tại)",
+        };
+        var rows = items.Select(m => (IReadOnlyList<object?>)new List<object?>
+        {
+            m.Dev, m.PoNo, m.Supplier, m.Model, m.Season, m.Stage, m.Colorway, m.Component, m.Mat,
+            m.MatlDescription, m.ColorCode, m.ColorName, m.SizeSpec, m.ArrivalQty, m.Unit, m.FocFlag,
+            m.ArrivalDate?.ToString("yyyy-MM-dd"), m.CsCode, m.Remark, m.Barcode,
+            m.Testing == 1 ? "YES" : m.Testing == 0 ? "NO" : null, m.TestRequire, m.TestQty,
+            m.Category, m.RequestOn?.ToString("yyyy-MM-dd"), m.MatlType, m.Pic,
+            m.Status, m.Balance, m.LocationCode,
+        });
+
+        var bytes = ExcelHelper.WriteRows(headers, rows);
+        var fileName = $"PMC_Materials_{DateTime.Now:yyyyMMdd_HHmmss}.xlsx";
+        return File(bytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", fileName);
+    }
+
     [HttpPost]
     [Authorize(Roles = "Admin")]
     [RequestSizeLimit(20_000_000)]
@@ -204,23 +246,68 @@ public class MaterialsController : Controller
 
         var insertedCount = 0;
         var skipped = new List<MaterialImportSkipItem>();
+        var skippedBarcodes = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var batchErrors = new List<string>();
 
         var client = _httpClientFactory.CreateClient("PmcApi");
+        var batchIndex = 0;
         foreach (var batch in parsedRows.Chunk(ExcelHelper.ImportBatchSize))
         {
+            batchIndex++;
             var response = await client.PostAsJsonAsync("api/Materials/import-batch", batch);
-            response.EnsureSuccessStatusCode();
+
+            // Batch này lỗi (VD dữ liệu quá dài) -> ghi nhận rồi qua batch tiếp theo, KHÔNG throw
+            // làm crash cả request (trước đây EnsureSuccessStatusCode() sẽ văng lỗi 500 thô và bỏ
+            // luôn các batch sau, dù các batch trước đó đã import thành công).
+            if (!response.IsSuccessStatusCode)
+            {
+                var problem = await response.Content.ReadFromJsonAsync<ApiMessage>(ApiJsonOptions);
+                batchErrors.Add($"Batch {batchIndex} ({batch.Length} dòng): {problem?.Message ?? "lỗi không xác định"}");
+                continue;
+            }
 
             var batchResult = await response.Content.ReadFromJsonAsync<MaterialImportBatchApiResult>(ApiJsonOptions);
             if (batchResult == null) continue;
 
             insertedCount += batchResult.InsertedCount;
-            skipped.AddRange(batchResult.Skipped.Select(s => new MaterialImportSkipItem(s.Barcode, s.Reason)));
+            foreach (var s in batchResult.Skipped)
+            {
+                skipped.Add(new MaterialImportSkipItem(s.Barcode, s.Reason));
+                skippedBarcodes.Add(s.Barcode);
+            }
+        }
+
+        // Dòng có cột "RACK NO." khớp đúng 1 ô kệ thật -> coi như đã lên kệ sẵn (theo yêu cầu PMC),
+        // tự Inbound luôn sau Import, không cần quét tay lại. Mã kệ không khớp/để trống -> giữ
+        // nguyên Staging (chờ quét sau ở màn Quét lên kệ).
+        var inboundedCount = 0;
+        var rowsWithRack = parsedRows
+            .Where(r => !string.IsNullOrWhiteSpace(r.RackNo) && !string.IsNullOrWhiteSpace(r.Barcode) && !skippedBarcodes.Contains(r.Barcode!))
+            .ToList();
+        if (rowsWithRack.Count > 0)
+        {
+            var locations = await client.GetFromJsonAsync<List<StorageLocationDto>>("api/StorageLocations", ApiJsonOptions) ?? new();
+            var codeToId = locations.ToDictionary(l => l.Code, l => l.LocationId, StringComparer.OrdinalIgnoreCase);
+            var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
+
+            foreach (var row in rowsWithRack)
+            {
+                if (!codeToId.TryGetValue(row.RackNo!.Trim(), out var locationId)) continue;
+
+                var byBarcodeResp = await client.GetAsync($"api/Materials/by-barcode/{Uri.EscapeDataString(row.Barcode!)}");
+                if (!byBarcodeResp.IsSuccessStatusCode) continue;
+                var mat = await byBarcodeResp.Content.ReadFromJsonAsync<MaterialListItem>(ApiJsonOptions);
+                if (mat == null) continue;
+
+                var inboundResp = await client.PostAsJsonAsync($"api/Materials/{mat.MaterialId}/inbound", new { locationId, userId });
+                if (inboundResp.IsSuccessStatusCode) inboundedCount++;
+            }
         }
 
         if (insertedCount > 0)
         {
             TempData["FlashSuccess"] = $"Đã import {insertedCount}/{parsedRows.Count} dòng vào Staging" +
+                                        (inboundedCount > 0 ? $", tự lên kệ {inboundedCount} dòng theo cột Rack No." : "") +
                                         (skipped.Count > 0 ? $", bỏ qua {skipped.Count} dòng." : ".");
         }
         else if (parsedRows.Count > 0)
@@ -230,6 +317,12 @@ public class MaterialsController : Controller
         else
         {
             TempData["FlashWarning"] = "File không có dòng dữ liệu nào để import.";
+        }
+
+        if (batchErrors.Count > 0)
+        {
+            TempData["FlashError"] = $"{batchErrors.Count} batch import lỗi (các batch khác vẫn đã import bình thường): " +
+                                      string.Join(" | ", batchErrors);
         }
 
         if (skipped.Count > 0)
@@ -242,7 +335,10 @@ public class MaterialsController : Controller
 
     private static MaterialImportRow MapRow(Dictionary<string, string?> row)
     {
-        string? Get(string key) => row.TryGetValue(key, out var v) && !string.IsNullOrWhiteSpace(v) ? v.Trim() : null;
+        // So khớp không phân biệt hoa/thường — các file thực tế từ IT có khi ghi header dạng
+        // "Mat'l Type" thay vì "MAT'L TYPE" như template chuẩn.
+        var ci = new Dictionary<string, string?>(row, StringComparer.OrdinalIgnoreCase);
+        string? Get(string key) => ci.TryGetValue(key, out var v) && !string.IsNullOrWhiteSpace(v) ? v.Trim() : null;
 
         return new MaterialImportRow
         {
@@ -254,7 +350,7 @@ public class MaterialsController : Controller
             Stage = Get("STAGE"),
             Colorway = Get("COLORWAY"),
             Component = Get("COMPONENT"),
-            // "MAT" column không có cột tương ứng trong PMC_Materials — bỏ qua.
+            Mat = Get("MAT"),
             MatlDescription = Get("MAT'L DESCRIPTION"),
             ColorCode = Get("COLOR CODE"),
             ColorName = Get("COLOR NAME"),
@@ -270,8 +366,10 @@ public class MaterialsController : Controller
             TestRequire = Get("TEST REQUIRE"),
             TestQty = Get("TEST Q'TY"),
             Category = Get("CATEGORY"),
-            RequestBy = Get("REQUEST BY"),
             RequestOn = ParseDate(Get("REQUEST ON")),
+            MatlType = Get("MAT'L TYPE"),
+            Pic = Get("PIC"),
+            RackNo = Get("RACK NO."),
         };
     }
 

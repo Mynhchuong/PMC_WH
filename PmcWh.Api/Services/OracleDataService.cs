@@ -82,10 +82,17 @@ public class OracleDataService
         var startRow = (page - 1) * pageSize;
         var endRow = startRow + pageSize;
 
+        // COUNT(*) OVER () PHẢI nằm ở lớp trong cùng, TRƯỚC khi lọc ROWNUM <= endRow — nếu đặt
+        // cùng lớp với WHERE ROWNUM <= endRow (như bản cũ) thì nó chỉ đếm được đúng những dòng đã
+        // lọt qua bộ lọc đó (tối đa endRow dòng), khiến TotalCount luôn = min(tổng thật, page*pageSize)
+        // thay vì tổng thật — làm TotalPages luôn tính ra 1, phân trang mất hết số trang.
         var pagedSql = $@"
             SELECT * FROM (
-                SELECT inner_query.*, ROWNUM AS rnum, COUNT(*) OVER () AS total_count
-                FROM ({innerSql}) inner_query
+                SELECT a.*, ROWNUM AS rnum
+                FROM (
+                    SELECT inner_query.*, COUNT(*) OVER () AS total_count
+                    FROM ({innerSql}) inner_query
+                ) a
                 WHERE ROWNUM <= :pmcEndRow
             )
             WHERE rnum > :pmcStartRow";

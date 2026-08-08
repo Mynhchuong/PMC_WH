@@ -26,10 +26,13 @@ public class MaterialDetail
     public string? TestRequire { get; set; }
     public string? TestQty { get; set; }
     public string? Category { get; set; }
-    public string? RequestBy { get; set; }
     public DateTime? RequestOn { get; set; }
+    public string? MatlType { get; set; }
+    public string? Pic { get; set; }
+    public string? Mat { get; set; }
     public decimal? Balance { get; set; }
     public string Status { get; set; } = string.Empty;
+    public string? LocationCode { get; set; }
     public DateTime? StockedInAt { get; set; }
     public DateTime? LastIssuedAt { get; set; }
     public DateTime? DisposedAt { get; set; }

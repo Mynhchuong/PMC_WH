@@ -15,11 +15,11 @@ public class MaterialsController : ControllerBase
         INSERT INTO PMC_Materials
             (Barcode, CsCode, Dev, PoNo, Supplier, Model, Season, Stage, Colorway, Component,
              MatlDescription, ColorCode, ColorName, SizeSpec, ArrivalQty, Unit, FocFlag, ArrivalDate,
-             Remark, Testing, TestRequire, TestQty, Category, RequestBy, RequestOn)
+             Remark, Testing, TestRequire, TestQty, Category, RequestOn, MatlType, Pic, Mat)
         VALUES
             (:Barcode, :CsCode, :Dev, :PoNo, :Supplier, :Model, :Season, :Stage, :Colorway, :Component,
              :MatlDescription, :ColorCode, :ColorName, :SizeSpec, :ArrivalQty, :Unit, :FocFlag, :ArrivalDate,
-             :Remark, :Testing, :TestRequire, :TestQty, :Category, :RequestBy, :RequestOn)";
+             :Remark, :Testing, :TestRequire, :TestQty, :Category, :RequestOn, :MatlType, :Pic, :Mat)";
 
     private readonly OracleDataService _db;
 
@@ -37,7 +37,7 @@ public class MaterialsController : ControllerBase
         string? barcode, string? status, DateTime? fromDate, DateTime? toDate, bool? isOverdue, int page = 1, int pageSize = 20)
     {
         const string innerSql = @"
-            SELECT m.MaterialId, m.Barcode, m.Dev, m.PoNo, m.Supplier, m.Model, m.Colorway, m.SizeSpec,
+            SELECT m.MaterialId, m.Barcode, m.Dev, m.PoNo, m.Supplier, m.Model, m.Colorway, m.SizeSpec, m.MatlDescription, m.ColorCode,
                    m.ArrivalQty, m.Balance, m.Unit, m.Status, l.Code AS LocationCode, m.IsOverdue, m.ArrivalDate, m.CreatedAt
               FROM PMC_Materials m
               LEFT JOIN PMC_StorageLocations l ON l.LocationId = m.CurrentLocationId
@@ -68,18 +68,58 @@ public class MaterialsController : ControllerBase
     }
 
     /// <summary>
+    /// Xuất Excel: cùng bộ lọc như danh sách nhưng KHÔNG phân trang, trả đủ mọi field mô tả
+    /// (giống hệt cột trong file import PMC) — giới hạn an toàn 5000 dòng.
+    /// </summary>
+    [HttpGet("export")]
+    public async Task<ActionResult<List<MaterialDetail>>> Export(
+        string? barcode, string? status, DateTime? fromDate, DateTime? toDate, bool? isOverdue)
+    {
+        var sql = @"
+            SELECT * FROM (
+                SELECT m.MaterialId, m.Barcode, m.CsCode, m.Dev, m.PoNo, m.Supplier, m.Model, m.Season, m.Stage,
+                       m.Colorway, m.Component, m.MatlDescription, m.ColorCode, m.ColorName, m.SizeSpec,
+                       m.ArrivalQty, m.Unit, m.FocFlag, m.ArrivalDate, m.Remark, m.Testing, m.TestRequire,
+                       m.TestQty, m.Category, m.RequestOn, m.MatlType, m.Pic, m.Mat,
+                       m.Balance, m.Status, l.Code AS LocationCode, m.StockedInAt, m.LastIssuedAt,
+                       m.DisposedAt, m.IsOverdue, m.CreatedAt, m.UpdatedAt
+                  FROM PMC_Materials m
+                  LEFT JOIN PMC_StorageLocations l ON l.LocationId = m.CurrentLocationId
+                 WHERE m.IsArchived = 0
+                   AND (:barcode IS NULL OR UPPER(m.Barcode) LIKE '%' || UPPER(:barcode) || '%')
+                   AND (:status IS NULL OR m.Status = :status)
+                   AND (:fromDate IS NULL OR m.ArrivalDate >= :fromDate)
+                   AND (:toDate IS NULL OR m.ArrivalDate < :toDate + 1)
+                   AND (:isOverdue IS NULL OR m.IsOverdue = :isOverdue)
+                 ORDER BY m.CreatedAt DESC
+            ) WHERE ROWNUM <= 5000";
+
+        var rows = await _db.QueryAsync(sql,
+            new OracleParameter("barcode", (object?)barcode ?? DBNull.Value),
+            new OracleParameter("status", (object?)status ?? DBNull.Value),
+            new OracleParameter("fromDate", OracleDbType.Date) { Value = (object?)fromDate ?? DBNull.Value },
+            new OracleParameter("toDate", OracleDbType.Date) { Value = (object?)toDate ?? DBNull.Value },
+            new OracleParameter("isOverdue", (object?)(isOverdue.HasValue ? (isOverdue.Value ? 1 : 0) : null) ?? DBNull.Value));
+
+        return Ok(rows.Select(MapMaterialDetail).ToList());
+    }
+
+    /// <summary>
     /// Chi tiết đầy đủ 1 liệu — dùng cho popup xem detail.
     /// </summary>
     [HttpGet("{id:int}")]
     public async Task<ActionResult<MaterialDetail>> GetById(int id)
     {
         var rows = (await _db.QueryAsync(
-            @"SELECT MaterialId, Barcode, CsCode, Dev, PoNo, Supplier, Model, Season, Stage, Colorway,
-                     Component, MatlDescription, ColorCode, ColorName, SizeSpec, ArrivalQty, Unit, FocFlag,
-                     ArrivalDate, Remark, Testing, TestRequire, TestQty, Category, RequestBy, RequestOn,
-                     Balance, Status, StockedInAt, LastIssuedAt, DisposedAt, IsOverdue, CreatedAt, UpdatedAt
-                FROM PMC_Materials
-               WHERE MaterialId = :id",
+            @"SELECT m.MaterialId, m.Barcode, m.CsCode, m.Dev, m.PoNo, m.Supplier, m.Model, m.Season, m.Stage, m.Colorway,
+                     m.Component, m.MatlDescription, m.ColorCode, m.ColorName, m.SizeSpec, m.ArrivalQty, m.Unit, m.FocFlag,
+                     m.ArrivalDate, m.Remark, m.Testing, m.TestRequire, m.TestQty, m.Category, m.RequestOn,
+                     m.MatlType, m.Pic, m.Mat,
+                     m.Balance, m.Status, l.Code AS LocationCode, m.StockedInAt, m.LastIssuedAt, m.DisposedAt,
+                     m.IsOverdue, m.CreatedAt, m.UpdatedAt
+                FROM PMC_Materials m
+                LEFT JOIN PMC_StorageLocations l ON l.LocationId = m.CurrentLocationId
+               WHERE m.MaterialId = :id",
             new OracleParameter("id", id))).ToList();
 
         if (rows.Count == 0)
@@ -112,30 +152,53 @@ public class MaterialsController : ControllerBase
     [HttpPost("{id:int}/edit")]
     public async Task<IActionResult> Edit(int id, [FromBody] EditMaterialRequest req)
     {
-        var statusRows = (await _db.QueryAsync(
-            "SELECT Status FROM PMC_Materials WHERE MaterialId = :id",
+        if (req.ArrivalQty is null || req.ArrivalQty <= 0)
+        {
+            return BadRequest(new { message = "Số lượng phải lớn hơn 0." });
+        }
+
+        var rows = (await _db.QueryAsync(
+            "SELECT Status, ArrivalQty, Balance FROM PMC_Materials WHERE MaterialId = :id",
             new OracleParameter("id", id))).ToList();
 
-        if (statusRows.Count == 0)
+        if (rows.Count == 0)
         {
             return NotFound(new { message = "Không tìm thấy liệu." });
         }
 
-        if (statusRows[0]["STATUS"]?.ToString() == "Disposed")
+        var status = rows[0]["STATUS"]?.ToString();
+        if (status == "Disposed")
         {
             return Conflict(new { message = "Liệu này đã bị hủy — không thể sửa thông tin." });
         }
 
+        var oldArrivalQty = Convert.ToDecimal(rows[0]["ARRIVALQTY"]);
+        var oldBalance = rows[0]["BALANCE"] != null ? Convert.ToDecimal(rows[0]["BALANCE"]) : (decimal?)null;
+        var delta = req.ArrivalQty.Value - oldArrivalQty;
+        var newBalance = oldBalance.HasValue ? oldBalance.Value + delta : (decimal?)null;
+
+        if (oldBalance.HasValue && newBalance!.Value < 0)
+        {
+            return BadRequest(new
+            {
+                message = $"Không thể sửa số lượng xuống {req.ArrivalQty.Value} — liệu đã xuất {oldArrivalQty - oldBalance.Value}, số lượng mới phải >= số đã xuất.",
+            });
+        }
+
         var affected = await _db.ExecuteAsync(
             @"UPDATE PMC_Materials
-                 SET Dev = :Dev, PoNo = :PoNo, Supplier = :Supplier, Model = :Model, Season = :Season,
+                 SET ArrivalQty = :ArrivalQty, Balance = :Balance,
+                     Dev = :Dev, PoNo = :PoNo, Supplier = :Supplier, Model = :Model, Season = :Season,
                      Stage = :Stage, Colorway = :Colorway, Component = :Component,
                      MatlDescription = :MatlDescription, ColorCode = :ColorCode, ColorName = :ColorName,
                      SizeSpec = :SizeSpec, Unit = :Unit, FocFlag = :FocFlag, ArrivalDate = :ArrivalDate,
                      Remark = :Remark, Testing = :Testing, TestRequire = :TestRequire, TestQty = :TestQty,
-                     Category = :Category, RequestBy = :RequestBy, RequestOn = :RequestOn,
+                     Category = :Category, RequestOn = :RequestOn,
+                     MatlType = :MatlType, Pic = :Pic, Mat = :Mat,
                      UpdatedBy = :UserId, UpdatedAt = SYSTIMESTAMP, VersionNo = VersionNo + 1
                WHERE MaterialId = :MaterialId AND Status <> 'Disposed'",
+            new OracleParameter("ArrivalQty", req.ArrivalQty.Value),
+            new OracleParameter("Balance", (object?)newBalance ?? DBNull.Value),
             new OracleParameter("Dev", (object?)req.Dev ?? DBNull.Value),
             new OracleParameter("PoNo", (object?)req.PoNo ?? DBNull.Value),
             new OracleParameter("Supplier", (object?)req.Supplier ?? DBNull.Value),
@@ -156,8 +219,10 @@ public class MaterialsController : ControllerBase
             new OracleParameter("TestRequire", (object?)req.TestRequire ?? DBNull.Value),
             new OracleParameter("TestQty", (object?)req.TestQty ?? DBNull.Value),
             new OracleParameter("Category", (object?)req.Category ?? DBNull.Value),
-            new OracleParameter("RequestBy", (object?)req.RequestBy ?? DBNull.Value),
             new OracleParameter("RequestOn", OracleDbType.Date) { Value = (object?)req.RequestOn ?? DBNull.Value },
+            new OracleParameter("MatlType", (object?)req.MatlType ?? DBNull.Value),
+            new OracleParameter("Pic", (object?)req.Pic ?? DBNull.Value),
+            new OracleParameter("Mat", (object?)req.Mat ?? DBNull.Value),
             new OracleParameter("UserId", req.UserId),
             new OracleParameter("MaterialId", id));
 
@@ -198,7 +263,7 @@ public class MaterialsController : ControllerBase
     public async Task<ActionResult<MaterialListItem>> GetByBarcode(string barcode)
     {
         var rows = (await _db.QueryAsync(
-            @"SELECT m.MaterialId, m.Barcode, m.Dev, m.PoNo, m.Supplier, m.Model, m.Colorway, m.SizeSpec,
+            @"SELECT m.MaterialId, m.Barcode, m.Dev, m.PoNo, m.Supplier, m.Model, m.Colorway, m.SizeSpec, m.MatlDescription, m.ColorCode,
                      m.ArrivalQty, m.Balance, m.Unit, m.Status, l.Code AS LocationCode, m.IsOverdue, m.ArrivalDate, m.CreatedAt
                 FROM PMC_Materials m
                 LEFT JOIN PMC_StorageLocations l ON l.LocationId = m.CurrentLocationId
@@ -285,7 +350,7 @@ public class MaterialsController : ControllerBase
     public async Task<ActionResult<List<MaterialListItem>>> Issuable()
     {
         var rows = await _db.QueryAsync(
-            @"SELECT m.MaterialId, m.Barcode, m.Dev, m.PoNo, m.Supplier, m.Model, m.Colorway, m.SizeSpec,
+            @"SELECT m.MaterialId, m.Barcode, m.Dev, m.PoNo, m.Supplier, m.Model, m.Colorway, m.SizeSpec, m.MatlDescription, m.ColorCode,
                      m.ArrivalQty, m.Balance, m.Unit, m.Status, l.Code AS LocationCode, m.IsOverdue, m.ArrivalDate, m.CreatedAt
                 FROM PMC_Materials m
                 LEFT JOIN PMC_StorageLocations l ON l.LocationId = m.CurrentLocationId
@@ -384,7 +449,7 @@ public class MaterialsController : ControllerBase
     public async Task<ActionResult<List<MaterialListItem>>> Returnable()
     {
         var rows = await _db.QueryAsync(
-            @"SELECT m.MaterialId, m.Barcode, m.Dev, m.PoNo, m.Supplier, m.Model, m.Colorway, m.SizeSpec,
+            @"SELECT m.MaterialId, m.Barcode, m.Dev, m.PoNo, m.Supplier, m.Model, m.Colorway, m.SizeSpec, m.MatlDescription, m.ColorCode,
                      m.ArrivalQty, m.Balance, m.Unit, m.Status, l.Code AS LocationCode, m.IsOverdue, m.ArrivalDate, m.CreatedAt
                 FROM PMC_Materials m
                 LEFT JOIN PMC_StorageLocations l ON l.LocationId = m.CurrentLocationId
@@ -482,7 +547,7 @@ public class MaterialsController : ControllerBase
     public async Task<ActionResult<List<MaterialListItem>>> Disposable()
     {
         var rows = await _db.QueryAsync(
-            @"SELECT m.MaterialId, m.Barcode, m.Dev, m.PoNo, m.Supplier, m.Model, m.Colorway, m.SizeSpec,
+            @"SELECT m.MaterialId, m.Barcode, m.Dev, m.PoNo, m.Supplier, m.Model, m.Colorway, m.SizeSpec, m.MatlDescription, m.ColorCode,
                      m.ArrivalQty, m.Balance, m.Unit, m.Status, l.Code AS LocationCode, m.IsOverdue, m.ArrivalDate, m.CreatedAt
                 FROM PMC_Materials m
                 LEFT JOIN PMC_StorageLocations l ON l.LocationId = m.CurrentLocationId
@@ -614,7 +679,19 @@ public class MaterialsController : ControllerBase
             if (toInsert.Count > 0)
             {
                 var statements = toInsert.Select(r => (InsertSql, BuildInsertParams(r)));
-                result.InsertedCount = await _db.ExecuteBatchAsync(statements);
+                try
+                {
+                    result.InsertedCount = await _db.ExecuteBatchAsync(statements);
+                }
+                catch (Exception ex)
+                {
+                    // Lỗi DB (VD dữ liệu 1 cột dài hơn giới hạn VARCHAR2) không được để lộ nguyên
+                    // stack trace .NET ra ngoài — trả message ngắn gọn, dễ hiểu cho người dùng Web.
+                    return Conflict(new
+                    {
+                        message = "Không thể lưu batch này vào CSDL — có thể do 1 dòng có dữ liệu dài hơn giới hạn cho phép của 1 cột nào đó. Chi tiết lỗi DB: " + ex.Message,
+                    });
+                }
             }
         }
 
@@ -660,6 +737,8 @@ public class MaterialsController : ControllerBase
         Model = row["MODEL"]?.ToString(),
         Colorway = row["COLORWAY"]?.ToString(),
         SizeSpec = row["SIZESPEC"]?.ToString(),
+        MatlDescription = row["MATLDESCRIPTION"]?.ToString(),
+        ColorCode = row["COLORCODE"]?.ToString(),
         ArrivalQty = row["ARRIVALQTY"] != null ? Convert.ToDecimal(row["ARRIVALQTY"]) : null,
         Balance = row["BALANCE"] != null ? Convert.ToDecimal(row["BALANCE"]) : null,
         Unit = row["UNIT"]?.ToString(),
@@ -696,10 +775,13 @@ public class MaterialsController : ControllerBase
         TestRequire = row["TESTREQUIRE"]?.ToString(),
         TestQty = row["TESTQTY"]?.ToString(),
         Category = row["CATEGORY"]?.ToString(),
-        RequestBy = row["REQUESTBY"]?.ToString(),
         RequestOn = row["REQUESTON"] != null ? Convert.ToDateTime(row["REQUESTON"]) : null,
+        MatlType = row["MATLTYPE"]?.ToString(),
+        Pic = row["PIC"]?.ToString(),
+        Mat = row["MAT"]?.ToString(),
         Balance = row["BALANCE"] != null ? Convert.ToDecimal(row["BALANCE"]) : null,
         Status = row["STATUS"]?.ToString() ?? string.Empty,
+        LocationCode = row["LOCATIONCODE"]?.ToString(),
         StockedInAt = row["STOCKEDINAT"] != null ? Convert.ToDateTime(row["STOCKEDINAT"]) : null,
         LastIssuedAt = row["LASTISSUEDAT"] != null ? Convert.ToDateTime(row["LASTISSUEDAT"]) : null,
         DisposedAt = row["DISPOSEDAT"] != null ? Convert.ToDateTime(row["DISPOSEDAT"]) : null,
@@ -745,7 +827,9 @@ public class MaterialsController : ControllerBase
         new OracleParameter("TestRequire", (object?)r.TestRequire ?? DBNull.Value),
         new OracleParameter("TestQty", (object?)r.TestQty ?? DBNull.Value),
         new OracleParameter("Category", (object?)r.Category ?? DBNull.Value),
-        new OracleParameter("RequestBy", (object?)r.RequestBy ?? DBNull.Value),
         new OracleParameter("RequestOn", (object?)r.RequestOn ?? DBNull.Value),
+        new OracleParameter("MatlType", (object?)r.MatlType ?? DBNull.Value),
+        new OracleParameter("Pic", (object?)r.Pic ?? DBNull.Value),
+        new OracleParameter("Mat", (object?)r.Mat ?? DBNull.Value),
     };
 }

@@ -25,6 +25,8 @@ public class MaterialImportRow
     public string? TestRequire { get; set; }
     public string? TestQty { get; set; }
     public string? Category { get; set; }
-    public string? RequestBy { get; set; }
     public DateTime? RequestOn { get; set; }
+    public string? MatlType { get; set; }
+    public string? Pic { get; set; }
+    public string? Mat { get; set; }
 }

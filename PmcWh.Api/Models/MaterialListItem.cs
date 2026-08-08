@@ -10,6 +10,8 @@ public class MaterialListItem
     public string? Model { get; set; }
     public string? Colorway { get; set; }
     public string? SizeSpec { get; set; }
+    public string? MatlDescription { get; set; }
+    public string? ColorCode { get; set; }
     public decimal? ArrivalQty { get; set; }
     public decimal? Balance { get; set; }
     public string? Unit { get; set; }

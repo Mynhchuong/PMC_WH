@@ -8,15 +8,24 @@
 
 <div class="card border-0 shadow-sm rounded-4 mb-3">
     <div class="card-body">
-        <div class="d-flex align-items-center gap-3 mb-4">
-            <span class="d-inline-flex align-items-center justify-content-center rounded-4"
-                  style="width:48px;height:48px;background:linear-gradient(135deg, #495057 0%, #212529 100%); flex-shrink:0;">
-                <span class="material-icons text-white">storage</span>
-            </span>
-            <div>
-                <h5 class="card-title mb-0">Cơ sở dữ liệu của PMC</h5>
-                <p class="text-muted small mb-0">Toàn bộ liệu đã nhập vào hệ thống</p>
+        <div class="d-flex align-items-center justify-content-between gap-3 mb-4 flex-wrap">
+            <div class="d-flex align-items-center gap-3">
+                <span class="d-inline-flex align-items-center justify-content-center rounded-4"
+                      style="width:48px;height:48px;background:linear-gradient(135deg, #495057 0%, #212529 100%); flex-shrink:0;">
+                    <span class="material-icons text-white">storage</span>
+                </span>
+                <div>
+                    <h5 class="card-title mb-0">Cơ sở dữ liệu của PMC</h5>
+                    <p class="text-muted small mb-0">Toàn bộ liệu đã nhập vào hệ thống</p>
+                </div>
             </div>
+            <a asp-controller="Materials" asp-action="ExportExcel"
+               asp-route-barcode="@Model.Barcode" asp-route-status="@Model.Status"
+               asp-route-fromDate="@Model.FromDate?.ToString("yyyy-MM-dd")" asp-route-toDate="@Model.ToDate?.ToString("yyyy-MM-dd")"
+               asp-route-isOverdue="@Model.IsOverdue"
+               class="btn pmc-btn-dark d-inline-flex align-items-center gap-1">
+                <span class="material-icons" style="font-size:18px;">file_download</span> Xuất Excel
+            </a>
         </div>
 
         @if (isAdmin)
@@ -103,18 +112,35 @@
 <div class="card border-0 shadow-sm rounded-4">
     <div class="card-body">
         <div class="table-responsive">
-            <table class="table align-middle">
+            <table class="table align-middle" style="table-layout: fixed; width: 100%;">
+                <colgroup>
+                    <col style="width: 11%">
+                    <col style="width: 9%">
+                    <col style="width: 9%">
+                    <col style="width: 10%">
+                    <col style="width: 19%">
+                    <col style="width: 9%">
+                    <col style="width: 6%">
+                    <col style="width: 7%">
+                    <col style="width: 9%">
+                    <col style="width: 6%">
+                    @if (isAdmin)
+                    {
+                        <col style="width: 5%">
+                    }
+                </colgroup>
                 <thead>
                     <tr class="text-uppercase text-muted small">
                         <th>Barcode</th>
                         <th>Dev</th>
-                        <th>Model</th>
-                        <th>Colorway</th>
-                        <th>Size</th>
-                        <th class="text-end">A.Qty</th>
+                        <th>PO</th>
+                        <th>Supplier</th>
+                        <th>Mat'l Description</th>
+                        <th>Color Code</th>
+                        <th class="text-end">A.Q'TY</th>
+                        <th>ATA</th>
                         <th>Trạng thái</th>
                         <th>Kệ hiện tại</th>
-                        <th>Ngày nhập</th>
                         @if (isAdmin)
                         {
                             <th class="text-end">Hành động</th>
@@ -126,12 +152,19 @@
                     {
                         var (badgeTextClass, badgeStyle) = MaterialStatusHelper.BadgeStyle(m.Status);
                         <tr class="js-material-row" style="cursor:pointer;" data-id="@m.MaterialId" data-barcode="@m.Barcode" title="Double-click để xem chi tiết">
-                            <td class="fw-semibold">@m.Barcode</td>
-                            <td>@m.Dev</td>
-                            <td>@m.Model</td>
-                            <td>@m.Colorway</td>
-                            <td>@m.SizeSpec</td>
+                            <td class="fw-semibold">
+                                @m.Barcode
+                                <div class="text-muted small fw-normal">@m.CreatedAt.ToString("dd/MM/yyyy")</div>
+                            </td>
+                            <td class="text-truncate" style="max-width: 0;" title="@m.Dev">@m.Dev</td>
+                            <td class="text-truncate" style="max-width: 0;" title="@m.PoNo">@m.PoNo</td>
+                            <td class="text-truncate" style="max-width: 0;" title="@m.Supplier">@m.Supplier</td>
+                            <td>
+                                <div style="overflow-x: auto; white-space: nowrap;" title="@m.MatlDescription">@m.MatlDescription</div>
+                            </td>
+                            <td class="text-truncate" style="max-width: 0;" title="@m.ColorCode">@m.ColorCode</td>
                             <td class="text-end">@m.ArrivalQty @m.Unit</td>
+                            <td class="text-muted small">@(m.ArrivalDate?.ToString("dd/MM/yyyy") ?? "—")</td>
                             <td>
                                 <span class="badge @badgeTextClass" style="@badgeStyle">@MaterialStatusHelper.Label(m.Status)</span>
                                 @if (m.IsOverdue)
@@ -140,7 +173,6 @@
                                 }
                             </td>
                             <td>@(m.LocationCode ?? "—")</td>
-                            <td class="text-muted small">@(m.ArrivalDate?.ToString("dd/MM/yyyy") ?? "—")</td>
                             @if (isAdmin)
                             {
                                 <td class="text-end">
@@ -161,7 +193,7 @@
                     @if (Model.Items.Count == 0)
                     {
                         <tr>
-                            <td colspan="@(isAdmin ? 10 : 9)" class="text-center text-muted py-4">Không có dữ liệu phù hợp.</td>
+                            <td colspan="@(isAdmin ? 11 : 10)" class="text-center text-muted py-4">Không có dữ liệu phù hợp.</td>
                         </tr>
                     }
                 </tbody>
@@ -211,6 +243,7 @@
                     <input type="hidden" name="ReturnUrl" id="edit_ReturnUrl" />
                     <div class="modal-body">
                         <div class="row row-cols-2 g-3">
+                            <div><label class="form-label small fw-semibold text-secondary">Số lượng (A.Q'TY)</label><input type="number" step="any" min="0.01" class="form-control" name="ArrivalQty" id="edit_ArrivalQty" required /></div>
                             <div><label class="form-label small fw-semibold text-secondary">Dev</label><input class="form-control" name="Dev" id="edit_Dev" /></div>
                             <div><label class="form-label small fw-semibold text-secondary">PO</label><input class="form-control" name="PoNo" id="edit_PoNo" /></div>
                             <div><label class="form-label small fw-semibold text-secondary">Supplier</label><input class="form-control" name="Supplier" id="edit_Supplier" /></div>
@@ -237,8 +270,10 @@
                             <div><label class="form-label small fw-semibold text-secondary">Test require</label><input class="form-control" name="TestRequire" id="edit_TestRequire" /></div>
                             <div><label class="form-label small fw-semibold text-secondary">Test qty</label><input class="form-control" name="TestQty" id="edit_TestQty" /></div>
                             <div><label class="form-label small fw-semibold text-secondary">Category</label><input class="form-control" name="Category" id="edit_Category" /></div>
-                            <div><label class="form-label small fw-semibold text-secondary">Request by</label><input class="form-control" name="RequestBy" id="edit_RequestBy" /></div>
                             <div><label class="form-label small fw-semibold text-secondary">Request on</label><input type="date" class="form-control" name="RequestOn" id="edit_RequestOn" /></div>
+                            <div><label class="form-label small fw-semibold text-secondary">Mat'l Type</label><input class="form-control" name="MatlType" id="edit_MatlType" /></div>
+                            <div><label class="form-label small fw-semibold text-secondary">PIC</label><input class="form-control" name="Pic" id="edit_Pic" /></div>
+                            <div><label class="form-label small fw-semibold text-secondary">Mat</label><input class="form-control" name="Mat" id="edit_Mat" /></div>
                             <div class="col-12"><label class="form-label small fw-semibold text-secondary">Remark</label><textarea class="form-control" name="Remark" id="edit_Remark" rows="2"></textarea></div>
                         </div>
                     </div>
@@ -310,9 +345,10 @@
                             document.getElementById('edit_MaterialId').value = id;
                             document.getElementById('edit_ReturnUrl').value = window.location.pathname + window.location.search;
                             // API trả JSON camelCase (dev, poNo, ...) — map sang id PascalCase (edit_Dev, edit_PoNo, ...).
-                            ['dev', 'poNo', 'supplier', 'model', 'season', 'stage', 'colorway', 'component',
+                            ['arrivalQty', 'dev', 'poNo', 'supplier', 'model', 'season', 'stage', 'colorway', 'component',
                              'matlDescription', 'colorCode', 'colorName', 'sizeSpec', 'unit', 'focFlag',
-                             'remark', 'testRequire', 'testQty', 'category', 'requestBy'].forEach(function (field) {
+                             'remark', 'testRequire', 'testQty', 'category',
+                             'matlType', 'pic', 'mat'].forEach(function (field) {
                                 var elId = 'edit_' + field.charAt(0).toUpperCase() + field.slice(1);
                                 document.getElementById(elId).value = detail[field] || '';
                             });

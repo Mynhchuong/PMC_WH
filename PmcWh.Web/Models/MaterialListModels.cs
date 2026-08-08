@@ -10,6 +10,8 @@ public class MaterialListItem
     public string? Model { get; set; }
     public string? Colorway { get; set; }
     public string? SizeSpec { get; set; }
+    public string? MatlDescription { get; set; }
+    public string? ColorCode { get; set; }
     public decimal? ArrivalQty { get; set; }
     public decimal? Balance { get; set; }
     public string? Unit { get; set; }
@@ -60,10 +62,13 @@ public class MaterialDetail
     public string? TestRequire { get; set; }
     public string? TestQty { get; set; }
     public string? Category { get; set; }
-    public string? RequestBy { get; set; }
     public DateTime? RequestOn { get; set; }
+    public string? MatlType { get; set; }
+    public string? Pic { get; set; }
+    public string? Mat { get; set; }
     public decimal? Balance { get; set; }
     public string Status { get; set; } = string.Empty;
+    public string? LocationCode { get; set; }
     public DateTime? StockedInAt { get; set; }
     public DateTime? LastIssuedAt { get; set; }
     public DateTime? DisposedAt { get; set; }
@@ -88,6 +93,7 @@ public class MovementHistoryItem
 public class EditMaterialFormModel
 {
     public int MaterialId { get; set; }
+    public decimal? ArrivalQty { get; set; }
     public string? Dev { get; set; }
     public string? PoNo { get; set; }
     public string? Supplier { get; set; }
@@ -108,7 +114,9 @@ public class EditMaterialFormModel
     public string? TestRequire { get; set; }
     public string? TestQty { get; set; }
     public string? Category { get; set; }
-    public string? RequestBy { get; set; }
     public DateTime? RequestOn { get; set; }
+    public string? MatlType { get; set; }
+    public string? Pic { get; set; }
+    public string? Mat { get; set; }
     public string? ReturnUrl { get; set; }
 }

@@ -1,9 +1,11 @@
 namespace PmcWh.Api.Models;
 
-/// <summary>Chỉ gồm các trường mô tả — không cho sửa ArrivalQty/Balance/Status
-/// (do nghiệp vụ nhập/xuất/hủy/nhận lại tự tính, sửa tay dễ làm lệch StockMovements).</summary>
+/// <summary>Các trường mô tả + ArrivalQty (số lượng ban đầu, cho sửa để chỉnh lỗi nhập liệu).
+/// Không cho sửa Balance/Status trực tiếp — khi ArrivalQty đổi, Balance tự cộng/trừ đúng phần
+/// chênh lệch (giữ nguyên phần đã xuất/nhận lại), xem MaterialsController.Edit.</summary>
 public class EditMaterialRequest
 {
+    public decimal? ArrivalQty { get; set; }
     public string? Dev { get; set; }
     public string? PoNo { get; set; }
     public string? Supplier { get; set; }
@@ -24,7 +26,9 @@ public class EditMaterialRequest
     public string? TestRequire { get; set; }
     public string? TestQty { get; set; }
     public string? Category { get; set; }
-    public string? RequestBy { get; set; }
     public DateTime? RequestOn { get; set; }
+    public string? MatlType { get; set; }
+    public string? Pic { get; set; }
+    public string? Mat { get; set; }
     public int UserId { get; set; }
 }
