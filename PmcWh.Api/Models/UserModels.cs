@@ -32,4 +32,7 @@ public class LoginResult
     public string Username { get; set; } = string.Empty;
     public string? FullName { get; set; }
     public string Role { get; set; } = string.Empty;
+    /// <summary>Token cho app mobile (Bearer) — null nếu Success = false. Web không dùng field này.</summary>
+    public string? Token { get; set; }
+    public DateTime? TokenExpiresAt { get; set; }
 }

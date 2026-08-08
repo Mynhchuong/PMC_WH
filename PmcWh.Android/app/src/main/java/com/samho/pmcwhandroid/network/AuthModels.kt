@@ -16,4 +16,6 @@ data class LoginResult(
     val username: String = "",
     val fullName: String? = null,
     val role: String = "",
+    val token: String? = null,
+    val tokenExpiresAt: String? = null,
 )

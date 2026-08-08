@@ -12,10 +12,12 @@ public class UsersController : ControllerBase
     private const string DefaultResetPassword = "123456";
 
     private readonly OracleDataService _db;
+    private readonly JwtTokenService _jwt;
 
-    public UsersController(OracleDataService db)
+    public UsersController(OracleDataService db, JwtTokenService jwt)
     {
         _db = db;
+        _jwt = jwt;
     }
 
     [HttpGet]
@@ -109,13 +111,20 @@ public class UsersController : ControllerBase
             return Ok(new LoginResult { Success = false, Message = "Tên đăng nhập hoặc mật khẩu không đúng." });
         }
 
+        var userId = Convert.ToInt32(row["USERID"]);
+        var username = row["USERNAME"]?.ToString() ?? string.Empty;
+        var role = row["ROLE"]?.ToString() ?? "Member";
+        var token = _jwt.GenerateToken(userId, username, role, out var expiresAt);
+
         return Ok(new LoginResult
         {
             Success = true,
-            UserId = Convert.ToInt32(row["USERID"]),
-            Username = row["USERNAME"]?.ToString() ?? string.Empty,
+            UserId = userId,
+            Username = username,
             FullName = row["FULLNAME"]?.ToString(),
-            Role = row["ROLE"]?.ToString() ?? "Member",
+            Role = role,
+            Token = token,
+            TokenExpiresAt = expiresAt,
         });
     }
 

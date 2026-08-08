@@ -169,6 +169,54 @@ public class WarehouseController : ControllerBase
         });
     }
 
+    /// <summary>
+    /// Toàn bộ hoạt động kho hôm nay (nhập/xuất/hủy/nhận lại), mới nhất trước — dùng cho app mobile.
+    /// Lọc thêm theo loại (Inbound/IssueToWorkshop/Dispose/Return) nếu truyền movementType.
+    /// </summary>
+    [HttpGet("today-log")]
+    public async Task<ActionResult<PagedResult<TodayLogItem>>> TodayLog(string? movementType, int page = 1, int pageSize = 20)
+    {
+        const string innerSql =
+            @"SELECT mv.MovementId, mv.MaterialId, m.Barcode, m.Dev, m.Model, mv.MovementType, mv.Qty, m.Unit,
+                     l.Code AS LocationCode, u.Username, r.Name AS RecipientName, mv.Note, mv.OccurredAt
+                FROM PMC_StockMovements mv
+                JOIN PMC_Materials m ON m.MaterialId = mv.MaterialId
+                LEFT JOIN PMC_StorageLocations l ON l.LocationId = mv.LocationId
+                LEFT JOIN PMC_Users u ON u.UserId = mv.UserId
+                LEFT JOIN PMC_Recipients r ON r.RecipientId = mv.RecipientId
+               WHERE TRUNC(mv.OccurredAt) = TRUNC(SYSDATE)
+                 AND (:movementType IS NULL OR mv.MovementType = :movementType)
+               ORDER BY mv.OccurredAt DESC, mv.MovementId DESC";
+
+        var paged = await _db.QueryPagedAsync(innerSql, page, pageSize,
+            new OracleParameter("movementType", (object?)movementType ?? DBNull.Value));
+
+        var items = paged.Items.Select(r => new TodayLogItem
+        {
+            MovementId = Convert.ToInt32(r["MOVEMENTID"]),
+            MaterialId = Convert.ToInt32(r["MATERIALID"]),
+            Barcode = r["BARCODE"]?.ToString() ?? string.Empty,
+            Dev = r["DEV"]?.ToString(),
+            Model = r["MODEL"]?.ToString(),
+            MovementType = r["MOVEMENTTYPE"]?.ToString() ?? string.Empty,
+            Qty = Convert.ToDecimal(r["QTY"]),
+            Unit = r["UNIT"]?.ToString(),
+            LocationCode = r["LOCATIONCODE"]?.ToString(),
+            Username = r["USERNAME"]?.ToString(),
+            RecipientName = r["RECIPIENTNAME"]?.ToString(),
+            Note = r["NOTE"]?.ToString(),
+            OccurredAt = Convert.ToDateTime(r["OCCURREDAT"]),
+        }).ToList();
+
+        return Ok(new PagedResult<TodayLogItem>
+        {
+            Items = items,
+            Page = paged.Page,
+            PageSize = paged.PageSize,
+            TotalCount = paged.TotalCount,
+        });
+    }
+
     private static RecentActivityDto MapActivity(Dictionary<string, object?> row) => new()
     {
         MaterialId = Convert.ToInt32(row["MATERIALID"]),

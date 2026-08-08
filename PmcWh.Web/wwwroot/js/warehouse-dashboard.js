@@ -1,10 +1,9 @@
 // Bảng giám sát TV cho Bản đồ kho 3D — đồng hồ sống, thống kê lớn, 5 hoạt động gần nhất
-// (lên kệ / xuất kho). Cập nhật realtime qua SignalR (chung hub /warehouseHub với warehouse-map.js),
-// và tự tải lại toàn trang mỗi 5 phút làm phương án dự phòng cho màn hình chạy liên tục nhiều giờ.
+// (lên kệ / xuất kho). Cập nhật realtime âm thầm qua SignalR (chung hub /warehouseHub với
+// warehouse-map.js) + AJAX polling mỗi 60s dự phòng — không F5 lại trang, tránh chớp trắng màn hình TV.
 (function () {
   'use strict';
 
-  var RELOAD_MS = 5 * 60 * 1000;
   var I18N = window.PmcWhI18n || { t: function (k) { return k; }, getLang: function () { return 'vi'; }, setLang: function () {}, onChange: function () {} };
 
   function setTxt(id, v) { var el = document.getElementById(id); if (el) el.textContent = v; }
@@ -155,8 +154,4 @@
       }
     } catch (e) { console.warn('SignalR (dashboard) init fail', e); }
   }
-
-  // Tự tải lại toàn trang mỗi 5 phút — dự phòng cho màn hình TV chạy liên tục nhiều giờ/ngày
-  // (làm mới kết nối SignalR, giải phóng bộ nhớ WebGL, tránh trôi/dồn lỗi theo thời gian).
-  setTimeout(function () { location.reload(); }, RELOAD_MS);
 })();
