@@ -218,10 +218,37 @@
       "Bash(export ANDROID_HOME=/Users/minhtruong/Library/Android/sdk)",
       "Read(//Users/minhtruong/Library/Android/sdk/**)",
       "Bash(/Users/minhtruong/Library/Android/sdk/platform-tools/adb devices *)",
-      "Bash(/Users/minhtruong/Library/Android/sdk/emulator/emulator -list-avds)"
+      "Bash(/Users/minhtruong/Library/Android/sdk/emulator/emulator -list-avds)",
+      "Bash(python3 -c \"import openpyxl; print\\(openpyxl.__version__\\)\")",
+      "Bash(python3 make_demo_import.py)",
+      "Bash(cp \"/private/tmp/claude-501/-Users-minhtruong-Documents-Project-PMC-PMC-WH/cf89bf65-8a62-4205-93a7-ca0990e6fb4e/scratchpad/PMC_Import_Demo.xlsx\" ~/Desktop/PMC_Import_Demo.xlsx && echo done)",
+      "Bash(lsof -ti:5139 -sTCP:LISTEN)",
+      "Bash(node -e \"require.resolve\\('playwright'\\)\")",
+      "Bash(npm ls *)",
+      "Bash(curl -sf http://localhost:5139/Account/Login)",
+      "Bash(break)",
+      "Bash(curl -sb cookies.txt -o materials.html -w \"%{http_code}\\\\n\" http://localhost:5139/Materials)",
+      "Bash(node --check inline.js)",
+      "Bash(node --check inline3.js)",
+      "Bash(lsof -ti:5073 -sTCP:LISTEN)",
+      "Bash(python3 -c \"import cairosvg\")",
+      "Bash(python3 -c \"import PIL; print\\(PIL.__version__\\)\")",
+      "Bash(mkdir -p /Users/minhtruong/Documents/Project/PMC/PMC_WH/PmcWh.Android/app/src/main/res/drawable-nodpi)",
+      "Bash(sips -s format jpeg -s formatOptions 55 -Z 960 /Users/minhtruong/Documents/Project/PMC/PMC_WH/PmcWh.Web/wwwroot/assets/img/processing-storehouse-stocks-boxes-with-order-receipts-details.jpg --out login_bg.jpg)",
+      "Bash(sips -g pixelWidth -g pixelHeight login_bg.jpg)",
+      "Bash(cp \"/private/tmp/claude-501/-Users-minhtruong-Documents-Project-PMC-PMC-WH/03b67f74-89a1-44d6-8709-16c3692ddcfa/scratchpad/login_bg.jpg\" \\\\ *)",
+      "Bash(python3 gen_icons.py)",
+      "Bash(./gradlew assembleDebug --console=plain -q)",
+      "Bash(curl -s -m 5 -o /dev/null -w \"HTTP status: %{http_code}\\\\n\" http://192.168.1.24/PmcWh.Api/api/Health)",
+      "Bash(/Users/minhtruong/Library/Android/sdk/platform-tools/adb shell *)",
+      "Bash(curl -s -m 5 -o /dev/null -w \"today-log status: %{http_code}\\\\n\" \"http://192.168.1.24/PmcWh.Api/api/Warehouse/today-log?page=1&pageSize=20\")",
+      "Bash(curl -s -m 5 -o /dev/null -w \"layout status: %{http_code}\\\\n\" \"http://192.168.1.24/PmcWh.Api/api/Warehouse/layout\")",
+      "Bash(/Users/minhtruong/Library/Android/sdk/platform-tools/adb install *)"
     ],
     "additionalDirectories": [
-      "/tmp"
+      "/tmp",
+      "/Users/minhtruong/Desktop",
+      "/Users/minhtruong/Documents/Project/PMC/PMC_WH/PmcWh.Android/app/src/main/res/drawable-nodpi"
     ]
   }
 }

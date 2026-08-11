@@ -1,5 +1,6 @@
 package com.samho.pmcwhandroid.ui
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -42,6 +43,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.samho.pmcwhandroid.data.UserSession
 import com.samho.pmcwhandroid.network.ApiClient
@@ -50,12 +52,14 @@ import com.samho.pmcwhandroid.network.MaterialListItem
 import com.samho.pmcwhandroid.network.RecipientDto
 import com.samho.pmcwhandroid.network.errorMessageOrDefault
 import com.samho.pmcwhandroid.scan.rememberBarcodeScanner
+import com.samho.pmcwhandroid.ui.theme.PmcWhAndroidTheme
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun XuatKhoScreen(session: UserSession, onBack: () -> Unit) {
+    BackHandler(onBack = onBack)
     var issuableItems by remember { mutableStateOf<List<MaterialListItem>>(emptyList()) }
     var isLoadingList by remember { mutableStateOf(true) }
     var selected by remember { mutableStateOf<MaterialListItem?>(null) }
@@ -147,6 +151,70 @@ fun XuatKhoScreen(session: UserSession, onBack: () -> Unit) {
         }
     }
 
+    XuatKhoScreenContent(
+        issuableItems = issuableItems,
+        isLoadingList = isLoadingList,
+        selected = selected,
+        qtyText = qtyText,
+        qtyValid = qtyValid,
+        balance = balance,
+        chosenRecipient = chosenRecipient,
+        isSubmitting = isSubmitting,
+        snackbarHostState = snackbarHostState,
+        onBack = onBack,
+        onScan = scanLauncher,
+        onSelectMaterial = { item -> selectMaterial(item) },
+        onQtyChange = { qtyText = it },
+        onOpenRecipientPicker = {
+            showRecipientPicker = true
+            if (recipients.isEmpty()) {
+                isLoadingRecipients = true
+                scope.launch {
+                    try {
+                        recipients = ApiClient.recipientsApi.list().items
+                    } catch (e: Exception) {
+                        snackbarHostState.showSnackbar("Không tải được người nhận: ${e.message}")
+                    } finally {
+                        isLoadingRecipients = false
+                    }
+                }
+            }
+        },
+        onSubmit = { scope.launch { submit() } },
+        onChooseAnother = { selected = null; chosenRecipient = null; qtyText = "" },
+    )
+
+    if (showRecipientPicker) {
+        RecipientPickerDialog(
+            recipients = recipients,
+            isLoading = isLoadingRecipients,
+            onDismiss = { showRecipientPicker = false },
+            onSelect = { r -> chosenRecipient = r; showRecipientPicker = false },
+        )
+    }
+}
+
+/** Phần giao diện thuần (không gọi API) — tách riêng để @Preview render được với dữ liệu mẫu. */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun XuatKhoScreenContent(
+    issuableItems: List<MaterialListItem>,
+    isLoadingList: Boolean,
+    selected: MaterialListItem?,
+    qtyText: String,
+    qtyValid: Boolean,
+    balance: Double,
+    chosenRecipient: RecipientDto?,
+    isSubmitting: Boolean,
+    snackbarHostState: SnackbarHostState,
+    onBack: () -> Unit,
+    onScan: () -> Unit,
+    onSelectMaterial: (MaterialListItem) -> Unit,
+    onQtyChange: (String) -> Unit,
+    onOpenRecipientPicker: () -> Unit,
+    onSubmit: () -> Unit,
+    onChooseAnother: () -> Unit,
+) {
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
@@ -158,16 +226,15 @@ fun XuatKhoScreen(session: UserSession, onBack: () -> Unit) {
                     }
                 },
                 actions = {
-                    IconButton(onClick = scanLauncher) {
+                    IconButton(onClick = onScan) {
                         Icon(Icons.Filled.QrCodeScanner, contentDescription = "Quét mã")
                     }
                 },
             )
         },
     ) { padding ->
-        val currentSelected = selected
         Box(modifier = Modifier.fillMaxSize().padding(padding)) {
-            if (currentSelected == null) {
+            if (selected == null) {
                 when {
                     isLoadingList -> CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
                     issuableItems.isEmpty() -> Text(
@@ -178,7 +245,7 @@ fun XuatKhoScreen(session: UserSession, onBack: () -> Unit) {
                         items(issuableItems, key = { it.materialId }) { item ->
                             Card(
                                 modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 4.dp),
-                                onClick = { selectMaterial(item) },
+                                onClick = { onSelectMaterial(item) },
                             ) {
                                 ListItem(
                                     headlineContent = { Text(item.barcode) },
@@ -197,13 +264,13 @@ fun XuatKhoScreen(session: UserSession, onBack: () -> Unit) {
                 Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
                     Card(modifier = Modifier.fillMaxWidth()) {
                         Column(modifier = Modifier.padding(16.dp)) {
-                            Text(currentSelected.barcode, style = MaterialTheme.typography.titleLarge)
+                            Text(selected.barcode, style = MaterialTheme.typography.titleLarge)
                             Text(
-                                listOfNotNull(currentSelected.dev, currentSelected.model).joinToString(" / "),
+                                listOfNotNull(selected.dev, selected.model).joinToString(" / "),
                                 style = MaterialTheme.typography.bodyMedium,
                             )
                             Text(
-                                "Tồn hiện tại: ${currentSelected.balance ?: 0} ${currentSelected.unit ?: ""}",
+                                "Tồn hiện tại: ${selected.balance ?: 0} ${selected.unit ?: ""}",
                                 style = MaterialTheme.typography.bodyMedium,
                             )
                         }
@@ -213,7 +280,7 @@ fun XuatKhoScreen(session: UserSession, onBack: () -> Unit) {
 
                     OutlinedTextField(
                         value = qtyText,
-                        onValueChange = { qtyText = it },
+                        onValueChange = onQtyChange,
                         label = { Text("Số lượng xuất") },
                         singleLine = true,
                         isError = qtyText.isNotBlank() && !qtyValid,
@@ -230,21 +297,7 @@ fun XuatKhoScreen(session: UserSession, onBack: () -> Unit) {
 
                     OutlinedButton(
                         modifier = Modifier.fillMaxWidth(),
-                        onClick = {
-                            showRecipientPicker = true
-                            if (recipients.isEmpty()) {
-                                isLoadingRecipients = true
-                                scope.launch {
-                                    try {
-                                        recipients = ApiClient.recipientsApi.list().items
-                                    } catch (e: Exception) {
-                                        snackbarHostState.showSnackbar("Không tải được người nhận: ${e.message}")
-                                    } finally {
-                                        isLoadingRecipients = false
-                                    }
-                                }
-                            }
-                        },
+                        onClick = onOpenRecipientPicker,
                     ) {
                         Text(chosenRecipient?.let { "Người nhận: ${it.name}" } ?: "Chọn người nhận")
                     }
@@ -254,7 +307,7 @@ fun XuatKhoScreen(session: UserSession, onBack: () -> Unit) {
                     Button(
                         modifier = Modifier.fillMaxWidth(),
                         enabled = qtyValid && chosenRecipient != null && !isSubmitting,
-                        onClick = { scope.launch { submit() } },
+                        onClick = onSubmit,
                     ) {
                         Text(if (isSubmitting) "Đang xử lý..." else "Xác nhận xuất kho")
                     }
@@ -263,22 +316,13 @@ fun XuatKhoScreen(session: UserSession, onBack: () -> Unit) {
 
                     TextButton(
                         modifier = Modifier.fillMaxWidth(),
-                        onClick = { selected = null; chosenRecipient = null; qtyText = "" },
+                        onClick = onChooseAnother,
                     ) {
                         Text("Chọn liệu khác")
                     }
                 }
             }
         }
-    }
-
-    if (showRecipientPicker) {
-        RecipientPickerDialog(
-            recipients = recipients,
-            isLoading = isLoadingRecipients,
-            onDismiss = { showRecipientPicker = false },
-            onSelect = { r -> chosenRecipient = r; showRecipientPicker = false },
-        )
     }
 }
 
@@ -328,4 +372,49 @@ private fun RecipientPickerDialog(
             }
         },
     )
+}
+
+private val sampleIssuableItems = listOf(
+    MaterialListItem(materialId = 1, barcode = "QATEST001", dev = "QA/BUGTEST", model = "Model X", balance = 30.0, unit = "PCS", status = "InStock"),
+    MaterialListItem(materialId = 2, barcode = "QATEST002", dev = "QA/BUGTEST", model = "Model Y", balance = 8.0, unit = "PCS", status = "PartiallyIssued"),
+)
+
+@Preview(showBackground = true, name = "Danh sách liệu")
+@Composable
+private fun XuatKhoScreenListPreview() {
+    PmcWhAndroidTheme {
+        XuatKhoScreenContent(
+            issuableItems = sampleIssuableItems,
+            isLoadingList = false,
+            selected = null,
+            qtyText = "",
+            qtyValid = false,
+            balance = 0.0,
+            chosenRecipient = null,
+            isSubmitting = false,
+            snackbarHostState = remember { SnackbarHostState() },
+            onBack = {}, onScan = {}, onSelectMaterial = {}, onQtyChange = {},
+            onOpenRecipientPicker = {}, onSubmit = {}, onChooseAnother = {},
+        )
+    }
+}
+
+@Preview(showBackground = true, name = "Đã chọn liệu, nhập số lượng")
+@Composable
+private fun XuatKhoScreenDetailPreview() {
+    PmcWhAndroidTheme {
+        XuatKhoScreenContent(
+            issuableItems = sampleIssuableItems,
+            isLoadingList = false,
+            selected = sampleIssuableItems[0],
+            qtyText = "5",
+            qtyValid = true,
+            balance = 30.0,
+            chosenRecipient = RecipientDto(recipientId = 1, name = "Xưởng May 1"),
+            isSubmitting = false,
+            snackbarHostState = remember { SnackbarHostState() },
+            onBack = {}, onScan = {}, onSelectMaterial = {}, onQtyChange = {},
+            onOpenRecipientPicker = {}, onSubmit = {}, onChooseAnother = {},
+        )
+    }
 }

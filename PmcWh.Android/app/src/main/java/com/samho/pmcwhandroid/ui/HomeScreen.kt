@@ -1,5 +1,6 @@
 package com.samho.pmcwhandroid.ui
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -9,17 +10,13 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Logout
-import androidx.compose.material.icons.filled.Inventory2
-import androidx.compose.material.icons.filled.History
-import androidx.compose.material.icons.filled.MoveToInbox
-import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.Warehouse
-import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
+import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
@@ -31,28 +28,31 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.samho.pmcwhandroid.data.UserSession
+import com.samho.pmcwhandroid.ui.theme.PmcWhAndroidTheme
 import kotlinx.coroutines.launch
 
 private data class HomeMenuItem(
     val id: String,
     val title: String,
-    val subtitle: String,
-    val icon: ImageVector,
+    val emoji: String,
     val implemented: Boolean = false,
 )
 
 // Khung menu cho các phase (2-7) — item implemented=true điều hướng qua onNavigate, còn lại hiện
 // "sắp có" tại chỗ. Đổi implemented=true khi phase đó xong, không cần đổi lại HomeScreen mỗi lần.
 private val menuItems = listOf(
-    HomeMenuItem("nhap_kho", "Nhập kho", "Liệu đang chờ (Staging) → chọn kệ → xác nhận", Icons.Filled.MoveToInbox, implemented = true),
-    HomeMenuItem("xuat_kho", "Xuất kho", "Chọn liệu, số lượng, người nhận", Icons.Filled.Inventory2, implemented = true),
-    HomeMenuItem("huy_lieu", "Hủy liệu", "Liệu xuất quá hạn cần đóng sổ", Icons.Filled.Warning, implemented = true),
-    HomeMenuItem("tim_kiem", "Tìm kiếm", "Quét/nhập barcode ra vị trí + chi tiết", Icons.Filled.Search, implemented = true),
-    HomeMenuItem("danh_sach_ke", "Danh sách kệ", "Chọn kệ + tầng xem tồn kho cụ thể", Icons.Filled.Warehouse, implemented = true),
-    HomeMenuItem("log_hom_nay", "Log hôm nay", "Toàn bộ hoạt động nhập/xuất/hủy trong ngày", Icons.Filled.History, implemented = true),
+    HomeMenuItem("nhap_kho", "Nhập kho", "📥", implemented = true),
+    HomeMenuItem("xuat_kho", "Xuất kho", "📤", implemented = true),
+    HomeMenuItem("huy_lieu", "Hủy liệu", "🗑️", implemented = true),
+    HomeMenuItem("tim_kiem", "Tìm kiếm", "🔍", implemented = true),
+    HomeMenuItem("danh_sach_ke", "Danh sách kệ", "🏬", implemented = true),
+    HomeMenuItem("log_hom_nay", "Log hôm nay", "🕒", implemented = true),
 )
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -94,6 +94,8 @@ fun HomeScreen(session: UserSession, modifier: Modifier = Modifier, onLogout: ()
             items(menuItems) { item ->
                 Card(
                     modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
                     onClick = {
                         if (item.implemented) {
                             onNavigate(item.id)
@@ -103,12 +105,24 @@ fun HomeScreen(session: UserSession, modifier: Modifier = Modifier, onLogout: ()
                     },
                 ) {
                     ListItem(
-                        headlineContent = { Text(item.title) },
-                        supportingContent = { Text(item.subtitle) },
-                        leadingContent = { Icon(item.icon, contentDescription = null) },
+                        headlineContent = { Text(item.title, fontWeight = FontWeight.Medium) },
+                        leadingContent = { Text(item.emoji, fontSize = 26.sp) },
+                        colors = ListItemDefaults.colors(containerColor = Color.Transparent),
                     )
                 }
             }
         }
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+private fun HomeScreenPreview() {
+    PmcWhAndroidTheme {
+        HomeScreen(
+            session = UserSession(userId = 1, username = "demo", fullName = "Nguyễn Văn A", role = "Admin", token = null),
+            onLogout = {},
+            onNavigate = {},
+        )
     }
 }

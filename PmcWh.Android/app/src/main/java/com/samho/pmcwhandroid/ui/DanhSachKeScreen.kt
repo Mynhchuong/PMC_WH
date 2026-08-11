@@ -1,5 +1,6 @@
 package com.samho.pmcwhandroid.ui
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -38,15 +39,18 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.samho.pmcwhandroid.network.ApiClient
 import com.samho.pmcwhandroid.network.LocationMaterialDto
 import com.samho.pmcwhandroid.network.WarehouseTierDto
+import com.samho.pmcwhandroid.ui.theme.PmcWhAndroidTheme
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DanhSachKeScreen(onBack: () -> Unit) {
+    BackHandler(onBack = onBack)
     var tiers by remember { mutableStateOf<List<WarehouseTierDto>>(emptyList()) }
     var isLoading by remember { mutableStateOf(true) }
     var query by remember { mutableStateOf("") }
@@ -68,6 +72,33 @@ fun DanhSachKeScreen(onBack: () -> Unit) {
         if (query.isBlank()) tiers else tiers.filter { it.code.contains(query, ignoreCase = true) }
     }
 
+    DanhSachKeScreenContent(
+        filtered = filtered,
+        isLoading = isLoading,
+        query = query,
+        onQueryChange = { query = it },
+        onBack = onBack,
+        onTierClick = { tier -> selectedTier = tier },
+        snackbarHostState = snackbarHostState,
+    )
+
+    selectedTier?.let { tier ->
+        TierDetailDialog(tier = tier, onDismiss = { selectedTier = null }, snackbarHostState = snackbarHostState, scope = scope)
+    }
+}
+
+/** Phần giao diện thuần (không gọi API) — tách riêng để @Preview render được với dữ liệu mẫu. */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun DanhSachKeScreenContent(
+    filtered: List<WarehouseTierDto>,
+    isLoading: Boolean,
+    query: String,
+    onQueryChange: (String) -> Unit,
+    onBack: () -> Unit,
+    onTierClick: (WarehouseTierDto) -> Unit,
+    snackbarHostState: SnackbarHostState,
+) {
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
@@ -85,7 +116,7 @@ fun DanhSachKeScreen(onBack: () -> Unit) {
             Spacer(Modifier.height(12.dp))
             OutlinedTextField(
                 value = query,
-                onValueChange = { query = it },
+                onValueChange = onQueryChange,
                 label = { Text("Tìm theo mã kệ (vd: 40 hoặc 40.1)") },
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth(),
@@ -103,7 +134,7 @@ fun DanhSachKeScreen(onBack: () -> Unit) {
                         items(filtered, key = { it.locationId }) { tier ->
                             Card(
                                 modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
-                                onClick = { selectedTier = tier },
+                                onClick = { onTierClick(tier) },
                             ) {
                                 ListItem(
                                     headlineContent = { Text("Kệ ${tier.code}") },
@@ -121,10 +152,6 @@ fun DanhSachKeScreen(onBack: () -> Unit) {
                 }
             }
         }
-    }
-
-    selectedTier?.let { tier ->
-        TierDetailDialog(tier = tier, onDismiss = { selectedTier = null }, snackbarHostState = snackbarHostState, scope = scope)
     }
 }
 
@@ -196,4 +223,26 @@ private fun TierDetailDialog(
             }
         },
     )
+}
+
+private val sampleTiers = listOf(
+    WarehouseTierDto(locationId = 1, rackNo = 1, levelNo = 1, code = "1.1", qrCount = 5),
+    WarehouseTierDto(locationId = 2, rackNo = 1, levelNo = 2, code = "1.2", qrCount = 0),
+    WarehouseTierDto(locationId = 3, rackNo = 40, levelNo = 1, code = "40.1", qrCount = 12),
+)
+
+@Preview(showBackground = true, name = "Danh sách kệ")
+@Composable
+private fun DanhSachKeScreenPreview() {
+    PmcWhAndroidTheme {
+        DanhSachKeScreenContent(
+            filtered = sampleTiers,
+            isLoading = false,
+            query = "",
+            onQueryChange = {},
+            onBack = {},
+            onTierClick = {},
+            snackbarHostState = remember { SnackbarHostState() },
+        )
+    }
 }

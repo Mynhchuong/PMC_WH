@@ -9,35 +9,47 @@ import androidx.compose.material3.dynamicDarkColorScheme
 import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 
+// Màu thương hiệu cố định (khớp logo/launcher icon + login) — không dùng Material You mặc định
+// vì mỗi máy Android 12+ sẽ tự đổi theo hình nền, làm mất nhận diện thương hiệu.
 private val DarkColorScheme = darkColorScheme(
-    primary = Purple80,
-    secondary = PurpleGrey80,
-    tertiary = Pink80
+    primary = BrandSlate90,
+    onPrimary = OnBrandDark,
+    primaryContainer = BrandSlateContainerDark,
+    onPrimaryContainer = OnBrandLight,
+    secondary = BrandGray90,
+    onSecondary = OnBrandDark,
+    secondaryContainer = BrandGrayContainerDark,
+    onSecondaryContainer = OnBrandLight,
+    tertiary = BrandAmber90,
+    onTertiary = Color(0xFF4D3800),
+    tertiaryContainer = BrandAmberContainerDark,
+    onTertiaryContainer = BrandAmberContainerLight,
 )
 
 private val LightColorScheme = lightColorScheme(
-    primary = Purple40,
-    secondary = PurpleGrey40,
-    tertiary = Pink40
-
-    /* Other default colors to override
-    background = Color(0xFFFFFBFE),
-    surface = Color(0xFFFFFBFE),
+    primary = BrandSlateLight,
     onPrimary = Color.White,
+    primaryContainer = BrandSlateContainerLight,
+    onPrimaryContainer = OnBrandDark,
+    secondary = BrandGrayLight,
     onSecondary = Color.White,
+    secondaryContainer = BrandGrayContainerLight,
+    onSecondaryContainer = BrandSlateLight,
+    tertiary = BrandAmberLight,
     onTertiary = Color.White,
-    onBackground = Color(0xFF1C1B1F),
-    onSurface = Color(0xFF1C1B1F),
-    */
+    tertiaryContainer = BrandAmberContainerLight,
+    onTertiaryContainer = Color(0xFF4D3800),
 )
 
 @Composable
 fun PmcWhAndroidTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
-    // Dynamic color is available on Android 12+
-    dynamicColor: Boolean = true,
+    // Mặc định TẮT Material You — giữ đúng màu thương hiệu trên mọi máy thay vì đổi theo
+    // hình nền từng máy (Android 12+), khớp với logo/launcher icon/login đã cố định màu.
+    dynamicColor: Boolean = false,
     content: @Composable () -> Unit
 ) {
     val colorScheme = when {

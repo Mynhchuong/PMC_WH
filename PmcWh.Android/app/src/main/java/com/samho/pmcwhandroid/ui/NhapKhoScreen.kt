@@ -1,5 +1,6 @@
 package com.samho.pmcwhandroid.ui
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -43,6 +44,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.samho.pmcwhandroid.data.UserSession
 import com.samho.pmcwhandroid.network.ApiClient
@@ -51,6 +53,7 @@ import com.samho.pmcwhandroid.network.MaterialListItem
 import com.samho.pmcwhandroid.network.StorageLocationDto
 import com.samho.pmcwhandroid.network.errorMessageOrDefault
 import com.samho.pmcwhandroid.scan.rememberBarcodeScanner
+import com.samho.pmcwhandroid.ui.theme.PmcWhAndroidTheme
 import kotlinx.coroutines.launch
 
 private data class ScanLogEntry(val id: Long, val barcode: String, val success: Boolean, val message: String)
@@ -64,6 +67,7 @@ private data class ScanLogEntry(val id: Long, val barcode: String, val success: 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun NhapKhoScreen(session: UserSession, onBack: () -> Unit) {
+    BackHandler(onBack = onBack)
     var stagingItems by remember { mutableStateOf<List<MaterialListItem>>(emptyList()) }
     var isLoadingList by remember { mutableStateOf(true) }
     var currentLocation by remember { mutableStateOf<StorageLocationDto?>(null) }
@@ -145,6 +149,42 @@ fun NhapKhoScreen(session: UserSession, onBack: () -> Unit) {
         onError = { msg -> scope.launch { snackbarHostState.showSnackbar(msg) } },
     )
 
+    NhapKhoScreenContent(
+        stagingItems = stagingItems,
+        isLoadingList = isLoadingList,
+        currentLocation = currentLocation,
+        log = log,
+        snackbarHostState = snackbarHostState,
+        onBack = onBack,
+        onScan = scanLauncher,
+        onChooseLocation = { openLocationPicker() },
+        onItemClick = { item -> scope.launch { processBarcode(item.barcode) } },
+    )
+
+    if (showLocationPicker) {
+        LocationPickerDialog(
+            locations = locations,
+            isLoading = isLoadingLocations,
+            onDismiss = { showLocationPicker = false },
+            onSelect = { loc -> currentLocation = loc; showLocationPicker = false },
+        )
+    }
+}
+
+/** Phần giao diện thuần (không gọi API) — tách riêng để @Preview render được với dữ liệu mẫu. */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun NhapKhoScreenContent(
+    stagingItems: List<MaterialListItem>,
+    isLoadingList: Boolean,
+    currentLocation: StorageLocationDto?,
+    log: List<ScanLogEntry>,
+    snackbarHostState: SnackbarHostState,
+    onBack: () -> Unit,
+    onScan: () -> Unit,
+    onChooseLocation: () -> Unit,
+    onItemClick: (MaterialListItem) -> Unit,
+) {
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
@@ -156,7 +196,7 @@ fun NhapKhoScreen(session: UserSession, onBack: () -> Unit) {
                     }
                 },
                 actions = {
-                    IconButton(onClick = scanLauncher) {
+                    IconButton(onClick = onScan) {
                         Icon(Icons.Filled.QrCodeScanner, contentDescription = "Quét mã")
                     }
                 },
@@ -167,7 +207,7 @@ fun NhapKhoScreen(session: UserSession, onBack: () -> Unit) {
             // Thanh chọn kệ — luôn hiện trên cùng, khóa 1 kệ cho cả đợt quét.
             Card(
                 modifier = Modifier.fillMaxWidth().padding(12.dp),
-                onClick = { openLocationPicker() },
+                onClick = onChooseLocation,
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer),
             ) {
                 Row(
@@ -179,7 +219,7 @@ fun NhapKhoScreen(session: UserSession, onBack: () -> Unit) {
                         currentLocation?.let { "Đang lên kệ: ${it.code}" } ?: "Chưa chọn kệ — bấm để chọn",
                         style = MaterialTheme.typography.titleMedium,
                     )
-                    TextButton(onClick = { openLocationPicker() }) {
+                    TextButton(onClick = onChooseLocation) {
                         Text(if (currentLocation == null) "Chọn kệ" else "Đổi kệ")
                     }
                 }
@@ -215,7 +255,7 @@ fun NhapKhoScreen(session: UserSession, onBack: () -> Unit) {
                         items(stagingItems, key = { it.materialId }) { item ->
                             Card(
                                 modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 4.dp),
-                                onClick = { scope.launch { processBarcode(item.barcode) } },
+                                onClick = { onItemClick(item) },
                             ) {
                                 ListItem(
                                     headlineContent = { Text(item.barcode) },
@@ -232,15 +272,6 @@ fun NhapKhoScreen(session: UserSession, onBack: () -> Unit) {
                 }
             }
         }
-    }
-
-    if (showLocationPicker) {
-        LocationPickerDialog(
-            locations = locations,
-            isLoading = isLoadingLocations,
-            onDismiss = { showLocationPicker = false },
-            onSelect = { loc -> currentLocation = loc; showLocationPicker = false },
-        )
     }
 }
 
@@ -290,4 +321,49 @@ private fun LocationPickerDialog(
             }
         },
     )
+}
+
+private val sampleStagingItems = listOf(
+    MaterialListItem(materialId = 1, barcode = "QATEST001", dev = "QA/BUGTEST", model = "Model X", arrivalQty = 10.0, unit = "PCS", status = "Staging"),
+    MaterialListItem(materialId = 2, barcode = "QATEST002", dev = "QA/BUGTEST", model = "Model Y", arrivalQty = 5.0, unit = "PCS", status = "Staging"),
+    MaterialListItem(materialId = 3, barcode = "QATEST003", dev = "QA/BUGTEST", model = "Model Z", arrivalQty = 20.0, unit = "M", status = "Staging"),
+)
+
+@Preview(showBackground = true, name = "Chưa chọn kệ")
+@Composable
+private fun NhapKhoScreenPreview() {
+    PmcWhAndroidTheme {
+        NhapKhoScreenContent(
+            stagingItems = sampleStagingItems,
+            isLoadingList = false,
+            currentLocation = null,
+            log = emptyList(),
+            snackbarHostState = remember { SnackbarHostState() },
+            onBack = {},
+            onScan = {},
+            onChooseLocation = {},
+            onItemClick = {},
+        )
+    }
+}
+
+@Preview(showBackground = true, name = "Đã chọn kệ + có log quét")
+@Composable
+private fun NhapKhoScreenWithLogPreview() {
+    PmcWhAndroidTheme {
+        NhapKhoScreenContent(
+            stagingItems = sampleStagingItems,
+            isLoadingList = false,
+            currentLocation = StorageLocationDto(locationId = 1, rackNo = 1, levelNo = 1, code = "1.1"),
+            log = listOf(
+                ScanLogEntry(1, "QATEST001", true, "Đã lên kệ 1.1"),
+                ScanLogEntry(2, "QATEST999", false, "Không tìm thấy mã 'QATEST999'."),
+            ),
+            snackbarHostState = remember { SnackbarHostState() },
+            onBack = {},
+            onScan = {},
+            onChooseLocation = {},
+            onItemClick = {},
+        )
+    }
 }

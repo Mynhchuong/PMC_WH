@@ -1,5 +1,6 @@
 package com.samho.pmcwhandroid.ui
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -38,9 +39,11 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.samho.pmcwhandroid.network.ApiClient
 import com.samho.pmcwhandroid.network.TodayLogItem
+import com.samho.pmcwhandroid.ui.theme.PmcWhAndroidTheme
 import kotlinx.coroutines.launch
 
 private data class TypeFilter(val label: String, val value: String?)
@@ -56,6 +59,7 @@ private val typeFilters = listOf(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LogHomNayScreen(onBack: () -> Unit) {
+    BackHandler(onBack = onBack)
     var items by remember { mutableStateOf<List<TodayLogItem>>(emptyList()) }
     var page by remember { mutableStateOf(1) }
     var totalPages by remember { mutableStateOf(1) }
@@ -84,6 +88,39 @@ fun LogHomNayScreen(onBack: () -> Unit) {
 
     LaunchedEffect(selectedFilter) { load(1) }
 
+    LogHomNayScreenContent(
+        items = items,
+        page = page,
+        totalPages = totalPages,
+        totalCount = totalCount,
+        isLoading = isLoading,
+        selectedFilter = selectedFilter,
+        snackbarHostState = snackbarHostState,
+        onBack = onBack,
+        onRefresh = { load(page) },
+        onSelectFilter = { f -> selectedFilter = f },
+        onPrevPage = { load(page - 1) },
+        onNextPage = { load(page + 1) },
+    )
+}
+
+/** Phần giao diện thuần (không gọi API) — tách riêng để @Preview render được với dữ liệu mẫu. */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun LogHomNayScreenContent(
+    items: List<TodayLogItem>,
+    page: Int,
+    totalPages: Int,
+    totalCount: Int,
+    isLoading: Boolean,
+    selectedFilter: TypeFilter,
+    snackbarHostState: SnackbarHostState,
+    onBack: () -> Unit,
+    onRefresh: () -> Unit,
+    onSelectFilter: (TypeFilter) -> Unit,
+    onPrevPage: () -> Unit,
+    onNextPage: () -> Unit,
+) {
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
@@ -95,7 +132,7 @@ fun LogHomNayScreen(onBack: () -> Unit) {
                     }
                 },
                 actions = {
-                    IconButton(onClick = { load(page) }) {
+                    IconButton(onClick = onRefresh) {
                         Icon(Icons.Filled.Refresh, contentDescription = "Tải lại")
                     }
                 },
@@ -110,7 +147,7 @@ fun LogHomNayScreen(onBack: () -> Unit) {
                 typeFilters.forEach { f ->
                     FilterChip(
                         selected = selectedFilter == f,
-                        onClick = { selectedFilter = f },
+                        onClick = { onSelectFilter(f) },
                         label = { Text(f.label) },
                     )
                 }
@@ -134,9 +171,9 @@ fun LogHomNayScreen(onBack: () -> Unit) {
                                 modifier = Modifier.fillMaxWidth().padding(12.dp),
                                 horizontalArrangement = Arrangement.SpaceBetween,
                             ) {
-                                TextButton(enabled = page > 1 && !isLoading, onClick = { load(page - 1) }) { Text("‹ Trước") }
+                                TextButton(enabled = page > 1 && !isLoading, onClick = onPrevPage) { Text("‹ Trước") }
                                 Text("Trang $page / $totalPages", modifier = Modifier.align(Alignment.CenterVertically))
-                                TextButton(enabled = page < totalPages && !isLoading, onClick = { load(page + 1) }) { Text("Sau ›") }
+                                TextButton(enabled = page < totalPages && !isLoading, onClick = onNextPage) { Text("Sau ›") }
                             }
                         }
                     }
@@ -192,6 +229,29 @@ private fun LogRow(entry: TodayLogItem) {
                     Text(time, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             },
+        )
+    }
+}
+
+private val sampleLogItems = listOf(
+    TodayLogItem(movementId = 1, materialId = 1, barcode = "QATEST001", dev = "QA/BUGTEST", model = "Model X", movementType = "Inbound", qty = 10.0, unit = "PCS", locationCode = "1.1", username = "admin", occurredAt = "2026-08-11T08:15:00"),
+    TodayLogItem(movementId = 2, materialId = 2, barcode = "QATEST002", dev = "QA/BUGTEST", model = "Model Y", movementType = "IssueToWorkshop", qty = 5.0, unit = "PCS", recipientName = "Xưởng May 1", username = "admin", occurredAt = "2026-08-11T09:30:00"),
+    TodayLogItem(movementId = 3, materialId = 3, barcode = "QATEST003", dev = "QA/BUGTEST", model = "Model Z", movementType = "Dispose", qty = 2.0, unit = "M", username = "admin", occurredAt = "2026-08-11T10:05:00"),
+)
+
+@Preview(showBackground = true, name = "Log hôm nay")
+@Composable
+private fun LogHomNayScreenPreview() {
+    PmcWhAndroidTheme {
+        LogHomNayScreenContent(
+            items = sampleLogItems,
+            page = 1,
+            totalPages = 1,
+            totalCount = sampleLogItems.size,
+            isLoading = false,
+            selectedFilter = typeFilters[0],
+            snackbarHostState = remember { SnackbarHostState() },
+            onBack = {}, onRefresh = {}, onSelectFilter = {}, onPrevPage = {}, onNextPage = {},
         )
     }
 }

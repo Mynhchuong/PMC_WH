@@ -1,5 +1,6 @@
 package com.samho.pmcwhandroid.ui
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -39,17 +40,20 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.samho.pmcwhandroid.network.ApiClient
 import com.samho.pmcwhandroid.network.MaterialListItem
 import com.samho.pmcwhandroid.network.errorMessageOrDefault
 import com.samho.pmcwhandroid.scan.rememberBarcodeScanner
+import com.samho.pmcwhandroid.ui.theme.PmcWhAndroidTheme
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TimKiemScreen(onBack: () -> Unit) {
+    BackHandler(onBack = onBack)
     var query by remember { mutableStateOf("") }
     var result by remember { mutableStateOf<MaterialListItem?>(null) }
     var notFoundMsg by remember { mutableStateOf<String?>(null) }
@@ -174,6 +178,41 @@ private fun InfoRow(label: String, value: String) {
     Row(modifier = Modifier.fillMaxWidth().padding(vertical = 3.dp)) {
         Text(label, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.weight(1f))
         Text(value, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium, modifier = Modifier.weight(1.4f))
+    }
+}
+
+private val sampleSearchResult = MaterialListItem(
+    materialId = 1,
+    barcode = "QATEST001",
+    dev = "QA/BUGTEST",
+    poNo = "PO-2026-001",
+    supplier = "Nhà cung cấp A",
+    model = "Model X",
+    colorway = "Đen",
+    sizeSpec = "M",
+    matlDescription = "Vải lót áo khoác",
+    colorCode = "BLK",
+    arrivalQty = 100.0,
+    balance = 42.0,
+    unit = "M",
+    status = "InStock",
+    locationCode = "12.3",
+    isOverdue = false,
+)
+
+@Preview(showBackground = true, name = "Chưa tìm")
+@Composable
+private fun TimKiemScreenEmptyPreview() {
+    PmcWhAndroidTheme {
+        TimKiemScreen(onBack = {})
+    }
+}
+
+@Preview(showBackground = true, name = "Có kết quả")
+@Composable
+private fun TimKiemScreenResultPreview() {
+    PmcWhAndroidTheme {
+        MaterialResultCard(sampleSearchResult)
     }
 }
 

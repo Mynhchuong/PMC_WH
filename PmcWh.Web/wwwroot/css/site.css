@@ -109,6 +109,42 @@ body {
   --bs-pagination-active-border-color: #212529;
 }
 
+/* Denser text for data-heavy list tables (e.g. Materials/Index) at 100% browser zoom. */
+.pmc-table-compact {
+  font-size: 0.8125rem;
+}
+.pmc-table-compact th {
+  font-size: 0.7rem;
+}
+
+/* Resizable table columns (Materials/Index) — drag handle on the right edge of each <th>. */
+.pmc-resizable-th {
+  position: relative;
+  overflow: visible;
+}
+
+.col-resizer {
+  position: absolute;
+  top: 0;
+  right: -4px;
+  width: 8px;
+  height: 100%;
+  cursor: col-resize;
+  z-index: 2;
+  user-select: none;
+  touch-action: none;
+}
+
+.col-resizer:hover,
+.col-resizer.is-resizing {
+  background: rgba(13, 110, 253, 0.3);
+}
+
+body.pmc-col-resizing {
+  cursor: col-resize !important;
+  user-select: none !important;
+}
+
 /* PmcMaterialDetail helper (wwwroot/js/material-detail.js) — double-click để xem chi tiết liệu. */
 .js-detail-row {
   cursor: pointer;

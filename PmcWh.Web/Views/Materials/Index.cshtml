@@ -45,7 +45,9 @@
             <div class="col-sm-6 col-md-3">
                 <label class="form-label small fw-semibold text-secondary" data-i18n="filterBarcodeLabel">Barcode</label>
                 <div class="input-group">
-                    <span class="input-group-text bg-white"><span class="material-icons" style="font-size:18px;">search</span></span>
+                    <button type="submit" class="input-group-text bg-white" style="cursor:pointer;" title="Tìm kiếm" data-i18n-title="btnSearchTooltip">
+                        <span class="material-icons" style="font-size:18px;">search</span>
+                    </button>
                     <input type="text" name="barcode" value="@Model.Barcode" class="form-control" placeholder="Tìm theo barcode..." data-i18n-placeholder="filterBarcodePlaceholder" />
                 </div>
             </div>
@@ -113,40 +115,40 @@
 <div class="card border-0 shadow-sm rounded-4">
     <div class="card-body">
         <div class="table-responsive">
-            <table class="table align-middle" style="table-layout: fixed; width: 100%;">
+            <table id="materialsTable" class="table align-middle pmc-table-compact" style="table-layout: fixed;">
                 <colgroup>
-                    <col style="width: 12%">
-                    <col style="width: 7%">
-                    <col style="width: 6%">
-                    <col style="width: 7%">
-                    <col style="width: 13%">
-                    <col style="width: 6%">
-                    <col style="width: 6%">
-                    <col style="width: 6%">
-                    <col style="width: 6%">
-                    <col style="width: 15%">
-                    <col style="width: 9%">
+                    <col data-col-key="barcode" style="width: 150px">
+                    <col data-col-key="dev" style="width: 90px">
+                    <col data-col-key="po" style="width: 80px">
+                    <col data-col-key="supplier" style="width: 90px">
+                    <col data-col-key="matlDescription" style="width: 170px">
+                    <col data-col-key="colorCode" style="width: 80px">
+                    <col data-col-key="qty" style="width: 80px">
+                    <col data-col-key="balance" style="width: 80px">
+                    <col data-col-key="ata" style="width: 80px">
+                    <col data-col-key="status" style="width: 190px">
+                    <col data-col-key="shelf" style="width: 110px">
                     @if (isAdmin)
                     {
-                        <col style="width: 7%">
+                        <col data-col-key="action" style="width: 90px">
                     }
                 </colgroup>
                 <thead>
                     <tr class="text-uppercase text-muted small" style="white-space: normal;">
-                        <th>Barcode</th>
-                        <th>Dev</th>
-                        <th>PO</th>
-                        <th>Supplier</th>
-                        <th data-i18n="colMatlDescription">Mat'l Description</th>
-                        <th data-i18n="colColorCode">Color Code</th>
-                        <th class="text-end">A.Q'TY</th>
-                        <th class="text-end">Balance</th>
-                        <th>ATA</th>
-                        <th data-i18n="colStatus">Trạng thái</th>
-                        <th data-i18n="colCurrentShelf">Kệ hiện tại</th>
+                        <th class="pmc-resizable-th"><span>Barcode</span><span class="col-resizer" data-col-key="barcode"></span></th>
+                        <th class="pmc-resizable-th"><span>Dev</span><span class="col-resizer" data-col-key="dev"></span></th>
+                        <th class="pmc-resizable-th"><span>PO</span><span class="col-resizer" data-col-key="po"></span></th>
+                        <th class="pmc-resizable-th"><span>Supplier</span><span class="col-resizer" data-col-key="supplier"></span></th>
+                        <th class="pmc-resizable-th"><span data-i18n="colMatlDescription">Mat'l Description</span><span class="col-resizer" data-col-key="matlDescription"></span></th>
+                        <th class="pmc-resizable-th"><span data-i18n="colColorCode">Color Code</span><span class="col-resizer" data-col-key="colorCode"></span></th>
+                        <th class="text-end pmc-resizable-th"><span>Qty</span><span class="col-resizer" data-col-key="qty"></span></th>
+                        <th class="text-end pmc-resizable-th"><span>Balance</span><span class="col-resizer" data-col-key="balance"></span></th>
+                        <th class="pmc-resizable-th"><span>ATA</span><span class="col-resizer" data-col-key="ata"></span></th>
+                        <th class="pmc-resizable-th"><span data-i18n="colStatus">Trạng thái</span><span class="col-resizer" data-col-key="status"></span></th>
+                        <th class="pmc-resizable-th"><span data-i18n="colCurrentShelf">Kệ hiện tại</span><span class="col-resizer" data-col-key="shelf"></span></th>
                         @if (isAdmin)
                         {
-                            <th class="text-end" data-i18n="colAction">Hành động</th>
+                            <th class="text-end pmc-resizable-th"><span data-i18n="colAction">Hành động</span><span class="col-resizer" data-col-key="action"></span></th>
                         }
                     </tr>
                 </thead>
@@ -242,7 +244,7 @@
                     <input type="hidden" name="ReturnUrl" id="edit_ReturnUrl" />
                     <div class="modal-body">
                         <div class="row row-cols-2 g-3">
-                            <div><label class="form-label small fw-semibold text-secondary" data-i18n="editArrivalQty">Số lượng (A.Q'TY)</label><input type="number" step="any" min="0.01" class="form-control" name="ArrivalQty" id="edit_ArrivalQty" required /></div>
+                            <div><label class="form-label small fw-semibold text-secondary" data-i18n="editArrivalQty">Số lượng (Q'ty)</label><input type="number" step="any" min="0.01" class="form-control" name="ArrivalQty" id="edit_ArrivalQty" required /></div>
                             <div><label class="form-label small fw-semibold text-secondary">Dev</label><input class="form-control" name="Dev" id="edit_Dev" /></div>
                             <div><label class="form-label small fw-semibold text-secondary">PO</label><input class="form-control" name="PoNo" id="edit_PoNo" /></div>
                             <div><label class="form-label small fw-semibold text-secondary">Supplier</label><input class="form-control" name="Supplier" id="edit_Supplier" /></div>
@@ -343,6 +345,58 @@
                     editForm.querySelector('button[type="submit"]').disabled = true;
                 });
             }
+
+            // Draggable column resize (Materials/Index) — widths persist per-browser via localStorage.
+            (function () {
+                var STORAGE_KEY = 'pmc_materials_col_widths_v1';
+                var table = document.getElementById('materialsTable');
+                if (!table) return;
+
+                function colFor(key) {
+                    return table.querySelector('col[data-col-key="' + key + '"]');
+                }
+
+                var saved = {};
+                try { saved = JSON.parse(localStorage.getItem(STORAGE_KEY)) || {}; } catch (e) { saved = {}; }
+                Object.keys(saved).forEach(function (key) {
+                    var col = colFor(key);
+                    if (col && saved[key] > 0) col.style.width = saved[key] + 'px';
+                });
+
+                function saveWidths() {
+                    var widths = {};
+                    table.querySelectorAll('col[data-col-key]').forEach(function (col) {
+                        widths[col.dataset.colKey] = col.getBoundingClientRect().width;
+                    });
+                    localStorage.setItem(STORAGE_KEY, JSON.stringify(widths));
+                }
+
+                table.querySelectorAll('.col-resizer').forEach(function (resizer) {
+                    resizer.addEventListener('mousedown', function (e) {
+                        e.preventDefault();
+                        var col = colFor(resizer.dataset.colKey);
+                        if (!col) return;
+                        var startX = e.clientX;
+                        var startWidth = col.getBoundingClientRect().width;
+                        resizer.classList.add('is-resizing');
+                        document.body.classList.add('pmc-col-resizing');
+
+                        function onMove(ev) {
+                            var newWidth = Math.max(40, startWidth + (ev.clientX - startX));
+                            col.style.width = newWidth + 'px';
+                        }
+                        function onUp() {
+                            document.removeEventListener('mousemove', onMove);
+                            document.removeEventListener('mouseup', onUp);
+                            resizer.classList.remove('is-resizing');
+                            document.body.classList.remove('pmc-col-resizing');
+                            saveWidths();
+                        }
+                        document.addEventListener('mousemove', onMove);
+                        document.addEventListener('mouseup', onUp);
+                    });
+                });
+            })();
         })();
     </script>
 }
