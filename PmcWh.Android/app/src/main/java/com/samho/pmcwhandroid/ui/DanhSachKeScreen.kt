@@ -41,24 +41,29 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import com.samho.pmcwhandroid.data.UserSession
 import com.samho.pmcwhandroid.network.ApiClient
 import com.samho.pmcwhandroid.network.LocationMaterialDto
+import com.samho.pmcwhandroid.network.StorageLocationDto
 import com.samho.pmcwhandroid.network.WarehouseTierDto
+import com.samho.pmcwhandroid.ui.assign.AssignMaterialsScreen
 import com.samho.pmcwhandroid.ui.theme.PmcWhAndroidTheme
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun DanhSachKeScreen(onBack: () -> Unit) {
+fun DanhSachKeScreen(session: UserSession, onBack: () -> Unit) {
     BackHandler(onBack = onBack)
     var tiers by remember { mutableStateOf<List<WarehouseTierDto>>(emptyList()) }
     var isLoading by remember { mutableStateOf(true) }
     var query by remember { mutableStateOf("") }
     var selectedTier by remember { mutableStateOf<WarehouseTierDto?>(null) }
+    var assigningTier by remember { mutableStateOf<WarehouseTierDto?>(null) }
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
 
-    LaunchedEffect(Unit) {
+    suspend fun loadTiers() {
+        isLoading = true
         try {
             tiers = ApiClient.warehouseApi.layout()
         } catch (e: Exception) {
@@ -68,26 +73,50 @@ fun DanhSachKeScreen(onBack: () -> Unit) {
         }
     }
 
+    LaunchedEffect(Unit) { loadTiers() }
+
     val filtered = remember(tiers, query) {
         if (query.isBlank()) tiers else tiers.filter { it.code.contains(query, ignoreCase = true) }
     }
 
-    DanhSachKeScreenContent(
-        filtered = filtered,
-        isLoading = isLoading,
-        query = query,
-        onQueryChange = { query = it },
-        onBack = onBack,
-        onTierClick = { tier -> selectedTier = tier },
-        snackbarHostState = snackbarHostState,
-    )
+    val assigning = assigningTier
+    if (assigning != null) {
+        AssignMaterialsScreen(
+            session = session,
+            location = StorageLocationDto(assigning.locationId, assigning.rackNo, assigning.levelNo, assigning.code),
+            onClose = { assigningTier = null },
+            onAllSavedAndClosed = {
+                assigningTier = null
+                scope.launch { loadTiers() }
+            },
+        )
+    } else {
+        DanhSachKeScreenContent(
+            filtered = filtered,
+            isLoading = isLoading,
+            query = query,
+            onQueryChange = { query = it },
+            onBack = onBack,
+            onTierClick = { tier -> selectedTier = tier },
+            snackbarHostState = snackbarHostState,
+        )
 
-    selectedTier?.let { tier ->
-        TierDetailDialog(tier = tier, onDismiss = { selectedTier = null }, snackbarHostState = snackbarHostState, scope = scope)
+        selectedTier?.let { tier ->
+            TierDetailDialog(
+                tier = tier,
+                onDismiss = { selectedTier = null },
+                onAssign = { selectedTier = null; assigningTier = tier },
+                snackbarHostState = snackbarHostState,
+                scope = scope,
+            )
+        }
     }
 }
 
-/** Phần giao diện thuần (không gọi API) — tách riêng để @Preview render được với dữ liệu mẫu. */
+/**
+ * Phần giao diện thuần (không gọi API) — tách riêng để @Preview render được với dữ liệu mẫu.
+ * Chọn kệ theo 2 bước: chọn số kệ (rack) trước, rồi chọn tầng (level) trong kệ đó.
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun DanhSachKeScreenContent(
@@ -99,13 +128,25 @@ private fun DanhSachKeScreenContent(
     onTierClick: (WarehouseTierDto) -> Unit,
     snackbarHostState: SnackbarHostState,
 ) {
+    var selectedRack by remember { mutableStateOf<Int?>(null) }
+    BackHandler(enabled = selectedRack != null) { selectedRack = null }
+
+    val racks = remember(filtered) { filtered.map { it.rackNo }.distinct().sorted() }
+    val filteredRacks = remember(racks, query) {
+        if (query.isBlank()) racks else racks.filter { it.toString().contains(query) }
+    }
+    val tiersInRack = remember(filtered, selectedRack) {
+        val rack = selectedRack
+        if (rack == null) emptyList() else filtered.filter { it.rackNo == rack }.sortedBy { it.levelNo }
+    }
+
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
-                title = { Text("Danh sách kệ") },
+                title = { Text(if (selectedRack == null) "Danh sách kệ" else "Kệ $selectedRack") },
                 navigationIcon = {
-                    IconButton(onClick = onBack) {
+                    IconButton(onClick = { if (selectedRack != null) selectedRack = null else onBack() }) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Quay lại")
                     }
                 },
@@ -114,31 +155,58 @@ private fun DanhSachKeScreenContent(
     ) { padding ->
         Column(modifier = Modifier.fillMaxSize().padding(padding).padding(horizontal = 16.dp)) {
             Spacer(Modifier.height(12.dp))
-            OutlinedTextField(
-                value = query,
-                onValueChange = onQueryChange,
-                label = { Text("Tìm theo mã kệ (vd: 40 hoặc 40.1)") },
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth(),
-            )
-            Spacer(Modifier.height(12.dp))
+            if (selectedRack == null) {
+                OutlinedTextField(
+                    value = query,
+                    onValueChange = onQueryChange,
+                    label = { Text("Tìm theo số kệ (vd: 40)") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                Spacer(Modifier.height(12.dp))
+            }
 
             Box(modifier = Modifier.fillMaxSize()) {
                 when {
                     isLoading -> CircularProgressIndicator(modifier = Modifier.align(Alignment.TopCenter).padding(top = 24.dp))
-                    filtered.isEmpty() -> Text(
+                    selectedRack == null && filteredRacks.isEmpty() -> Text(
                         "Không tìm thấy kệ nào khớp.",
                         modifier = Modifier.align(Alignment.TopCenter).padding(24.dp),
                     )
+                    selectedRack == null -> LazyColumn(modifier = Modifier.fillMaxSize()) {
+                        items(filteredRacks, key = { it }) { rack ->
+                            val tiersOfRack = filtered.filter { it.rackNo == rack }
+                            val totalQr = tiersOfRack.sumOf { it.qrCount }
+                            Card(
+                                modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                                onClick = { selectedRack = rack },
+                            ) {
+                                ListItem(
+                                    headlineContent = { Text("Kệ $rack") },
+                                    supportingContent = { Text("${tiersOfRack.size} tầng") },
+                                    trailingContent = {
+                                        Badge(
+                                            containerColor = if (totalQr > 0) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant,
+                                            contentColor = if (totalQr > 0) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
+                                        ) { Text("$totalQr mã") }
+                                    },
+                                )
+                            }
+                        }
+                    }
+                    tiersInRack.isEmpty() -> Text(
+                        "Kệ này chưa có tầng nào.",
+                        modifier = Modifier.align(Alignment.TopCenter).padding(24.dp),
+                    )
                     else -> LazyColumn(modifier = Modifier.fillMaxSize()) {
-                        items(filtered, key = { it.locationId }) { tier ->
+                        items(tiersInRack, key = { it.locationId }) { tier ->
                             Card(
                                 modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
                                 onClick = { onTierClick(tier) },
                             ) {
                                 ListItem(
-                                    headlineContent = { Text("Kệ ${tier.code}") },
-                                    supportingContent = { Text("Rack ${tier.rackNo} · Tầng ${tier.levelNo}") },
+                                    headlineContent = { Text("Tầng ${tier.levelNo}") },
+                                    supportingContent = { Text(tier.code) },
                                     trailingContent = {
                                         Badge(
                                             containerColor = if (tier.qrCount > 0) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant,
@@ -160,6 +228,7 @@ private fun DanhSachKeScreenContent(
 private fun TierDetailDialog(
     tier: WarehouseTierDto,
     onDismiss: () -> Unit,
+    onAssign: () -> Unit,
     snackbarHostState: SnackbarHostState,
     scope: kotlinx.coroutines.CoroutineScope,
 ) {
@@ -189,6 +258,7 @@ private fun TierDetailDialog(
     AlertDialog(
         onDismissRequest = onDismiss,
         confirmButton = { TextButton(onClick = onDismiss) { Text("Đóng") } },
+        dismissButton = { TextButton(onClick = onAssign) { Text("Quét gán liệu vào kệ này") } },
         title = { Text("Kệ ${tier.code} — ${tier.qrCount} mã") },
         text = {
             Box(modifier = Modifier.fillMaxWidth().height(360.dp)) {

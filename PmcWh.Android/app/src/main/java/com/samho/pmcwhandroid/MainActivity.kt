@@ -67,7 +67,10 @@ class MainActivity : ComponentActivity() {
                                 onBack = { route = null },
                             )
                             "tim_kiem" -> TimKiemScreen(onBack = { route = null })
-                            "danh_sach_ke" -> DanhSachKeScreen(onBack = { route = null })
+                            "danh_sach_ke" -> DanhSachKeScreen(
+                                session = currentSession,
+                                onBack = { route = null },
+                            )
                             "log_hom_nay" -> LogHomNayScreen(onBack = { route = null })
                             else -> HomeScreen(
                                 session = currentSession,

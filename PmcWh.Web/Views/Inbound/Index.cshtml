@@ -131,7 +131,7 @@
                 <input type="hidden" name="barcode" id="shelfBarcode" />
                 <div class="modal-body">
                     <div id="qtyGroup" class="d-none">
-                        <p class="text-muted small mb-2"><span data-i18n="outstandingLabel">Đã xuất còn thiếu:</span> <span id="outstandingLabel" class="fw-semibold"></span></p>
+                        <p class="text-muted small mb-2"><span data-i18n="outstandingLabel">Tổng số lượng đã xuất:</span> <span id="outstandingLabel" class="fw-semibold"></span></p>
                         <label class="form-label small fw-semibold text-secondary" data-i18n="returnQtyLabel">Số lượng nhận lại</label>
                         <input type="number" name="qty" id="qtyInput" class="form-control mb-3" step="0.01" min="0.01" disabled />
                     </div>
@@ -217,12 +217,27 @@
             var shelfModal = new bootstrap.Modal(document.getElementById('shelfModal'));
             var qtyGroup = document.getElementById('qtyGroup');
             var qtyInput = document.getElementById('qtyInput');
+            qtyInput.addEventListener('invalid', function () {
+                if (qtyInput.validity.valueMissing) {
+                    qtyInput.setCustomValidity('Vui lòng nhập số lượng nhận lại.');
+                } else if (qtyInput.validity.rangeOverflow) {
+                    qtyInput.setCustomValidity('Số lượng nhận lại không được lớn hơn ' + qtyInput.max + '.');
+                } else if (qtyInput.validity.rangeUnderflow) {
+                    qtyInput.setCustomValidity('Số lượng nhận lại phải lớn hơn hoặc bằng ' + qtyInput.min + '.');
+                } else {
+                    qtyInput.setCustomValidity('Số lượng nhận lại không hợp lệ.');
+                }
+            });
+            qtyInput.addEventListener('input', function () {
+                qtyInput.setCustomValidity('');
+            });
             var outstandingLabel = document.getElementById('outstandingLabel');
             var keepShelfInfo = document.getElementById('keepShelfInfo');
             var keepShelfCode = document.getElementById('keepShelfCode');
             var shelfPickGroup = document.getElementById('shelfPickGroup');
 
             function openShelfFor(materialId, barcode, kind, outstanding, unit, locationCode) {
+                qtyInput.setCustomValidity('');
                 document.getElementById('shelfMaterialId').value = materialId;
                 document.getElementById('shelfBarcode').value = barcode;
                 document.getElementById('shelfBarcodeLabel').textContent = barcode;

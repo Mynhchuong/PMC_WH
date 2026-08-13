@@ -111,10 +111,20 @@ body {
 
 /* Denser text for data-heavy list tables (e.g. Materials/Index) at 100% browser zoom. */
 .pmc-table-compact {
-  font-size: 0.8125rem;
+  font-size: 0.75rem;
 }
 .pmc-table-compact th {
-  font-size: 0.7rem;
+  font-size: 0.68rem;
+}
+
+/* Kẻ ô ngang/dọc kiểu Excel cho bảng CSDL liệu (Materials/Index) — chỉ áp dụng riêng bảng này,
+   không ảnh hưởng các bảng khác trong site. */
+#materialsTable {
+  border-collapse: collapse;
+}
+#materialsTable th,
+#materialsTable td {
+  border: 1px solid #dee2e6;
 }
 
 /* Resizable table columns (Materials/Index) — drag handle on the right edge of each <th>. */

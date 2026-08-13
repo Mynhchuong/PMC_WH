@@ -10,7 +10,8 @@
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>@ViewData["Title"] - PMC WH</title>
+    <title>@ViewData["Title"] - PMC WAREHOUSE</title>
+    <link rel="icon" type="image/svg+xml" href="~/img/pmc-warehouse-logo.svg" />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
     <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
@@ -104,16 +105,18 @@
 <body>
     <div class="login-page">
         <div class="login-card">
-            <div class="d-flex justify-content-end mb-2">
+            <div class="d-flex justify-content-end align-items-center gap-1 mb-2">
+                <span class="material-icons text-secondary" style="font-size:18px;">language</span>
+                <span class="text-secondary small">Ngôn ngữ</span>
                 <select id="site-lang-select" class="form-select form-select-sm" style="width:auto;cursor:pointer;">
                     <option value="vi">Tiếng Việt</option>
                     <option value="en">English</option>
                 </select>
             </div>
             <div class="login-brand">
-                <span class="material-icons">warehouse</span>
+                <img src="~/img/pmc-warehouse-logo-white.svg" alt="PMC Warehouse" style="width: 32px; height: 32px;" />
             </div>
-            <h4 class="text-center mb-1">PMC WH</h4>
+            <h4 class="text-center mb-1">PMC WAREHOUSE</h4>
             <p class="text-center text-muted mb-4" data-i18n="loginSubtitle">Đăng nhập để tiếp tục</p>
 
             <form asp-controller="Account" asp-action="Login" asp-route-returnUrl="@returnUrl" method="post" novalidate>

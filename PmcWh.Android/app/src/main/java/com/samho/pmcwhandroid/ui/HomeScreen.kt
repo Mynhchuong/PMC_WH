@@ -68,7 +68,7 @@ fun HomeScreen(session: UserSession, modifier: Modifier = Modifier, onLogout: ()
             TopAppBar(
                 title = {
                     Column {
-                        Text("PMC WH", style = MaterialTheme.typography.titleMedium)
+                        Text("PMC WAREHOUSE", style = MaterialTheme.typography.titleMedium)
                         Text(
                             "${session.fullName ?: session.username} · ${session.role}",
                             style = MaterialTheme.typography.bodySmall,

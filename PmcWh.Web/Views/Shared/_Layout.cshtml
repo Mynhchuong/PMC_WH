@@ -7,7 +7,8 @@
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>@ViewData["Title"] - PMC WH</title>
+    <title>@ViewData["Title"] - PMC WAREHOUSE</title>
+    <link rel="icon" type="image/svg+xml" href="~/img/pmc-warehouse-logo.svg" />
     <!-- App có thể chạy dưới 1 sub-path trên IIS (vd /PmcWh) — <base> giúp mọi URL tương đối trong
          JS (fetch, SignalR) tự động đúng gốc app, không cần biết trước app đang chạy ở path nào. -->
     <base href="@Url.Content("~/")" />
@@ -128,10 +129,14 @@
                     <h5 class="mb-0" data-i18n="@ViewData["TitleKey"]">@ViewData["Title"]</h5>
                 </div>
                 <div class="d-flex align-items-center gap-2">
-                <select id="site-lang-select" class="form-select form-select-sm" style="width:auto;cursor:pointer;">
-                    <option value="vi">Tiếng Việt</option>
-                    <option value="en">English</option>
-                </select>
+                <div class="d-flex align-items-center gap-1">
+                    <span class="material-icons text-secondary" style="font-size:18px;">language</span>
+                    <span class="text-secondary small d-none d-sm-inline">Ngôn ngữ</span>
+                    <select id="site-lang-select" class="form-select form-select-sm" style="width:auto;cursor:pointer;">
+                        <option value="vi">Tiếng Việt</option>
+                        <option value="en">English</option>
+                    </select>
+                </div>
                 <div class="dropdown">
                     <button class="btn btn-link text-decoration-none dropdown-toggle d-flex align-items-center gap-2" type="button" data-bs-toggle="dropdown" aria-expanded="false">
                         <span class="d-inline-flex align-items-center justify-content-center rounded-circle" style="width:32px;height:32px;background:linear-gradient(135deg, #495057 0%, #212529 100%);">

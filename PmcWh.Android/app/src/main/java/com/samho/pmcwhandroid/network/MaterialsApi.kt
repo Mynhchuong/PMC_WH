@@ -34,8 +34,8 @@ interface MaterialsApi {
     @POST("api/Materials/{id}/issue")
     suspend fun issue(@Path("id") id: Int, @Body request: IssueRequest): Response<ResponseBody>
 
-    @GET("api/Materials/overdue-issued")
-    suspend fun overdueIssued(): List<OverdueIssuedItem>
+    @GET("api/Materials/disposable")
+    suspend fun disposable(): List<MaterialListItem>
 
     /** Cùng lý do dùng Response<ResponseBody> như inbound()/issue() — Ok() không có body. */
     @POST("api/Materials/{id}/dispose")

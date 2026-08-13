@@ -114,7 +114,7 @@ fun LoginScreen(modifier: Modifier = Modifier, onLoginSuccess: (LoginResult) -> 
                     }
 
                     Spacer(modifier = Modifier.height(12.dp))
-                    Text("PMC WH", style = MaterialTheme.typography.headlineMedium)
+                    Text("PMC WAREHOUSE", style = MaterialTheme.typography.headlineMedium)
                     Text(
                         "Đăng nhập để tiếp tục",
                         style = MaterialTheme.typography.bodyMedium,

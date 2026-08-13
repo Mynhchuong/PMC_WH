@@ -4,28 +4,16 @@
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
-    <!-- Roof -->
+    <!-- Nhà kho mái vòm (thân + mái liền 1 khối) -->
     <path
         android:fillColor="#FFFFFFFF"
-        android:pathData="M28,50 L54,26 L80,50 Z" />
-    <!-- Roof eave -->
-    <path
-        android:fillColor="#FFFFFFFF"
-        android:pathData="M24,48 L84,48 L84,53 L24,53 Z" />
-    <!-- Body -->
-    <path
-        android:fillColor="#FFFFFFFF"
-        android:pathData="M32,53 L76,53 L76,82 L32,82 Z" />
-    <!-- Left window -->
+        android:pathData="M24,90 L24,54 A30,38 0 0 1 84,54 L84,90 Z" />
+    <!-- Cửa -->
     <path
         android:fillColor="#FF33383D"
-        android:pathData="M38,59 L47,59 L47,68 L38,68 Z" />
-    <!-- Right window -->
+        android:pathData="M45,68 L63,68 L63,90 L45,90 Z" />
+    <!-- Dầm ngang phía trên cửa -->
     <path
         android:fillColor="#FF33383D"
-        android:pathData="M61,59 L70,59 L70,68 L61,68 Z" />
-    <!-- Door -->
-    <path
-        android:fillColor="#FF33383D"
-        android:pathData="M48,68 L60,68 L60,82 L48,82 Z" />
+        android:pathData="M40,60 L68,60 L68,63 L40,63 Z" />
 </vector>

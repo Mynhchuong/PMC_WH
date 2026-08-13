@@ -188,24 +188,41 @@
   specs.forEach(function (s) { buildRack(s[0], s[1] + shiftX, s[2] + shiftZ, s[3]); });
 
   var laneMat = new THREE.MeshStandardMaterial({ color: 0xf4c430, roughness: 0.8 });
+  // Đầu đông (phải) dừng đúng ở L/2+85 (vừa khít trong vạch đỏ ranh giới, không thò dư ra ngoài).
+  // Đầu tây (trái, phía cổng) kéo dài thêm ra L/2+95 để nối được với đoạn ngang nối 2 line phía
+  // cổng bên dưới — 2 đầu không đối xứng nên tâm + độ dài tính riêng, không dùng PlaneGeometry
+  // canh giữa x=0 như cũ nữa.
+  var laneEastX = L / 2 + 85, laneWestX = -(L / 2 + 95);
+  var laneLen = laneEastX - laneWestX, laneCenterX = (laneEastX + laneWestX) / 2;
   [(Z1 + ZA) / 2, (ZB + Z3) / 2].forEach(function (zc) {
-    var lane = new THREE.Mesh(new THREE.PlaneGeometry(L + 260, 9), laneMat); lane.rotation.x = -Math.PI / 2; lane.position.set(0, 0.4, zc + shiftZ); lane.receiveShadow = true; scene.add(lane);
+    var lane = new THREE.Mesh(new THREE.PlaneGeometry(laneLen, 9), laneMat); lane.rotation.x = -Math.PI / 2; lane.position.set(laneCenterX, 0.4, zc + shiftZ); lane.receiveShadow = true; scene.add(lane);
   });
 
   // ----- Lối đi cắt ngang qua kệ (đúng chỗ có khoảng hở CROSS_EXTRA trong rowCenters) -----
   // Kệ 19|20 và kệ 29|30 dùng chung 1 x (cA[7]/cA[8]) vì dãy A và dãy B áp lưng nhau -> chỉ 1 lối
   // đi xuyên suốt cả 2 dãy. Kệ 41|42,43 chỉ xuyên qua bề dày riêng dãy 3.
+  // laneZ0/laneZ1 = đúng công thức 2 lane chính ở trên (zc) — dùng để nối 2 đầu lối cắt ngang này
+  // THẲNG VÀO lane chính, không dừng lửng giữa kệ như trước (công nhân đi lọt qua được).
+  var laneZ0 = (Z1 + ZA) / 2, laneZ1 = (ZB + Z3) / 2;
   var crossAB_X = (cA[7] + cA[8]) / 2 + shiftX;
-  var crossAB_Z = (ZA + ZB) / 2 + shiftZ;
-  var crossAB_Len = (ZB - ZA) + RACK_D;
+  var crossAB_Z = (laneZ0 + laneZ1) / 2 + shiftZ;
+  var crossAB_Len = (laneZ1 - laneZ0) + 6; // +6 chờm nhẹ 2 đầu, nối liền hẳn không hở khe
   var crossLaneAB = new THREE.Mesh(new THREE.PlaneGeometry(9, crossAB_Len), laneMat);
   crossLaneAB.rotation.x = -Math.PI / 2; crossLaneAB.position.set(crossAB_X, 0.4, crossAB_Z); crossLaneAB.receiveShadow = true; scene.add(crossLaneAB);
 
   var cross3_X = (c3[9] + c3[10]) / 2 + shiftX;
-  var cross3_Z = Z3 + shiftZ;
-  var cross3_Len = RACK_D + 80;
+  var cross3NearZ = laneZ1 - 3, cross3FarZ = Z3 + 61; // đầu gần chờm vào lane chính, đầu xa giữ như cũ
+  var cross3_Z = (cross3NearZ + cross3FarZ) / 2 + shiftZ;
+  var cross3_Len = cross3FarZ - cross3NearZ;
   var crossLane3 = new THREE.Mesh(new THREE.PlaneGeometry(9, cross3_Len), laneMat);
   crossLane3.rotation.x = -Math.PI / 2; crossLane3.position.set(cross3_X, 0.4, cross3_Z); crossLane3.receiveShadow = true; scene.add(crossLane3);
+
+  // Nối liền đầu tây (phía cổng) của 2 line vàng chính lại với nhau, thành hình chữ U — trước đó
+  // 2 line chạy song song rời nhau, không có đoạn ngang nối nên nhìn tách biệt ngay khu cổng vào.
+  var gateLinkX = laneWestX + 3; // chờm nhẹ vào trong đầu line chính, nối liền không hở khe
+  var gateLinkZ = (laneZ0 + laneZ1) / 2 + shiftZ, gateLinkLen = (laneZ1 - laneZ0) + 6;
+  var gateLink = new THREE.Mesh(new THREE.PlaneGeometry(9, gateLinkLen), laneMat);
+  gateLink.rotation.x = -Math.PI / 2; gateLink.position.set(gateLinkX, 0.4, gateLinkZ); gateLink.receiveShadow = true; scene.add(gateLink);
 
   // ----- Cửa ra vào + khu vực chờ (có hàng chờ) + thoát hiểm -----
   var xLeft = -L / 2 - 260;
@@ -220,7 +237,9 @@
   [zMidA - 70, zMidA + 70].forEach(function (zz) { var p = new THREE.Mesh(new THREE.BoxGeometry(10, 150, 10), gateMat); p.position.set(xLeft, 75, zz); p.castShadow = true; scene.add(p); });
   var header = new THREE.Mesh(new THREE.BoxGeometry(10, 12, 152), gateMat); header.position.set(xLeft, 150, zMidA); scene.add(header);
   var doorSign = makeSign(function () { return I18N.t('doorSignText'); }, 150, 42); doorSign.scale.set(150, 40, 1); doorSign.position.set(xLeft, 180, zMidA); scene.add(doorSign);
-  var entryArrow = arrowPlane(110, 110, 0); entryArrow.position.set(xLeft + 215, 0.5, zMidA); scene.add(entryArrow);
+  // Đặt ngay dưới chân cổng (xLeft) — trước đó để xa tới 215 đơn vị, lọt vào gần chân kệ, không
+  // thấy được ngay lúc nhìn vào cổng.
+  var entryArrow = arrowPlane(110, 110, 0); entryArrow.position.set(xLeft + 30, 0.5, zMidA); scene.add(entryArrow);
 
   /* === KHU VỰC CHỜ — ẩn tạm theo yêu cầu (tương lai cần thì bỏ comment để bật lại) ===
   var waitZone = new THREE.Mesh(new THREE.PlaneGeometry(150, 360), new THREE.MeshStandardMaterial({ color: 0x3f6fb0, transparent: true, opacity: 0.18, roughness: 1 })); waitZone.rotation.x = -Math.PI / 2; waitZone.position.set(xLeft + 105, 0.35, zMidA); scene.add(waitZone);
@@ -263,7 +282,9 @@
   var boundThick = 10;
   function boundaryEdge(w, h, cx, cz) {
     var m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), boundMat);
-    m.rotation.x = -Math.PI / 2; m.position.set(cx, 0.45, cz); m.receiveShadow = true; scene.add(m);
+    // y=0.6 (thay vì 0.45 cũ) — cách xa hẳn vạch vàng lối đi (y=0.4) để tránh z-fighting (2 mặt
+    // phẳng nằm quá sát độ cao nhau khiến render bị rách/cắt ngay chỗ vạch đỏ cắt qua vạch vàng).
+    m.rotation.x = -Math.PI / 2; m.position.set(cx, 0.6, cz); m.receiveShadow = true; scene.add(m);
   }
   boundaryEdge(boundMaxX - boundMinX, boundThick, (boundMinX + boundMaxX) / 2, boundMinZ); // cạnh nam
   boundaryEdge(boundMaxX - boundMinX, boundThick, (boundMinX + boundMaxX) / 2, boundMaxZ); // cạnh bắc (qua cổng thoát hiểm)
@@ -322,7 +343,7 @@
 
     // Nhân viên ngồi giám sát — dáng đơn giản (khối hộp/cầu), ngồi trên ghế quay mặt vào màn hình.
     var skinMat = new THREE.MeshStandardMaterial({ color: 0xd8a878, roughness: 0.8 });
-    var shirtMat = new THREE.MeshStandardMaterial({ color: 0x123259, roughness: 0.7 });
+    var shirtMat = new THREE.MeshStandardMaterial({ color: 0x2389c9, roughness: 0.7 }); // áo màu nước biển
     var pantsMat = new THREE.MeshStandardMaterial({ color: 0x2b2f36, roughness: 0.8 });
     var hairMat = new THREE.MeshStandardMaterial({ color: 0x1c1c1c, roughness: 0.6 });
 
@@ -333,8 +354,11 @@
     var torso = new THREE.Mesh(new THREE.BoxGeometry(19, 24, 7), shirtMat); torso.position.set(0, 47, 33.5); torso.castShadow = true; desk.add(torso);
     var head = new THREE.Mesh(new THREE.SphereGeometry(7, 16, 12), skinMat); head.position.set(0, 66, 33.5); head.castShadow = true; desk.add(head);
     var hair = new THREE.Mesh(new THREE.SphereGeometry(7.3, 16, 12, 0, Math.PI * 2, 0, Math.PI * 0.5), hairMat); hair.position.set(0, 67.3, 33.5); desk.add(hair);
-    connect(desk, -9.5, 57, 33.5, -8, 45.2, 9, 5, shirtMat);
-    connect(desk, 9.5, 57, 33.5, 8, 45.2, 9, 5, shirtMat);
+    // Tay áo NGẮN — chỉ phủ đoạn vai->khuỷu tay bằng shirtMat, đoạn khuỷu->cổ tay để lộ da (skinMat).
+    connect(desk, -9.5, 57, 33.5, -8.87, 52.04, 23.21, 5, shirtMat);
+    connect(desk, -8.87, 52.04, 23.21, -8, 45.2, 9, 4.2, skinMat);
+    connect(desk, 9.5, 57, 33.5, 8.87, 52.04, 23.21, 5, shirtMat);
+    connect(desk, 8.87, 52.04, 23.21, 8, 45.2, 9, 4.2, skinMat);
     var handL = new THREE.Mesh(new THREE.BoxGeometry(5, 3, 6), skinMat); handL.position.set(-8, 45.2, 9); desk.add(handL);
     var handR = new THREE.Mesh(new THREE.BoxGeometry(5, 3, 6), skinMat); handR.position.set(8, 45.2, 9); desk.add(handR);
 
@@ -352,14 +376,25 @@
 
   // ----- Công nhân đi lại + 1 người vác thang leo kiểm tra kệ (hoạt cảnh trang trí cho sinh động,
   // không gắn với dữ liệu thật) — cùng phong cách khối hộp/cầu với người ngồi bàn ở trên. -----
-  var patrolWorkers = [], ladderWorker = null, placedLadder = null, carriedLadder = null, updateWorkers = null;
+  var wanderWorkers = [], ladderWorker = null, placedLadder = null, carriedLadder = null, updateWorkers = null;
   (function buildWorkers() {
     var wSkinMat = new THREE.MeshStandardMaterial({ color: 0xd8a878, roughness: 0.8 });
     var wPantsMat = new THREE.MeshStandardMaterial({ color: 0x394452, roughness: 0.8 });
     var wVestMat = new THREE.MeshStandardMaterial({ color: 0x9cc9f0, roughness: 0.6, emissive: 0x0e2440, emissiveIntensity: 0.1 });
-    var wHelmetMat = new THREE.MeshStandardMaterial({ color: 0xf4d21b, roughness: 0.4, metalness: 0.1 });
+    var wHairMat = new THREE.MeshStandardMaterial({ color: 0x1c1c1c, roughness: 0.6 }); // giống tóc người ngồi bàn PC
     var ladderMat = new THREE.MeshStandardMaterial({ color: 0xd7d2c4, roughness: 0.6, metalness: 0.2 });
+    var scanBodyMat = new THREE.MeshStandardMaterial({ color: 0x22262f, roughness: 0.35, metalness: 0.25 });
+    var scanScreenMat = new THREE.MeshStandardMaterial({ color: 0x2fbf7a, roughness: 0.3, emissive: 0x2fbf7a, emissiveIntensity: 0.55 });
     var LADDER_LEN = 100;
+
+    // Máy quét mã cầm tay — sếp yêu cầu nhân viên đi tuần tay không cầm gì nhìn vô lý, nên gắn
+    // thiết bị scan vào tay phải thay vì để tay không (khớp đúng nghiệp vụ: đi kiểm/quét kho).
+    function buildScanner() {
+      var g = new THREE.Group();
+      var body = new THREE.Mesh(new THREE.BoxGeometry(5, 10, 2.6), scanBodyMat); body.castShadow = true; g.add(body);
+      var screen = new THREE.Mesh(new THREE.BoxGeometry(3.2, 4.6, 0.4), scanScreenMat); screen.position.set(0, 1.4, 1.5); g.add(screen);
+      return g;
+    }
 
     function buildWorker(isFemale) {
       var g = new THREE.Group(), legLen = isFemale ? 20 : 22, hipY = legLen;
@@ -378,7 +413,14 @@
       var hips = new THREE.Mesh(new THREE.BoxGeometry(isFemale ? 14 : 15, 7, 9), wPantsMat); hips.position.set(0, hipY + 2, 0); hips.castShadow = true; g.add(hips);
       var torso = new THREE.Mesh(new THREE.BoxGeometry(isFemale ? 14 : 16, 20, 9), wVestMat); torso.position.set(0, hipY + 15, 0); torso.castShadow = true; g.add(torso);
       var head = new THREE.Mesh(new THREE.SphereGeometry(6, 14, 10), wSkinMat); head.position.set(0, hipY + 29, 0); head.castShadow = true; g.add(head);
-      var helmet = new THREE.Mesh(new THREE.SphereGeometry(6.3, 14, 10, 0, Math.PI * 2, 0, Math.PI * 0.52), wHelmetMat); helmet.position.set(0, hipY + 30.3, 0); g.add(helmet);
+      // Tóc phủ phần lớn đầu (chỉ chừa mặt phía trước) — giống kiểu tóc của người ngồi bàn PC
+      // (buildOfficeDesk phía trên). Không đội mũ bảo hộ nữa.
+      var hair = new THREE.Mesh(new THREE.SphereGeometry(6.2, 14, 10, 0, Math.PI * 2, 0, Math.PI * 0.85), wHairMat); hair.position.set(0, hipY + 30.3, 0); g.add(hair);
+      if (isFemale) { // buộc tóc đuôi ngựa phía sau — để phân biệt được rõ nữ/nam từ xa, không chỉ khác dáng người
+        var ponytail = new THREE.Mesh(new THREE.BoxGeometry(3, 12, 3), wHairMat);
+        ponytail.position.set(0, hipY + 24, -6.5); ponytail.rotation.x = -0.25; ponytail.castShadow = true;
+        g.add(ponytail);
+      }
       scene.add(g);
       return { group: g, legL: legL, legR: legR, armL: armL, armR: armR, head: head };
     }
@@ -389,34 +431,149 @@
       return g;
     }
 
-    // 3 người đi tuần + 1 người ôm thùng hàng, qua lại dọc 2 lối đi chính (line vàng).
-    var laneZs = [(Z1 + ZA) / 2 + shiftZ, (ZB + Z3) / 2 + shiftZ], patrolSpan = L / 2 - 60;
-    [{ z: laneZs[0], speed: 55, phase: 0 }, { z: laneZs[0], speed: 42, phase: 3, female: true }, { z: laneZs[1], speed: 48, phase: 6 },
-     { z: laneZs[1], speed: 36, phase: 9, carry: true, female: true }].forEach(function (cfg) {
-      var w = buildWorker(cfg.female);
-      if (cfg.carry) {
-        var box = new THREE.Mesh(new THREE.BoxGeometry(16, 14, 13), stockMats[0]); box.castShadow = true;
-        box.position.set(0, 42, 16); w.group.add(box);
-        w.armL.rotation.x = w.armR.rotation.x = -1.5; // ôm thùng phía trước, tay không đánh đung đưa nữa
+    var laneZs = [(Z1 + ZA) / 2 + shiftZ, (ZB + Z3) / 2 + shiftZ];
+
+    // 1 người vác thang tới 1 kệ CÓ THẬT trong layout (đổi ngẫu nhiên mỗi vòng, không cố định 1
+    // kệ), dựng thang, leo lên kiểm tra, leo xuống rồi vác thang đi — chọn tầng tối đa là 3 để không
+    // leo tít nóc kệ cao. Đi vào/ra LUÔN bám lối đi vàng (line vàng) rồi mới rẽ vào kệ, không cắt
+    // chéo qua sàn/kệ khác.
+    var WALK_SPEED = 60, CLIMB_SPEED = 26;
+    function faceDir(dx, dz) { return Math.atan2(dx, dz); }
+    function segDur(a, b) { return Math.max(a.distanceTo(b) / WALK_SPEED, 0.15); }
+
+    // Công nhân đi lang thang NGẪU NHIÊN khắp cả kho — ghé hết 4 dãy kệ (không riêng 1 dãy/1 lane cố
+    // định như trước), mỗi lần đi hết 1 chặng lại bốc 1 kệ MỚI ngẫu nhiên trong TOÀN kho làm đích kế
+    // tiếp, giống công nhân thật đi khắp xưởng chứ không lặp lại 1 đường mãi. Luôn bám lane/khu an
+    // toàn trước cổng khi đổi hướng, không cắt chéo qua kệ nào.
+    var wanderSafeX = xLeft + 215;
+    // 2 điểm băng lane hợp lệ: khu an toàn trước cổng (xa) + line vàng nối giữa kho ngay kệ
+    // 19|20/29|30 (crossAB_X, gần hơn nhiều với các kệ ở giữa) — trước đó MỌI người đều vòng hết ra
+    // tận cổng dù kệ đích ở ngay giữa kho, nên line vàng giữa kho không ai đi tới cả. Giờ luôn chọn
+    // điểm băng GẦN NHẤT so với đoạn đường đang đi.
+    var laneCrossXs = [wanderSafeX, crossAB_X];
+    function pickCrossingX(fromX, toX) {
+      var mid = (fromX + toX) / 2, best = laneCrossXs[0], bestDist = Math.abs(best - mid);
+      for (var i = 1; i < laneCrossXs.length; i++) {
+        var d = Math.abs(laneCrossXs[i] - mid);
+        if (d < bestDist) { best = laneCrossXs[i]; bestDist = d; }
       }
-      patrolWorkers.push({ w: w, z: cfg.z, xMin: -patrolSpan, xMax: patrolSpan, speed: cfg.speed, phase: cfg.phase, carry: !!cfg.carry });
-    });
-    function updatePatrol(p, t) {
-      var span = p.xMax - p.xMin, cyc = (span * 2) / p.speed;
-      var tt = ((t + p.phase) % cyc + cyc) % cyc, half = cyc / 2, x, dir;
-      if (tt < half) { x = p.xMin + (tt / half) * span; dir = 1; } else { x = p.xMax - ((tt - half) / half) * span; dir = -1; }
-      p.w.group.position.set(x, Math.abs(Math.sin(t * p.speed * 0.12)) * 1.6, p.z);
-      p.w.group.rotation.y = dir > 0 ? Math.PI / 2 : -Math.PI / 2;
-      var swing = Math.sin(t * p.speed * 0.12) * 0.55;
-      p.w.legL.rotation.x = swing; p.w.legR.rotation.x = -swing;
-      if (!p.carry) { p.w.armL.rotation.x = -swing * 0.8; p.w.armR.rotation.x = swing * 0.8; }
+      return best;
+    }
+    var allRackNos = Object.keys(padByRackLevel);
+    // Chia 43 kệ thành 4 nhóm theo đúng 4 dãy thật (Z1/ZA/ZB/Z3) — mỗi người lang thang được GIAO
+    // CỐ ĐỊNH 1 nhóm riêng để chọn kệ ngẫu nhiên TRONG nhóm đó thôi, tránh cả đám cùng ngẫu nhiên
+    // trên toàn kho rồi tình cờ dồn cục lại chung 1 chỗ (nhìn xấu) — vẫn tự do đi lại/dừng ngẫu
+    // nhiên trong dãy của mình, chỉ khác là dãy nào cũng luôn có người, trải đều 4 bên.
+    function rangeArr(a, b) { var r = []; for (var i = a; i <= b; i++) r.push(i); return r; }
+    var rowGroups = [rangeArr(1, 11), rangeArr(12, 21), rangeArr(22, 31), rangeArr(32, 43)]
+      .map(function (grp) { return grp.filter(function (no) { return !!padByRackLevel[no]; }); });
+    function pickAnyRackTarget(pool) {
+      var candidates = (pool && pool.length) ? pool : allRackNos;
+      if (!candidates.length) return null;
+      var no = Number(candidates[Math.floor(Math.random() * candidates.length)]);
+      var levelKeys = Object.keys(padByRackLevel[no]).map(Number);
+      var lvl = levelKeys[Math.floor(Math.random() * levelKeys.length)];
+      var pad = padByRackLevel[no][lvl];
+      pad.updateWorldMatrix(true, false);
+      var tp = pad.getWorldPosition(new THREE.Vector3());
+      var tq = new THREE.Quaternion(); pad.getWorldQuaternion(tq);
+      var fwd = new THREE.Vector3(0, 0, 1).applyQuaternion(tq); fwd.y = 0; fwd.normalize();
+      var frontPt = tp.clone().addScaledVector(fwd, RACK_D / 2 + 30); frontPt.y = 0;
+      var laneZ = Math.abs(laneZs[0] - frontPt.z) < Math.abs(laneZs[1] - frontPt.z) ? laneZs[0] : laneZs[1];
+      var cornerPt = new THREE.Vector3(tp.x, 0, laneZ);
+      return { frontPt: frontPt, cornerPt: cornerPt, laneZ: laneZ, fwd: fwd };
+    }
+    function buildWanderLegs(state) {
+      var target = pickAnyRackTarget(state.rackPool);
+      if (!target) return null;
+      var pts = [];
+      if (state.lastPt) {
+        pts.push(state.lastPt.clone());
+        pts.push(new THREE.Vector3(state.lastPt.x, 0, state.lastLaneZ)); // lùi về lane trước khi đi tiếp
+        if (state.lastLaneZ !== target.laneZ) { // kệ mới ở lane bên kia — băng qua điểm gần nhất
+          var cx = pickCrossingX(state.lastPt.x, target.cornerPt.x);
+          pts.push(new THREE.Vector3(cx, 0, state.lastLaneZ));
+          pts.push(new THREE.Vector3(cx, 0, target.laneZ));
+        }
+      }
+      pts.push(target.cornerPt.clone());
+      pts.push(target.frontPt.clone());
+      var holdIdx = pts.length - 1;
+      var legs = [];
+      for (var i = 0; i < pts.length - 1; i++) {
+        legs.push({ from: pts[i], to: pts[i + 1], dur: segDur(pts[i], pts[i + 1]), hold: (i + 1 === holdIdx) ? state.holdDur : 0 });
+      }
+      var total = legs.reduce(function (s, lg) { return s + lg.dur + lg.hold; }, 0);
+      state.lastPt = target.frontPt.clone();
+      state.lastLaneZ = target.laneZ;
+      state.faceAngle = faceDir(-target.fwd.x, -target.fwd.z);
+      return { legs: legs, total: total };
+    }
+    function updateWanderWorker(state, t) {
+      if (state.cycleStart === null) state.cycleStart = t;
+      var tt = t - state.cycleStart;
+      if (tt >= state.total) {
+        var r = buildWanderLegs(state);
+        if (r) { state.legs = r.legs; state.total = r.total; }
+        state.cycleStart = t; tt = 0;
+      }
+      var w = state.w, swing = Math.sin(t * 8) * 0.5, acc = 0;
+      for (var i = 0; i < state.legs.length; i++) {
+        var leg = state.legs[i];
+        if (tt < acc + leg.dur) {
+          var p = (tt - acc) / leg.dur;
+          w.group.position.lerpVectors(leg.from, leg.to, p);
+          w.group.position.y = Math.abs(Math.sin(t * 8)) * 1.6;
+          w.group.rotation.y = faceDir(leg.to.x - leg.from.x, leg.to.z - leg.from.z);
+          w.legL.rotation.x = swing; w.legR.rotation.x = -swing;
+          state.onWalk(w, swing);
+          return;
+        }
+        acc += leg.dur;
+        if (leg.hold > 0 && tt < acc + leg.hold) {
+          var hp = (tt - acc) / leg.hold;
+          w.group.position.copy(leg.to); w.group.position.y = 0;
+          w.group.rotation.y = state.faceAngle;
+          w.legL.rotation.x = w.legR.rotation.x = 0;
+          state.onHold(w, hp);
+          return;
+        }
+        acc += leg.hold;
+      }
     }
 
-    // 1 người vác thang tới 1 kệ có thật trong layout, dựng thang, leo lên tầng giữa kiểm tra, leo
-    // xuống rồi vác thang đi — chọn tầng tối đa là 3 để không leo tít nóc kệ cao.
+    // 4 người cầm máy quét — mỗi người GIAO CỐ ĐỊNH 1 trong 4 dãy (zone), tự do đi lại/dừng quét
+    // ngẫu nhiên trong dãy của mình — đảm bảo dãy nào cũng luôn có người, trải đều 4 bên kho.
+    [{ female: false, zone: 0 }, { female: true, zone: 1 }, { female: false, zone: 2 }, { female: true, zone: 3 }].forEach(function (cfg) {
+      var w = buildWorker(cfg.female);
+      var scanner = buildScanner(); scanner.position.set(0, -20, 3); scanner.rotation.x = -0.3; w.armR.add(scanner);
+      wanderWorkers.push({
+        w: w, lastPt: null, lastLaneZ: null, faceAngle: 0, legs: [], total: 0, cycleStart: null, holdDur: 1.05,
+        rackPool: rowGroups[cfg.zone],
+        onWalk: function (ww, swing) { ww.armL.rotation.x = -swing * 0.8; ww.armR.rotation.x = -1.55 + swing * 0.12; },
+        onHold: function (ww, hp) { ww.armL.rotation.x = -0.3; ww.armR.rotation.x = -1.75 + Math.sin(hp * Math.PI * 3) * 0.12; },
+      });
+    });
+
+    // 2 người ôm thùng hàng — giao thêm 2 dãy còn lại đông người hơn 1 chút (mỗi dãy vẫn có ít
+    // nhất 1 người cầm máy quét riêng ở trên, đây chỉ thêm cho đều/đông thêm chứ không thay thế).
+    [{ female: true, zone: 1 }, { female: false, zone: 3 }].forEach(function (cfg) {
+      var w = buildWorker(cfg.female);
+      var box = new THREE.Mesh(new THREE.BoxGeometry(16, 14, 13), stockMats[0]); box.castShadow = true;
+      box.position.set(0, 42, 16); w.group.add(box);
+      w.armL.rotation.x = w.armR.rotation.x = -1.5; // ôm thùng phía trước, tay không đánh đung đưa
+      wanderWorkers.push({
+        w: w, lastPt: null, lastLaneZ: null, faceAngle: 0, legs: [], total: 0, cycleStart: null, holdDur: 1.2,
+        rackPool: rowGroups[cfg.zone],
+        onWalk: function () {}, // ôm thùng cố định suốt lúc đi, không đổi tay
+        onHold: function (ww, hp) { ww.head.rotation.y = Math.sin(hp * Math.PI * 2) * 0.3; }, // ngó kiểm hàng
+      });
+    });
+
     var rackNos = Object.keys(padByRackLevel);
-    if (rackNos.length) {
-      var no = rackNos[Math.floor(rackNos.length / 2)];
+    function pickLadderTarget() {
+      if (!rackNos.length) return null;
+      var no = rackNos[Math.floor(Math.random() * rackNos.length)];
       var levels = Object.keys(padByRackLevel[no]).map(Number);
       var lvl = Math.min(Math.max.apply(null, levels), 3);
       var pad = padByRackLevel[no][lvl];
@@ -427,90 +584,238 @@
       var standoff = 46;
       var frontPt = tp.clone().addScaledVector(fwd, RACK_D / 2 + 3); frontPt.y = tp.y;
       var footPt = frontPt.clone().addScaledVector(fwd, standoff); footPt.y = 0;
-
-      // Đi vào/ra phải bám theo lối đi vàng (line vàng) rồi mới rẽ vào kệ, không cắt thẳng qua sàn:
-      // chọn lane gần kệ mục tiêu nhất, đi dọc lane tới đúng cột kệ (đổi x), rồi mới rẽ vào (đổi z).
       var laneZ = Math.abs(laneZs[0] - frontPt.z) < Math.abs(laneZs[1] - frontPt.z) ? laneZs[0] : laneZs[1];
       var cornerPt = new THREE.Vector3(tp.x, 0, laneZ);
-      var startPt = new THREE.Vector3(tp.x - 260, 0, laneZ);
-
-      placedLadder = buildLadderMesh();
-      var ldir = frontPt.clone().sub(footPt), llen = ldir.length(); ldir.normalize();
+      return { fwd: fwd, frontPt: frontPt, footPt: footPt, cornerPt: cornerPt, laneZ: laneZ };
+    }
+    function repositionPlacedLadder(route) {
+      var ldir = route.frontPt.clone().sub(route.footPt), llen = ldir.length(); ldir.normalize();
       placedLadder.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), ldir);
       placedLadder.scale.set(1, llen / LADDER_LEN, 1);
-      placedLadder.position.copy(footPt); placedLadder.visible = false; scene.add(placedLadder);
+      placedLadder.position.copy(route.footPt);
+    }
+    // Đi LIÊN TỤC từ vị trí đang đứng (lastPt) sang kệ đích mới — không dựng thẳng điểm xuất phát
+    // dựa vào kệ MỚI như trước (gây nhảy vị trí đột ngột/"xuyên kệ" mỗi lần đổi kệ). Băng lane ở
+    // điểm GẦN NHẤT (cổng hoặc line giữa kho) giống hệt cơ chế của nhóm lang thang ở trên.
+    var ladderChain = { lastPt: null, lastLaneZ: null };
+    function buildLadderRoute() {
+      var target = pickLadderTarget();
+      if (!target) return null;
+      var pts = [];
+      if (ladderChain.lastPt) {
+        pts.push(ladderChain.lastPt.clone());
+        pts.push(new THREE.Vector3(ladderChain.lastPt.x, 0, ladderChain.lastLaneZ)); // lùi về lane
+        if (ladderChain.lastLaneZ !== target.laneZ) {
+          var cx = pickCrossingX(ladderChain.lastPt.x, target.cornerPt.x);
+          pts.push(new THREE.Vector3(cx, 0, ladderChain.lastLaneZ));
+          pts.push(new THREE.Vector3(cx, 0, target.laneZ));
+        }
+      }
+      pts.push(target.cornerPt.clone());
+      pts.push(target.footPt.clone());
+      var legs = [];
+      for (var i = 0; i < pts.length - 1; i++) {
+        legs.push({ from: pts[i], to: pts[i + 1], dur: segDur(pts[i], pts[i + 1]) });
+      }
+      var approachTotal = legs.reduce(function (s, lg) { return s + lg.dur; }, 0);
+      var climbDur = Math.max(target.frontPt.distanceTo(target.footPt) / CLIMB_SPEED, 0.15);
+      var holdDur = 1.6, retreatDur = segDur(target.footPt, target.cornerPt);
+
+      repositionPlacedLadder(target);
+      ladderChain.lastPt = target.footPt.clone(); // đứng lại dưới chân kệ vừa kiểm tra — làm mốc cho vòng kế tiếp
+      ladderChain.lastLaneZ = target.laneZ;
+      return {
+        legs: legs, approachTotal: approachTotal, climbDur: climbDur, holdDur: holdDur, retreatDur: retreatDur,
+        footPt: target.footPt, frontPt: target.frontPt, cornerPt: target.cornerPt, fwd: target.fwd,
+        total: approachTotal + climbDur + holdDur + climbDur + retreatDur + 1.2,
+      };
+    }
+
+    (function () {
+      var route = buildLadderRoute();
+      if (!route) return;
+      placedLadder = buildLadderMesh(); placedLadder.visible = false; scene.add(placedLadder);
 
       var lw = buildWorker();
       carriedLadder = buildLadderMesh(); carriedLadder.scale.set(1, 0.6, 1);
       carriedLadder.position.set(24, 0, 0); carriedLadder.rotation.z = 0;
       lw.group.add(carriedLadder);
-      ladderWorker = { w: lw, fwd: fwd, frontPt: frontPt, footPt: footPt, cornerPt: cornerPt, startPt: startPt };
-    }
+      ladderWorker = { w: lw, route: route, cycleStart: null };
+    })();
 
-    var WALK_SPEED = 60, CLIMB_SPEED = 26;
-    function faceDir(dx, dz) { return Math.atan2(dx, dz); }
-    function segDur(a, b) { return Math.max(a.distanceTo(b) / WALK_SPEED, 0.15); }
-    var PH = null;
-    if (ladderWorker) {
-      var L2b = ladderWorker;
-      PH = {
-        walkLane: segDur(L2b.startPt, L2b.cornerPt),
-        walkIn: segDur(L2b.cornerPt, L2b.footPt),
-        climbUp: Math.max(L2b.frontPt.distanceTo(L2b.footPt) / CLIMB_SPEED, 0.15),
-        hold: 1.6,
-        walkOut: segDur(L2b.footPt, L2b.cornerPt),
-        walkLaneOut: segDur(L2b.cornerPt, L2b.startPt)
-      };
-      PH.climbDown = PH.climbUp;
-    }
-    var LW_TOTAL = PH ? (PH.walkLane + PH.walkIn + PH.climbUp + PH.hold + PH.climbDown + PH.walkOut + PH.walkLaneOut + 1.2) : 0;
     function updateLadderWorker(t) {
       if (!ladderWorker) return;
       var L2 = ladderWorker, w = L2.w;
-      var a = PH.walkLane, b = a + PH.walkIn, c = b + PH.climbUp, d = c + PH.hold, e = d + PH.climbDown, f = e + PH.walkOut, g = f + PH.walkLaneOut;
-      var tt = ((t % LW_TOTAL) + LW_TOTAL) % LW_TOTAL;
-      var swing = Math.sin(t * 6) * 0.45, climbSwing = Math.sin(t * 10) * 0.5;
-      if (tt < a) { // đi dọc line vàng, tiến vào đúng cột kệ
-        var p = tt / a; w.group.position.lerpVectors(L2.startPt, L2.cornerPt, p); w.group.position.y += Math.abs(Math.sin(t * 6)) * 1.4;
-        w.group.rotation.y = faceDir(L2.cornerPt.x - L2.startPt.x, 0);
-        carriedLadder.visible = true; placedLadder.visible = false;
-        w.legL.rotation.x = swing; w.legR.rotation.x = -swing; w.armL.rotation.x = -swing * 0.7; w.armR.rotation.x = swing * 0.7;
-      } else if (tt < b) { // rẽ khỏi line vàng, tiến vào kệ
-        var p1 = (tt - a) / PH.walkIn; w.group.position.lerpVectors(L2.cornerPt, L2.footPt, p1); w.group.position.y += Math.abs(Math.sin(t * 6)) * 1.4;
-        w.group.rotation.y = faceDir(-L2.fwd.x, -L2.fwd.z);
-        carriedLadder.visible = true; placedLadder.visible = false;
-        w.legL.rotation.x = swing; w.legR.rotation.x = -swing; w.armL.rotation.x = -swing * 0.7; w.armR.rotation.x = swing * 0.7;
-      } else if (tt < c) { // dựng thang xong, leo lên
-        var p2 = (tt - b) / PH.climbUp; carriedLadder.visible = false; placedLadder.visible = true;
-        w.group.position.copy(L2.footPt.clone().lerp(L2.frontPt, p2));
-        w.group.rotation.y = faceDir(-L2.fwd.x, -L2.fwd.z);
+      if (L2.cycleStart === null) L2.cycleStart = t;
+      var tt = t - L2.cycleStart;
+      if (tt >= L2.route.total) { // hết 1 vòng — bốc kệ đích MỚI, đi tiếp từ chỗ đang đứng
+        var r = buildLadderRoute();
+        if (r) L2.route = r;
+        L2.cycleStart = t; tt = 0;
+      }
+      var route = L2.route;
+      var swing = Math.sin(t * 6) * 0.45, climbSwing = Math.sin(t * 10) * 0.5, acc = 0;
+
+      for (var i = 0; i < route.legs.length; i++) { // các chặng tiếp cận (đi bộ trên lane/vào kệ)
+        var leg = route.legs[i];
+        if (tt < acc + leg.dur) {
+          var p = (tt - acc) / leg.dur;
+          w.group.position.lerpVectors(leg.from, leg.to, p); w.group.position.y = Math.abs(Math.sin(t * 6)) * 1.4;
+          w.group.rotation.y = faceDir(leg.to.x - leg.from.x, leg.to.z - leg.from.z);
+          carriedLadder.visible = true; placedLadder.visible = false;
+          w.legL.rotation.x = swing; w.legR.rotation.x = -swing; w.armL.rotation.x = -swing * 0.7; w.armR.rotation.x = swing * 0.7;
+          return;
+        }
+        acc += leg.dur;
+      }
+      var a = route.approachTotal, b = a + route.climbDur, c = b + route.holdDur, d = c + route.climbDur, e = d + route.retreatDur;
+      if (tt < b) { // dựng thang xong, leo lên
+        var p2 = (tt - a) / route.climbDur; carriedLadder.visible = false; placedLadder.visible = true;
+        w.group.position.copy(route.footPt.clone().lerp(route.frontPt, p2));
+        w.group.rotation.y = faceDir(-route.fwd.x, -route.fwd.z);
         w.legL.rotation.x = climbSwing; w.legR.rotation.x = -climbSwing;
         w.armL.rotation.x = -0.9 + climbSwing * 0.3; w.armR.rotation.x = -0.9 - climbSwing * 0.3;
-      } else if (tt < d) { // đứng trên cao kiểm tra kệ
-        w.group.position.copy(L2.frontPt); w.group.rotation.y = faceDir(-L2.fwd.x, -L2.fwd.z);
+      } else if (tt < c) { // đứng trên cao kiểm tra kệ
+        w.group.position.copy(route.frontPt); w.group.rotation.y = faceDir(-route.fwd.x, -route.fwd.z);
         w.head.rotation.y = Math.sin(t * 2.2) * 0.35; w.legL.rotation.x = w.legR.rotation.x = 0; w.armL.rotation.x = w.armR.rotation.x = -0.9;
-      } else if (tt < e) { // leo xuống
-        var p3 = (tt - d) / PH.climbDown;
-        w.group.position.copy(L2.frontPt.clone().lerp(L2.footPt, p3));
-        w.group.rotation.y = faceDir(-L2.fwd.x, -L2.fwd.z); w.head.rotation.y = 0;
+      } else if (tt < d) { // leo xuống
+        var p3 = (tt - c) / route.climbDur;
+        w.group.position.copy(route.frontPt.clone().lerp(route.footPt, p3));
+        w.group.rotation.y = faceDir(-route.fwd.x, -route.fwd.z); w.head.rotation.y = 0;
         w.legL.rotation.x = climbSwing; w.legR.rotation.x = -climbSwing; w.armL.rotation.x = w.armR.rotation.x = -0.9;
-      } else if (tt < f) { // vác thang, lùi ra khỏi kệ về line vàng
-        var p4 = (tt - e) / PH.walkOut; placedLadder.visible = false; carriedLadder.visible = true;
-        w.group.position.lerpVectors(L2.footPt, L2.cornerPt, p4); w.group.position.y += Math.abs(Math.sin(t * 6)) * 1.4;
-        w.group.rotation.y = faceDir(L2.fwd.x, L2.fwd.z);
+      } else if (tt < e) { // vác thang, lùi ra khỏi kệ về lane (thành mốc nghỉ cho vòng kế tiếp)
+        var p4 = (tt - d) / route.retreatDur; placedLadder.visible = false; carriedLadder.visible = true;
+        w.group.position.lerpVectors(route.footPt, route.cornerPt, p4); w.group.position.y += Math.abs(Math.sin(t * 6)) * 1.4;
+        w.group.rotation.y = faceDir(route.cornerPt.x - route.footPt.x, route.cornerPt.z - route.footPt.z);
         w.legL.rotation.x = swing; w.legR.rotation.x = -swing; w.armL.rotation.x = -swing * 0.7; w.armR.rotation.x = swing * 0.7;
-      } else if (tt < g) { // đi dọc line vàng về điểm xuất phát
-        var p5 = (tt - f) / PH.walkLaneOut; w.group.position.lerpVectors(L2.cornerPt, L2.startPt, p5); w.group.position.y += Math.abs(Math.sin(t * 6)) * 1.4;
-        w.group.rotation.y = faceDir(L2.startPt.x - L2.cornerPt.x, 0);
-        w.legL.rotation.x = swing; w.legR.rotation.x = -swing; w.armL.rotation.x = -swing * 0.7; w.armR.rotation.x = swing * 0.7;
-      } else {
-        w.group.position.copy(L2.startPt); w.group.rotation.y = faceDir(L2.startPt.x - L2.cornerPt.x, 0);
+      } else { // nghỉ ở lane chờ vòng kế tiếp
+        w.group.position.copy(route.cornerPt); w.group.position.y = 0;
+        w.group.rotation.y = faceDir(route.cornerPt.x - route.footPt.x, route.cornerPt.z - route.footPt.z);
         carriedLadder.visible = true; placedLadder.visible = false;
         w.legL.rotation.x = w.legR.rotation.x = w.armL.rotation.x = w.armR.rotation.x = 0;
       }
     }
 
-    updateWorkers = function (t) { patrolWorkers.forEach(function (p) { updatePatrol(p, t); }); updateLadderWorker(t); };
+    // Người giao hàng: đi từ đúng CỔNG RA VÀO vào, ghé qua bàn/PC lấy hàng, rồi mới đem tới 1 kệ
+    // (đổi ngẫu nhiên mỗi vòng) — LUÔN bám khu đất trống trước cổng + 2 lane giữa các dãy kệ, không
+    // cắt chéo qua kệ nào (đi chéo thẳng dễ xuyên qua khối kệ giữa ZA/ZB áp lưng nhau). Khác với
+    // người quét kiểm tra ở trên (người đó không mang gì, người này mang hàng vào).
+    var gwGatePt = new THREE.Vector3(xLeft + 215, 0, zMidA); // đúng ngay mũi tên chỉ hướng vào ở cổng
+    var gwSafeX = xLeft + 215; // trục X nằm trước mọi dãy kệ — đi dọc trục này luôn an toàn
+    // Vị trí bàn/PC — tính lại đúng công thức ở buildOfficeDesk() phía trên (deskX/deskZ chỉ tồn tại
+    // trong closure riêng của IIFE đó, không lấy trực tiếp được từ đây).
+    var gwDeskX = c3[0] + shiftX - 130, gwDeskZ = Z3 + shiftZ;
+    var gwRackNos = Object.keys(padByRackLevel);
+    function pickGateTarget() {
+      if (!gwRackNos.length) return null;
+      var no = Number(gwRackNos[Math.floor(Math.random() * gwRackNos.length)]);
+      var levelKeys = Object.keys(padByRackLevel[no]).map(Number);
+      var lvl = levelKeys[Math.floor(Math.random() * levelKeys.length)];
+      var pad = padByRackLevel[no][lvl];
+      pad.updateWorldMatrix(true, false);
+      var tp = pad.getWorldPosition(new THREE.Vector3());
+      var tq = new THREE.Quaternion(); pad.getWorldQuaternion(tq);
+      var fwd = new THREE.Vector3(0, 0, 1).applyQuaternion(tq); fwd.y = 0; fwd.normalize();
+      var frontPt = tp.clone().addScaledVector(fwd, RACK_D / 2 + 30); frontPt.y = 0;
+      var laneZ = Math.abs(laneZs[0] - frontPt.z) < Math.abs(laneZs[1] - frontPt.z) ? laneZs[0] : laneZs[1];
+      var cornerPt = new THREE.Vector3(tp.x, 0, laneZ);
+      return { frontPt: frontPt, cornerPt: cornerPt, laneZ: laneZ, fwd: fwd };
+    }
+    // Dựng cả tuyến đi lẫn tuyến về (đảo ngược y hệt tuyến đi) — mỗi chặng là 1 đoạn thẳng nằm trọn
+    // trong khu an toàn (trước cổng) hoặc trên đúng 1 lane, nên ghép lại không bao giờ xuyên kệ.
+    function buildGateRoute() {
+      var route = pickGateTarget();
+      if (!route) return null;
+      var deskLanePt = new THREE.Vector3(gwDeskX, 0, laneZs[1]);
+      var deskFrontPt = new THREE.Vector3(gwDeskX, 0, gwDeskZ - 60);
+      var pts = [gwGatePt.clone(), new THREE.Vector3(gwSafeX, 0, laneZs[1]), deskLanePt.clone(), deskFrontPt];
+      var pickupIdx = pts.length - 1; // vừa tới trước bàn — LẤY HÀNG ở đây
+      pts.push(deskLanePt.clone());
+      if (route.laneZ !== laneZs[1]) { // kệ đích ở lane bên kia (dãy Z1/ZA) — băng qua khu an toàn trước cổng
+        pts.push(new THREE.Vector3(gwSafeX, 0, laneZs[1]));
+        pts.push(new THREE.Vector3(gwSafeX, 0, route.laneZ));
+      }
+      pts.push(new THREE.Vector3(route.cornerPt.x, 0, route.laneZ));
+      pts.push(route.frontPt);
+      var dropIdx = pts.length - 1; // vừa tới trước kệ đích — ĐẶT HÀNG ở đây
+      var outLen = pts.length;
+      for (var r = outLen - 2; r >= 0; r--) pts.push(pts[r].clone()); // tuyến về = đảo ngược tuyến đi
+
+      var deskFaceAngle = faceDir(0, 1); // đứng trước bàn quay mặt +Z (vào bàn)
+      var rackFaceAngle = faceDir(-route.fwd.x, -route.fwd.z); // đứng trước kệ quay mặt vào kệ
+      var legs = [];
+      for (var i = 0; i < pts.length - 1; i++) {
+        var arrivesAt = i + 1, hold = 0, action = null, holdFace = null;
+        if (arrivesAt === pickupIdx) { hold = 1.2; action = 'pickup'; holdFace = deskFaceAngle; }
+        else if (arrivesAt === dropIdx) { hold = 1.5; action = 'drop'; holdFace = rackFaceAngle; }
+        legs.push({ from: pts[i], to: pts[i + 1], dur: segDur(pts[i], pts[i + 1]), hold: hold, action: action, holdFace: holdFace });
+      }
+      var total = legs.reduce(function (s, lg) { return s + lg.dur + lg.hold; }, 0) + 1.0; // +1.0 nghỉ ở cổng
+      return { legs: legs, total: total };
+    }
+
+    var gateWorker = null;
+    (function () {
+      var r = buildGateRoute();
+      if (!r) return;
+      var gw = buildWorker(true);
+      // Thùng nhỏ vừa 1 người bưng (không dùng crateGeo — cỡ đó là thùng để nguyên trên kệ, quá to).
+      var gwCrate = new THREE.Mesh(new THREE.BoxGeometry(14, 12, 11), stockMats[0]);
+      gwCrate.castShadow = true; gwCrate.position.set(0, 38, 13); gwCrate.visible = false; gw.group.add(gwCrate);
+      gw.group.position.copy(gwGatePt);
+      gateWorker = { w: gw, crate: gwCrate, legs: r.legs, total: r.total, cycleStart: null };
+    })();
+    function updateGateWorker(t) {
+      if (!gateWorker) return;
+      var gk = gateWorker, w = gk.w;
+      if (gk.cycleStart === null) gk.cycleStart = t;
+      var tt = t - gk.cycleStart;
+      if (tt >= gk.total) { // hết 1 vòng — bốc lại tuyến MỚI (kệ đích đổi ngẫu nhiên) cho vòng kế tiếp
+        var r = buildGateRoute();
+        if (r) { gk.legs = r.legs; gk.total = r.total; }
+        gk.cycleStart = t; tt = 0; gk.crate.visible = false;
+      }
+      var swing = Math.sin(t * 7) * 0.5, acc = 0;
+      for (var i = 0; i < gk.legs.length; i++) {
+        var leg = gk.legs[i];
+        if (tt < acc + leg.dur) { // đang đi trên chặng này
+          var p = (tt - acc) / leg.dur;
+          w.group.position.lerpVectors(leg.from, leg.to, p);
+          w.group.position.y = Math.abs(Math.sin(t * 7)) * 1.4;
+          w.group.rotation.y = faceDir(leg.to.x - leg.from.x, leg.to.z - leg.from.z);
+          w.legL.rotation.x = swing; w.legR.rotation.x = -swing;
+          if (gk.crate.visible) { w.armL.rotation.x = w.armR.rotation.x = -1.4; } // ôm thùng — tay không đánh đung đưa
+          else { w.armL.rotation.x = -swing * 0.7; w.armR.rotation.x = swing * 0.7; } // tay không — vung đối chiều như đi bộ thật
+          return;
+        }
+        acc += leg.dur;
+        if (leg.hold > 0 && tt < acc + leg.hold) { // vừa tới nơi — đứng lại lấy/đặt hàng
+          var hp = (tt - acc) / leg.hold;
+          w.group.position.copy(leg.to); w.group.position.y = 0;
+          w.group.rotation.y = leg.holdFace;
+          w.legL.rotation.x = w.legR.rotation.x = 0;
+          if (leg.action === 'pickup') {
+            if (hp < 0.5) { gk.crate.visible = false; w.armL.rotation.x = w.armR.rotation.x = -0.3 - (hp / 0.5) * 0.6; }
+            else { gk.crate.visible = true; w.armL.rotation.x = w.armR.rotation.x = -1.4; }
+          } else { // drop
+            if (hp < 0.5) { gk.crate.visible = true; w.armL.rotation.x = w.armR.rotation.x = -1.4 + (hp / 0.5) * 1.2; }
+            else { gk.crate.visible = false; w.armL.rotation.x = w.armR.rotation.x = -0.2; }
+          }
+          return;
+        }
+        acc += leg.hold;
+      }
+      // Đã đi hết mọi chặng, đang trong khoảng nghỉ cuối ở cổng chờ vòng kế tiếp.
+      var lastPt = gk.legs.length ? gk.legs[gk.legs.length - 1].to : gwGatePt;
+      w.group.position.copy(lastPt); w.group.position.y = 0;
+      w.legL.rotation.x = w.legR.rotation.x = 0; w.armL.rotation.x = w.armR.rotation.x = -0.2;
+    }
+
+    updateWorkers = function (t) {
+      wanderWorkers.forEach(function (ws) { updateWanderWorker(ws, t); });
+      updateLadderWorker(t);
+      updateGateWorker(t);
+    };
   })();
 
   // ----- HUD stats -----
@@ -528,7 +833,6 @@
   var target = new THREE.Vector3(0, 70, 0);
   var radius = 1550, theta = -0.7, phi = 1.0, autoSpin = false;
   var animCamPos = null, animTarget = null;
-  var reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   function updateCamera() {
     camera.position.x = target.x + radius * Math.sin(phi) * Math.sin(theta);
     camera.position.y = target.y + radius * Math.cos(phi);
@@ -634,6 +938,27 @@
   document.getElementById('wh3d-search-btn').addEventListener('click', function () { doSearch(sInput.value); });
   sInput.addEventListener('keydown', function (e) { if (e.key === 'Enter') doSearch(sInput.value); });
 
+  // ----- Đến kệ theo địa chỉ (rack.level, vd "3.2") — tra cục bộ, không cần gọi API -----
+  var gInput = document.getElementById('wh3d-goto-input');
+  function parseRackAddress(q) {
+    var nums = (q || '').match(/\d+/g);
+    if (!nums || !nums.length) return null;
+    return { rack: Number(nums[0]), level: nums.length > 1 ? Number(nums[1]) : 1 };
+  }
+  function doGoToRack(q) {
+    q = (q || '').trim(); if (!q) return;
+    var addr = parseRackAddress(q);
+    if (!addr) { setMsg(I18N.t('gotoRackInvalid'), true); return; }
+    var pad = padByRackLevel[addr.rack] && padByRackLevel[addr.rack][addr.level];
+    if (!pad) { setMsg(I18N.t('gotoRackNotFound'), true); return; }
+    setMsg(I18N.t('foundAt') + addr.rack + I18N.t('levelWord') + addr.level);
+    openTierByPad(pad, null, 1);
+  }
+  if (gInput) {
+    document.getElementById('wh3d-goto-btn').addEventListener('click', function () { doGoToRack(gInput.value); });
+    gInput.addEventListener('keydown', function (e) { if (e.key === 'Enter') doGoToRack(gInput.value); });
+  }
+
   function resetView() {
     animCamPos = null; hlBox.visible = false; target.set(0, 70, 0); radius = 1550; theta = -0.7; phi = 1.0; updateCamera();
     drawer.classList.remove('open'); tooltip.classList.remove('show');
@@ -653,10 +978,11 @@
   I18N.onChange(function () {
     i18nSignRefreshers.forEach(function (fn) { fn(); }); // vẽ lại chữ trong scene 3D: CỬA RA VÀO, KỆ N, THOÁT HIỂM, màn hình PC
     var badge = document.getElementById('wh3d-badge'); if (badge) badge.innerHTML = I18N.t('dragHint');
-    var hint = document.getElementById('wh3d-hint'); if (hint) hint.textContent = I18N.t('tierHint');
     var loadingEl = document.getElementById('wh3d-loading'); if (loadingEl) loadingEl.textContent = I18N.t('loading3d');
     if (sInput) sInput.placeholder = I18N.t('searchPlaceholder');
     var sBtn = document.getElementById('wh3d-search-btn'); if (sBtn) sBtn.textContent = I18N.t('searchBtn');
+    if (gInput) gInput.placeholder = I18N.t('gotoRackPlaceholder');
+    var gBtn = document.getElementById('wh3d-goto-btn'); if (gBtn) gBtn.textContent = I18N.t('gotoRackBtn');
     if (btnReset) btnReset.textContent = I18N.t('resetBtn');
     if (btnSpin) btnSpin.textContent = autoSpin ? I18N.t('spinBtnStop') : I18N.t('spinBtnStart');
     if (drawer.classList.contains('open') && curRack != null) {
@@ -703,9 +1029,16 @@
     if (animCamPos) {
       camera.position.lerp(animCamPos, 0.12); target.lerp(animTarget, 0.12); camera.lookAt(target);
       if (camera.position.distanceTo(animCamPos) < 1.2 && target.distanceTo(animTarget) < 1.2) { animCamPos = null; syncOrbit(); }
-    } else if (autoSpin && !reduceMotion) { theta += 0.0025; updateCamera(); }
-    // Tôn trọng prefers-reduced-motion: nếu bật thì công nhân đứng yên ở tư thế ban đầu (t=0), không đi lại.
-    var wt = reduceMotion ? 0 : wClock.getElapsedTime();
+    } else if (autoSpin) {
+      // Xoay ngang đều như cũ, nhưng thêm nhấp nhô độ cao (phi) + zoom nhẹ ra/vào (radius) theo
+      // nhịp riêng — camera "thở" chậm rãi suốt vòng xoay thay vì phẳng lì 1 độ cao/khoảng cách,
+      // nhìn điện ảnh/xịn hơn hẳn kiểu xoay máy quay giám sát cũ.
+      theta += 0.0025;
+      phi = 1.0 + Math.sin(theta * 1.3) * 0.11;
+      radius = 1550 + Math.sin(theta * 0.8) * 160;
+      updateCamera();
+    }
+    var wt = wClock.getElapsedTime();
     if (updateWorkers) updateWorkers(wt);
     if (updateDeskPerson) updateDeskPerson(wt);
     renderer.render(scene, camera);

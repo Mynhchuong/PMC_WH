@@ -30,11 +30,12 @@ public class MaterialsController : Controller
     };
 
     [HttpGet]
-    public async Task<IActionResult> Index(string? barcode, string? status, DateTime? fromDate, DateTime? toDate, bool? isOverdue, int page = 1, int pageSize = 20)
+    public async Task<IActionResult> Index(string? field, string? q, string? status, DateTime? fromDate, DateTime? toDate, bool? isOverdue, int page = 1, int pageSize = 20)
     {
         var client = _httpClientFactory.CreateClient("PmcApi");
         var query = $"api/Materials?page={page}&pageSize={pageSize}" +
-                    $"&barcode={Uri.EscapeDataString(barcode ?? string.Empty)}" +
+                    $"&field={Uri.EscapeDataString(field ?? string.Empty)}" +
+                    $"&q={Uri.EscapeDataString(q ?? string.Empty)}" +
                     $"&status={Uri.EscapeDataString(status ?? string.Empty)}" +
                     $"&fromDate={Uri.EscapeDataString(fromDate?.ToString("yyyy-MM-dd") ?? string.Empty)}" +
                     $"&toDate={Uri.EscapeDataString(toDate?.ToString("yyyy-MM-dd") ?? string.Empty)}" +
@@ -44,7 +45,8 @@ public class MaterialsController : Controller
         var model = new MaterialListViewModel
         {
             Items = paged?.Items ?? new List<MaterialListItem>(),
-            Barcode = barcode,
+            Field = field,
+            Q = q,
             Status = status,
             FromDate = fromDate,
             ToDate = toDate,
@@ -59,7 +61,8 @@ public class MaterialsController : Controller
                 Action = "Index",
                 RouteValues = new Dictionary<string, string?>
                 {
-                    ["barcode"] = barcode,
+                    ["field"] = field,
+                    ["q"] = q,
                     ["status"] = status,
                     ["fromDate"] = fromDate?.ToString("yyyy-MM-dd"),
                     ["toDate"] = toDate?.ToString("yyyy-MM-dd"),
@@ -140,6 +143,31 @@ public class MaterialsController : Controller
         return RedirectToLocal(form.ReturnUrl);
     }
 
+    /// <summary>Xoá mềm 1 liệu (IsArchived=1 bên Api) — ẩn khỏi web lẫn quét barcode trên app di
+    /// động, không chặn theo trạng thái liệu.</summary>
+    [HttpPost]
+    [Authorize(Roles = "Admin")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> Delete(int materialId, string? returnUrl)
+    {
+        var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
+        var client = _httpClientFactory.CreateClient("PmcApi");
+
+        var response = await client.PostAsJsonAsync($"api/Materials/{materialId}/archive", new { UserId = userId });
+
+        if (response.IsSuccessStatusCode)
+        {
+            TempData["FlashSuccess"] = FlashHelper.Msg("deleteMaterialSuccess");
+        }
+        else
+        {
+            var problem = await response.Content.ReadFromJsonAsync<ApiMessage>(ApiJsonOptions);
+            TempData["FlashError"] = problem?.Message ?? FlashHelper.Msg("deleteMaterialFailFallback");
+        }
+
+        return RedirectToLocal(returnUrl);
+    }
+
     /// <summary>Redirect an toàn tới URL do client gửi lên (returnUrl) — chỉ chấp nhận local path,
     /// tránh open-redirect nếu returnUrl bị chỉnh thành 1 domain khác.</summary>
     private IActionResult RedirectToLocal(string? returnUrl)
@@ -162,11 +190,12 @@ public class MaterialsController : Controller
     /// <summary>Xuất Excel danh sách liệu theo đúng bộ lọc đang xem — đủ cột như file PMC yêu cầu,
     /// kèm 3 cột trạng thái hiện tại (STATUS/BALANCE/RACK NO.) ở cuối.</summary>
     [HttpGet]
-    public async Task<IActionResult> ExportExcel(string? barcode, string? status, DateTime? fromDate, DateTime? toDate, bool? isOverdue)
+    public async Task<IActionResult> ExportExcel(string? field, string? q, string? status, DateTime? fromDate, DateTime? toDate, bool? isOverdue)
     {
         var client = _httpClientFactory.CreateClient("PmcApi");
         var query = "api/Materials/export" +
-                    $"?barcode={Uri.EscapeDataString(barcode ?? string.Empty)}" +
+                    $"?field={Uri.EscapeDataString(field ?? string.Empty)}" +
+                    $"&q={Uri.EscapeDataString(q ?? string.Empty)}" +
                     $"&status={Uri.EscapeDataString(status ?? string.Empty)}" +
                     $"&fromDate={Uri.EscapeDataString(fromDate?.ToString("yyyy-MM-dd") ?? string.Empty)}" +
                     $"&toDate={Uri.EscapeDataString(toDate?.ToString("yyyy-MM-dd") ?? string.Empty)}" +

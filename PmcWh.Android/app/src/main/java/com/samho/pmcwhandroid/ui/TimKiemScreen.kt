@@ -12,20 +12,16 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.QrCodeScanner
-import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
@@ -36,16 +32,18 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.ImeAction
-import androidx.compose.foundation.text.KeyboardActions
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.samho.pmcwhandroid.network.ApiClient
 import com.samho.pmcwhandroid.network.MaterialListItem
 import com.samho.pmcwhandroid.network.errorMessageOrDefault
-import com.samho.pmcwhandroid.scan.rememberBarcodeScanner
+import com.samho.pmcwhandroid.scan.ContinuousBarcodeScannerDialog
+import com.samho.pmcwhandroid.scan.DataWedgeScanField
+import com.samho.pmcwhandroid.scan.ScanTone
+import com.samho.pmcwhandroid.ui.components.MaterialDetailBody
+import com.samho.pmcwhandroid.ui.components.StatusBadge
 import com.samho.pmcwhandroid.ui.theme.PmcWhAndroidTheme
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
@@ -54,10 +52,11 @@ import kotlinx.coroutines.launch
 @Composable
 fun TimKiemScreen(onBack: () -> Unit) {
     BackHandler(onBack = onBack)
-    var query by remember { mutableStateOf("") }
+    val context = LocalContext.current
     var result by remember { mutableStateOf<MaterialListItem?>(null) }
     var notFoundMsg by remember { mutableStateOf<String?>(null) }
     var isSearching by remember { mutableStateOf(false) }
+    var showCamera by remember { mutableStateOf(false) }
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
     // Quét/tìm liên tục (đặc thù PDA) có thể bắn nhiều request cùng lúc — hủy request cũ trước khi
@@ -75,11 +74,14 @@ fun TimKiemScreen(onBack: () -> Unit) {
             val item = resp.body()
             if (resp.isSuccessful && item != null) {
                 result = item
+                ScanTone.success()
             } else {
                 notFoundMsg = resp.errorMessageOrDefault("Không tìm thấy mã '$trimmed'.")
+                ScanTone.failure(context)
             }
         } catch (e: Exception) {
             snackbarHostState.showSnackbar("Lỗi mạng: ${e.message}")
+            ScanTone.failure(context)
         } finally {
             isSearching = false
         }
@@ -89,14 +91,6 @@ fun TimKiemScreen(onBack: () -> Unit) {
         searchJob?.cancel()
         searchJob = scope.launch { search(code) }
     }
-
-    val scanLauncher = rememberBarcodeScanner(
-        onResult = { code ->
-            query = code
-            launchSearch(code)
-        },
-        onError = { msg -> scope.launch { snackbarHostState.showSnackbar(msg) } },
-    )
 
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
@@ -109,28 +103,20 @@ fun TimKiemScreen(onBack: () -> Unit) {
                     }
                 },
                 actions = {
-                    IconButton(onClick = scanLauncher) {
-                        Icon(Icons.Filled.QrCodeScanner, contentDescription = "Quét mã")
+                    IconButton(onClick = { showCamera = true }) {
+                        Icon(Icons.Filled.CameraAlt, contentDescription = "Quét bằng camera")
                     }
                 },
             )
         },
     ) { padding ->
         Column(modifier = Modifier.fillMaxSize().padding(padding).padding(16.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                OutlinedTextField(
-                    value = query,
-                    onValueChange = { query = it },
-                    label = { Text("Nhập hoặc quét barcode") },
-                    singleLine = true,
-                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-                    keyboardActions = KeyboardActions(onSearch = { launchSearch(query) }),
-                    modifier = Modifier.weight(1f).padding(end = 8.dp),
-                )
-                FilledIconButton(onClick = { launchSearch(query) }) {
-                    Icon(Icons.Filled.Search, contentDescription = "Tìm")
-                }
-            }
+            DataWedgeScanField(
+                onScan = { code -> launchSearch(code) },
+                label = "Nhập hoặc quét barcode",
+                enabled = !showCamera,
+                modifier = Modifier.fillMaxWidth(),
+            )
 
             Spacer(Modifier.height(16.dp))
 
@@ -147,6 +133,15 @@ fun TimKiemScreen(onBack: () -> Unit) {
             }
         }
     }
+
+    if (showCamera) {
+        // Tìm kiếm chỉ cần 1 kết quả tại 1 thời điểm — quét xong 1 mã là đóng camera luôn để thấy
+        // ngay kết quả bên dưới, khác với các màn quét theo lô (không tự đóng).
+        ContinuousBarcodeScannerDialog(
+            onBarcodeScanned = { code -> launchSearch(code); showCamera = false },
+            onClose = { showCamera = false },
+        )
+    }
 }
 
 @Composable
@@ -160,24 +155,8 @@ private fun MaterialResultCard(item: MaterialListItem) {
 
             Spacer(Modifier.height(12.dp))
 
-            InfoRow("Vị trí", item.locationCode ?: "— (không trong kho)")
-            InfoRow("Dev", item.dev ?: "—")
-            InfoRow("PO", item.poNo ?: "—")
-            InfoRow("Nhà cung cấp", item.supplier ?: "—")
-            InfoRow("Model", item.model ?: "—")
-            InfoRow("Màu/Size", listOfNotNull(item.colorway, item.sizeSpec).joinToString(" / ").ifBlank { "—" })
-            InfoRow("Mô tả", item.matlDescription ?: "—")
-            InfoRow("SL nhập", "${item.arrivalQty ?: 0} ${item.unit ?: ""}")
-            InfoRow("Tồn hiện tại", "${item.balance ?: 0} ${item.unit ?: ""}")
+            MaterialDetailBody(item)
         }
-    }
-}
-
-@Composable
-private fun InfoRow(label: String, value: String) {
-    Row(modifier = Modifier.fillMaxWidth().padding(vertical = 3.dp)) {
-        Text(label, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.weight(1f))
-        Text(value, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium, modifier = Modifier.weight(1.4f))
     }
 }
 
@@ -213,21 +192,5 @@ private fun TimKiemScreenEmptyPreview() {
 private fun TimKiemScreenResultPreview() {
     PmcWhAndroidTheme {
         MaterialResultCard(sampleSearchResult)
-    }
-}
-
-@Composable
-private fun StatusBadge(status: String, isOverdue: Boolean) {
-    val (bg, fg, label) = when {
-        isOverdue -> Triple(MaterialTheme.colorScheme.errorContainer, MaterialTheme.colorScheme.onErrorContainer, "Quá hạn")
-        status == "InStock" -> Triple(MaterialTheme.colorScheme.primaryContainer, MaterialTheme.colorScheme.onPrimaryContainer, "Trong kho")
-        status == "PartiallyIssued" -> Triple(MaterialTheme.colorScheme.tertiaryContainer, MaterialTheme.colorScheme.onTertiaryContainer, "Xuất 1 phần")
-        status == "IssuedOut" -> Triple(MaterialTheme.colorScheme.surfaceVariant, MaterialTheme.colorScheme.onSurfaceVariant, "Đã xuất hết")
-        status == "Staging" -> Triple(MaterialTheme.colorScheme.secondaryContainer, MaterialTheme.colorScheme.onSecondaryContainer, "Chờ nhập")
-        status == "Disposed" -> Triple(MaterialTheme.colorScheme.errorContainer, MaterialTheme.colorScheme.onErrorContainer, "Đã hủy")
-        else -> Triple(MaterialTheme.colorScheme.surfaceVariant, MaterialTheme.colorScheme.onSurfaceVariant, status)
-    }
-    Surface(color = bg, contentColor = fg, shape = MaterialTheme.shapes.small) {
-        Text(label, style = MaterialTheme.typography.labelMedium, modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp))
     }
 }

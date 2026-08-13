@@ -8,21 +8,16 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
@@ -44,12 +39,13 @@ import androidx.compose.ui.unit.dp
 import com.samho.pmcwhandroid.data.UserSession
 import com.samho.pmcwhandroid.network.ApiClient
 import com.samho.pmcwhandroid.network.DisposeRequest
-import com.samho.pmcwhandroid.network.OverdueIssuedItem
+import com.samho.pmcwhandroid.network.MaterialListItem
 import com.samho.pmcwhandroid.network.errorMessageOrDefault
 import com.samho.pmcwhandroid.scan.ContinuousBarcodeScannerDialog
 import com.samho.pmcwhandroid.scan.DataWedgeScanField
 import com.samho.pmcwhandroid.scan.ScanFeedback
 import com.samho.pmcwhandroid.scan.ScanFeedbackBanner
+import com.samho.pmcwhandroid.ui.components.InfoRow
 import com.samho.pmcwhandroid.ui.components.PendingBatchList
 import com.samho.pmcwhandroid.ui.components.PendingRow
 import com.samho.pmcwhandroid.ui.components.PendingRowStatus
@@ -59,22 +55,28 @@ import kotlinx.coroutines.launch
 
 private data class DisposePendingRow(
     override val key: Long,
-    val item: OverdueIssuedItem,
+    val item: MaterialListItem,
     override val status: PendingRowStatus = PendingRowStatus.PENDING,
     override val error: String? = null,
 ) : PendingRow
 
 /**
- * Quét theo lô: mỗi mã quét được so khớp với danh sách quá hạn (tải lại trước khi so khớp — danh
- * sách trên máy có thể đã cũ) rồi thêm vào danh sách chờ, KHÔNG hủy ngay. "Lưu" xác nhận 1 lần cho
- * cả lô rồi mới gọi dispose() lần lượt từng liệu.
+ * Quét theo lô: mỗi mã quét được so khớp với danh sách liệu có thể hủy (tải lại trước khi so khớp —
+ * danh sách trên máy có thể đã cũ) rồi thêm vào danh sách chờ, KHÔNG hủy ngay. "Lưu" xác nhận 1 lần
+ * cho cả lô rồi mới gọi dispose() lần lượt từng liệu. Cố ý KHÔNG hiện danh sách để bấm chọn thủ công
+ * — chỉ quét mới thêm được vào danh sách chờ, tránh công nhân bấm nhầm liệu (đặc biệt nguy hiểm ở
+ * màn này vì hủy liệu không thể hoàn tác).
+ *
+ * Hủy ở BẤT KỲ trạng thái nào (Staging/InStock/PartiallyIssued/IssuedOut...) — không giới hạn theo
+ * quá hạn 90 ngày, vì công nhân hủy liệu khi không còn dùng nữa, bất kể trạng thái hiện tại là gì.
+ * Riêng nghiệp vụ "xuất quá hạn 90 ngày không nhận lại → xóa" là chuyện KHÁC, chỉ có trên web
+ * (Overdue/Index).
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HuyLieuScreen(session: UserSession, onBack: () -> Unit) {
     BackHandler(onBack = onBack)
-    var overdueItems by remember { mutableStateOf<List<OverdueIssuedItem>>(emptyList()) }
-    var isLoadingList by remember { mutableStateOf(true) }
+    var disposableItems by remember { mutableStateOf<List<MaterialListItem>>(emptyList()) }
     var pendingDispose by remember { mutableStateOf<List<DisposePendingRow>>(emptyList()) }
     var showConfirm by remember { mutableStateOf(false) }
     var isSaving by remember { mutableStateOf(false) }
@@ -83,23 +85,20 @@ fun HuyLieuScreen(session: UserSession, onBack: () -> Unit) {
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
     // Gom cả 2 nguồn quét (DataWedge + camera) qua 1 channel, xử lý tuần tự từng mã một — tránh
-    // mất dữ liệu nếu 2 nguồn bắn mã gần như cùng lúc rồi cùng đọc/ghi "overdueItems" cũ.
+    // mất dữ liệu nếu 2 nguồn bắn mã gần như cùng lúc rồi cùng đọc/ghi "disposableItems" cũ.
     val scanChannel = remember { Channel<String>(Channel.UNLIMITED) }
 
-    suspend fun loadOverdue() {
-        isLoadingList = true
+    suspend fun loadDisposable() {
         try {
-            overdueItems = ApiClient.materialsApi.overdueIssued()
+            disposableItems = ApiClient.materialsApi.disposable()
         } catch (e: Exception) {
             snackbarHostState.showSnackbar("Không tải được danh sách: ${e.message}")
-        } finally {
-            isLoadingList = false
         }
     }
 
-    LaunchedEffect(Unit) { loadOverdue() }
+    LaunchedEffect(Unit) { loadDisposable() }
 
-    fun addToPending(item: OverdueIssuedItem): Boolean {
+    fun addToPending(item: MaterialListItem): Boolean {
         if (pendingDispose.any { it.item.materialId == item.materialId }) return false
         pendingDispose = pendingDispose + DisposePendingRow(key = System.nanoTime(), item = item)
         return true
@@ -107,10 +106,10 @@ fun HuyLieuScreen(session: UserSession, onBack: () -> Unit) {
 
     LaunchedEffect(Unit) {
         for (code in scanChannel) {
-            loadOverdue()
-            val match = overdueItems.firstOrNull { it.barcode.equals(code, ignoreCase = true) }
+            loadDisposable()
+            val match = disposableItems.firstOrNull { it.barcode.equals(code, ignoreCase = true) }
             lastFeedback = when {
-                match == null -> ScanFeedback.Failure(code, "Không nằm trong danh sách xuất quá hạn.")
+                match == null -> ScanFeedback.Failure(code, "Không tìm thấy mã này, hoặc liệu đã bị hủy trước đó.")
                 addToPending(match) -> ScanFeedback.Success(code, "Đã thêm vào danh sách chờ hủy.")
                 else -> ScanFeedback.Success(code, "Đã có trong danh sách chờ.")
             }
@@ -138,12 +137,10 @@ fun HuyLieuScreen(session: UserSession, onBack: () -> Unit) {
         }
         isSaving = false
         showConfirm = false
-        loadOverdue()
+        loadDisposable()
     }
 
     HuyLieuScreenContent(
-        overdueItems = overdueItems,
-        isLoadingList = isLoadingList,
         pendingDispose = pendingDispose,
         isSaving = isSaving,
         showConfirm = showConfirm,
@@ -154,7 +151,6 @@ fun HuyLieuScreen(session: UserSession, onBack: () -> Unit) {
         onOpenCamera = { showCamera = true },
         onCloseCamera = { showCamera = false },
         onScan = { code -> scanChannel.trySend(code) },
-        onAddFromList = { item -> addToPending(item) },
         onRemovePending = { key -> pendingDispose = pendingDispose.filterNot { it.key == key } },
         onRequestSave = { showConfirm = true },
         onDismissConfirm = { if (!isSaving) showConfirm = false },
@@ -167,8 +163,6 @@ fun HuyLieuScreen(session: UserSession, onBack: () -> Unit) {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun HuyLieuScreenContent(
-    overdueItems: List<OverdueIssuedItem>,
-    isLoadingList: Boolean,
     pendingDispose: List<DisposePendingRow>,
     isSaving: Boolean,
     showConfirm: Boolean,
@@ -179,18 +173,19 @@ private fun HuyLieuScreenContent(
     onOpenCamera: () -> Unit,
     onCloseCamera: () -> Unit,
     onScan: (String) -> Unit,
-    onAddFromList: (OverdueIssuedItem) -> Unit,
     onRemovePending: (Long) -> Unit,
     onRequestSave: () -> Unit,
     onDismissConfirm: () -> Unit,
     onConfirmSave: () -> Unit,
     onDismissFeedback: () -> Unit,
 ) {
+    var viewingDetail by remember { mutableStateOf<MaterialListItem?>(null) }
+
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
-                title = { Text("Hủy liệu quá hạn") },
+                title = { Text("Hủy liệu") },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Quay lại")
@@ -223,10 +218,11 @@ private fun HuyLieuScreenContent(
                     rows = pendingDispose,
                     onRemove = onRemovePending,
                     modifier = Modifier.fillMaxWidth().height(200.dp),
+                    onRowClick = { row -> viewingDetail = row.item },
                 ) { row ->
                     Text(row.item.barcode, style = MaterialTheme.typography.titleMedium)
                     Text(
-                        listOfNotNull(row.item.dev, row.item.matlDescription, row.item.recipientName).joinToString(" / "),
+                        listOfNotNull(row.item.dev, row.item.matlDescription, row.item.status).joinToString(" / "),
                         style = MaterialTheme.typography.bodySmall,
                     )
                 }
@@ -240,40 +236,13 @@ private fun HuyLieuScreenContent(
                 }
                 Spacer(Modifier.height(12.dp))
                 HorizontalDivider()
-            }
-
-            Box(modifier = Modifier.fillMaxSize()) {
-                when {
-                    isLoadingList -> CircularProgressIndicator(modifier = Modifier.align(Alignment.TopCenter).padding(top = 24.dp))
-                    overdueItems.isEmpty() -> Text(
-                        "Không có liệu nào xuất quá hạn.",
-                        modifier = Modifier.align(Alignment.TopCenter).padding(24.dp),
+            } else {
+                Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
+                    Text(
+                        "Quét mã để thêm liệu cần hủy vào danh sách chờ.",
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.align(Alignment.Center).padding(24.dp),
                     )
-                    else -> LazyColumn(modifier = Modifier.fillMaxSize()) {
-                        items(overdueItems, key = { it.materialId }) { item ->
-                            Card(
-                                modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 4.dp),
-                                onClick = { onAddFromList(item) },
-                            ) {
-                                ListItem(
-                                    headlineContent = { Text(item.barcode) },
-                                    supportingContent = {
-                                        Text(
-                                            listOfNotNull(item.dev, item.matlDescription, item.recipientName)
-                                                .joinToString(" / "),
-                                        )
-                                    },
-                                    trailingContent = {
-                                        Text(
-                                            "${item.daysOut} ngày",
-                                            color = MaterialTheme.colorScheme.error,
-                                            style = MaterialTheme.typography.labelLarge,
-                                        )
-                                    },
-                                )
-                            }
-                        }
-                    }
                 }
             }
         }
@@ -313,34 +282,52 @@ private fun HuyLieuScreenContent(
             },
         )
     }
+
+    viewingDetail?.let { item ->
+        DisposeDetailDialog(item = item, onDismiss = { viewingDetail = null })
+    }
+}
+
+/** Xem chi tiết 1 liệu trong danh sách chờ hủy — công nhân dùng để kiểm tra lại khi nghi ngờ quét
+ *  nhầm, trước khi bấm Lưu (thao tác hủy không thể hoàn tác). */
+@Composable
+private fun DisposeDetailDialog(item: MaterialListItem, onDismiss: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        confirmButton = { TextButton(onClick = onDismiss) { Text("Đóng") } },
+        title = { Text(item.barcode, style = MaterialTheme.typography.titleLarge) },
+        text = {
+            Column {
+                InfoRow("Trạng thái", item.status)
+                InfoRow("Vị trí", item.locationCode ?: "—")
+                InfoRow("Dev", item.dev ?: "—")
+                InfoRow("PO", item.poNo ?: "—")
+                InfoRow("Mô tả", item.matlDescription ?: "—")
+                InfoRow("Còn lại", "${item.balance ?: 0} ${item.unit ?: ""}")
+            }
+        },
+    )
 }
 
 private val samplePendingDispose = listOf(
     DisposePendingRow(
         key = 1,
-        item = OverdueIssuedItem(materialId = 1, barcode = "QATEST001", dev = "QA/BUGTEST", matlDescription = "Vải lót", balance = 3.0, unit = "M", recipientName = "Xưởng May 1", daysOut = 12),
+        item = MaterialListItem(materialId = 1, barcode = "QATEST001", dev = "QA/BUGTEST", matlDescription = "Vải lót", balance = 3.0, unit = "M", status = "InStock"),
     ),
 )
 
-private val sampleOverdueItems = listOf(
-    OverdueIssuedItem(materialId = 2, barcode = "QATEST002", dev = "QA/BUGTEST", matlDescription = "Khóa kéo", balance = 50.0, unit = "PCS", recipientName = "Xưởng May 2", daysOut = 30),
-    OverdueIssuedItem(materialId = 3, barcode = "QATEST003", dev = "QA/BUGTEST", matlDescription = "Nút áo", balance = 5.0, unit = "PCS", recipientName = "Xưởng May 1", daysOut = 8),
-)
-
-@Preview(showBackground = true, name = "Danh sách quá hạn")
+@Preview(showBackground = true, name = "Chưa quét gì")
 @Composable
-private fun HuyLieuScreenListPreview() {
+private fun HuyLieuScreenEmptyPreview() {
     PmcWhAndroidTheme {
         HuyLieuScreenContent(
-            overdueItems = sampleOverdueItems,
-            isLoadingList = false,
             pendingDispose = emptyList(),
             isSaving = false,
             showConfirm = false,
             showCamera = false,
-            lastFeedback = ScanFeedback.Success("QATEST002", "Đã thêm vào danh sách chờ hủy."),
+            lastFeedback = ScanFeedback.Failure("QATEST999", "Không tìm thấy mã này, hoặc liệu đã bị hủy trước đó."),
             snackbarHostState = remember { SnackbarHostState() },
-            onBack = {}, onOpenCamera = {}, onCloseCamera = {}, onScan = {}, onAddFromList = {},
+            onBack = {}, onOpenCamera = {}, onCloseCamera = {}, onScan = {},
             onRemovePending = {}, onRequestSave = {}, onDismissConfirm = {}, onConfirmSave = {},
             onDismissFeedback = {},
         )
@@ -352,15 +339,13 @@ private fun HuyLieuScreenListPreview() {
 private fun HuyLieuScreenConfirmPreview() {
     PmcWhAndroidTheme {
         HuyLieuScreenContent(
-            overdueItems = sampleOverdueItems,
-            isLoadingList = false,
             pendingDispose = samplePendingDispose,
             isSaving = false,
             showConfirm = true,
             showCamera = false,
-            lastFeedback = ScanFeedback.Failure("QATEST999", "Không nằm trong danh sách xuất quá hạn."),
+            lastFeedback = ScanFeedback.Success("QATEST001", "Đã thêm vào danh sách chờ hủy."),
             snackbarHostState = remember { SnackbarHostState() },
-            onBack = {}, onOpenCamera = {}, onCloseCamera = {}, onScan = {}, onAddFromList = {},
+            onBack = {}, onOpenCamera = {}, onCloseCamera = {}, onScan = {},
             onRemovePending = {}, onRequestSave = {}, onDismissConfirm = {}, onConfirmSave = {},
             onDismissFeedback = {},
         )

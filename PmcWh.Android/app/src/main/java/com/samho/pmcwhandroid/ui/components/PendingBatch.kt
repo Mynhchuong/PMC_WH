@@ -10,6 +10,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
@@ -35,13 +36,20 @@ interface PendingRow {
     val error: String?
 }
 
-/** Danh sách các dòng đang chờ lưu — [rowContent] là phần nội dung riêng của từng màn (barcode,
- *  mô tả, ô số lượng...); nút xoá + trạng thái đang lưu/lỗi được vẽ chung ở đây. */
+/**
+ * Danh sách các dòng đang chờ lưu — [rowContent] là phần nội dung riêng của từng màn (barcode,
+ * mô tả, ô số lượng...); nút xoá + trạng thái đang lưu/lỗi được vẽ chung ở đây.
+ *
+ * [onRowClick] (tuỳ chọn) thêm 1 nút "xem chi tiết" riêng cho mỗi dòng — dùng nút riêng thay vì
+ * bấm cả dòng, vì [rowContent] có thể chứa ô nhập liệu tương tác (vd ô số lượng ở Xuất kho), bấm
+ * cả dòng dễ đụng nhầm vào ô đó.
+ */
 @Composable
 fun <T : PendingRow> PendingBatchList(
     rows: List<T>,
     onRemove: (Long) -> Unit,
     modifier: Modifier = Modifier,
+    onRowClick: ((T) -> Unit)? = null,
     rowContent: @Composable (T) -> Unit,
 ) {
     LazyColumn(modifier = modifier) {
@@ -60,6 +68,11 @@ fun <T : PendingRow> PendingBatchList(
                                 color = MaterialTheme.colorScheme.error,
                                 style = MaterialTheme.typography.bodySmall,
                             )
+                        }
+                    }
+                    if (onRowClick != null) {
+                        IconButton(onClick = { onRowClick(row) }) {
+                            Icon(Icons.Filled.Info, contentDescription = "Xem chi tiết")
                         }
                     }
                     when (row.status) {

@@ -17,8 +17,10 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 
 /**
@@ -42,6 +44,14 @@ fun ScanFeedbackBanner(
 ) {
     if (feedback == null) return
     val isSuccess = feedback is ScanFeedback.Success
+    val context = LocalContext.current
+
+    // Phát tiếng bíp + rung ngay khi có kết quả quét mới — key theo "feedback" nên chỉ chạy lại
+    // lúc có 1 lần quét mới thật sự, không chạy lại mỗi lần Compose recompose banner này.
+    LaunchedEffect(feedback) {
+        if (isSuccess) ScanTone.success() else ScanTone.failure(context)
+    }
+
     Surface(
         color = if (isSuccess) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.errorContainer,
         contentColor = if (isSuccess) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onErrorContainer,

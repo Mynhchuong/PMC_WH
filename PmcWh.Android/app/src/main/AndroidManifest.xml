@@ -4,6 +4,7 @@
 
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.CAMERA" />
+    <uses-permission android:name="android.permission.VIBRATE" />
 
     <!-- Đường quét chính là súng quét cứng qua DataWedge (không cần camera) — camera chỉ là
          phương án dự phòng, nên không bắt buộc máy phải có camera mới cài được app. -->
@@ -20,14 +21,11 @@
         android:supportsRtl="true"
         android:usesCleartextTraffic="true"
         android:theme="@style/Theme.PmcWhAndroid">
-        <!-- Cho Play Store tự cài sẵn module quét mã (barcode) khi cài app, đỡ tải chậm lúc quét lần đầu. -->
-        <meta-data
-            android:name="com.google.android.gms.vision.DEPENDENCIES"
-            android:value="barcode" />
         <activity
             android:name=".MainActivity"
             android:exported="true"
             android:label="@string/app_name"
+            android:screenOrientation="portrait"
             android:theme="@style/Theme.PmcWhAndroid">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />

@@ -31,20 +31,29 @@ public class MaterialsController : ControllerBase
     }
 
     /// <summary>
-    /// Danh sách liệu (phân trang), lọc theo Barcode, Status, và khoảng Ngày Nhập (ArrivalDate).
+    /// Danh sách liệu (phân trang) — đủ cột mô tả (không chỉ 18 cột cốt lõi) để màn "Cơ sở dữ liệu
+    /// PMC" hiện được nhiều cột hơn. Tìm theo [field] (mặc định "barcode", giữ tương thích tham số
+    /// [barcode] kiểu cũ) trong [q], lọc thêm Status và khoảng Ngày Nhập (ArrivalDate).
     /// Luôn ẩn IsArchived=1 (đã xoá mềm).
     /// </summary>
     [HttpGet]
     public async Task<ActionResult<PagedResult<MaterialListItem>>> Get(
-        string? barcode, string? status, DateTime? fromDate, DateTime? toDate, bool? isOverdue, int page = 1, int pageSize = 20)
+        string? barcode, string? field, string? q, string? status, DateTime? fromDate, DateTime? toDate, bool? isOverdue, int page = 1, int pageSize = 20)
     {
-        const string innerSql = @"
-            SELECT m.MaterialId, m.Barcode, m.Dev, m.PoNo, m.Supplier, m.Model, m.Colorway, m.SizeSpec, m.MatlDescription, m.ColorCode,
-                   m.ArrivalQty, m.Balance, m.Unit, m.Status, l.Code AS LocationCode, m.IsOverdue, m.ArrivalDate, m.CreatedAt
+        var searchValue = !string.IsNullOrWhiteSpace(q) ? q : barcode;
+        var searchColumn = SearchColumnFor(field);
+
+        var innerSql = $@"
+            SELECT m.MaterialId, m.Barcode, m.CsCode, m.Dev, m.PoNo, m.Supplier, m.Model, m.Season, m.Stage,
+                   m.Colorway, m.Component, m.MatlDescription, m.ColorCode, m.ColorName, m.SizeSpec,
+                   m.ArrivalQty, m.Balance, m.Unit, m.FocFlag, m.Remark, m.Testing, m.TestRequire, m.TestQty,
+                   m.Category, m.RequestOn, m.MatlType, m.Pic, m.Mat,
+                   m.Status, l.Code AS LocationCode, m.IsOverdue, m.ArrivalDate, m.CreatedAt,
+                   m.StockedInAt, m.LastIssuedAt, m.DisposedAt, m.UpdatedAt
               FROM PMC_Materials m
               LEFT JOIN PMC_StorageLocations l ON l.LocationId = m.CurrentLocationId
              WHERE m.IsArchived = 0
-               AND (:barcode IS NULL OR UPPER(m.Barcode) LIKE '%' || UPPER(:barcode) || '%')
+               AND (:q IS NULL OR UPPER({searchColumn}) LIKE '%' || UPPER(:q) || '%')
                AND (:status IS NULL OR m.Status = :status)
                AND (:fromDate IS NULL OR m.ArrivalDate >= :fromDate)
                AND (:toDate IS NULL OR m.ArrivalDate < :toDate + 1)
@@ -52,13 +61,13 @@ public class MaterialsController : ControllerBase
              ORDER BY m.CreatedAt DESC";
 
         var paged = await _db.QueryPagedAsync(innerSql, page, pageSize,
-            new OracleParameter("barcode", (object?)barcode ?? DBNull.Value),
+            new OracleParameter("q", (object?)searchValue ?? DBNull.Value),
             new OracleParameter("status", (object?)status ?? DBNull.Value),
             new OracleParameter("fromDate", OracleDbType.Date) { Value = (object?)fromDate ?? DBNull.Value },
             new OracleParameter("toDate", OracleDbType.Date) { Value = (object?)toDate ?? DBNull.Value },
             new OracleParameter("isOverdue", (object?)(isOverdue.HasValue ? (isOverdue.Value ? 1 : 0) : null) ?? DBNull.Value));
 
-        var items = paged.Items.Select(MapMaterialListItem).ToList();
+        var items = paged.Items.Select(MapMaterialListItemFull).ToList();
 
         return Ok(new PagedResult<MaterialListItem>
         {
@@ -70,14 +79,39 @@ public class MaterialsController : ControllerBase
     }
 
     /// <summary>
+    /// Whitelist cột cho phép tìm (Index + Export) — KHÔNG được ghép tên cột trực tiếp từ client
+    /// vào SQL, vì Oracle không bind được tên cột qua OracleParameter, chỉ chọn 1 trong các literal
+    /// cố định sẵn ở đây (tránh SQL injection qua tên cột).
+    /// </summary>
+    private static string SearchColumnFor(string? field) => field?.Trim().ToLowerInvariant() switch
+    {
+        "dev" => "m.Dev",
+        "po" => "m.PoNo",
+        "supplier" => "m.Supplier",
+        "model" => "m.Model",
+        "matldescription" => "m.MatlDescription",
+        "colorcode" => "m.ColorCode",
+        "category" => "m.Category",
+        "matltype" => "m.MatlType",
+        "pic" => "m.Pic",
+        "remark" => "m.Remark",
+        "colorway" => "m.Colorway",
+        "sizespec" => "m.SizeSpec",
+        _ => "m.Barcode",
+    };
+
+    /// <summary>
     /// Xuất Excel: cùng bộ lọc như danh sách nhưng KHÔNG phân trang, trả đủ mọi field mô tả
     /// (giống hệt cột trong file import PMC) — giới hạn an toàn 5000 dòng.
     /// </summary>
     [HttpGet("export")]
     public async Task<ActionResult<List<MaterialDetail>>> Export(
-        string? barcode, string? status, DateTime? fromDate, DateTime? toDate, bool? isOverdue)
+        string? barcode, string? field, string? q, string? status, DateTime? fromDate, DateTime? toDate, bool? isOverdue)
     {
-        var sql = @"
+        var searchValue = !string.IsNullOrWhiteSpace(q) ? q : barcode;
+        var searchColumn = SearchColumnFor(field);
+
+        var sql = $@"
             SELECT * FROM (
                 SELECT m.MaterialId, m.Barcode, m.CsCode, m.Dev, m.PoNo, m.Supplier, m.Model, m.Season, m.Stage,
                        m.Colorway, m.Component, m.MatlDescription, m.ColorCode, m.ColorName, m.SizeSpec,
@@ -88,7 +122,7 @@ public class MaterialsController : ControllerBase
                   FROM PMC_Materials m
                   LEFT JOIN PMC_StorageLocations l ON l.LocationId = m.CurrentLocationId
                  WHERE m.IsArchived = 0
-                   AND (:barcode IS NULL OR UPPER(m.Barcode) LIKE '%' || UPPER(:barcode) || '%')
+                   AND (:q IS NULL OR UPPER({searchColumn}) LIKE '%' || UPPER(:q) || '%')
                    AND (:status IS NULL OR m.Status = :status)
                    AND (:fromDate IS NULL OR m.ArrivalDate >= :fromDate)
                    AND (:toDate IS NULL OR m.ArrivalDate < :toDate + 1)
@@ -97,7 +131,7 @@ public class MaterialsController : ControllerBase
             ) WHERE ROWNUM <= 5000";
 
         var rows = await _db.QueryAsync(sql,
-            new OracleParameter("barcode", (object?)barcode ?? DBNull.Value),
+            new OracleParameter("q", (object?)searchValue ?? DBNull.Value),
             new OracleParameter("status", (object?)status ?? DBNull.Value),
             new OracleParameter("fromDate", OracleDbType.Date) { Value = (object?)fromDate ?? DBNull.Value },
             new OracleParameter("toDate", OracleDbType.Date) { Value = (object?)toDate ?? DBNull.Value },
@@ -248,6 +282,29 @@ public class MaterialsController : ControllerBase
     }
 
     /// <summary>
+    /// Xoá mềm 1 liệu (IsArchived=1) — không chặn theo Status, xoá được ở bất kỳ trạng thái nào.
+    /// Liệu bị xoá biến mất khỏi MỌI endpoint đọc dữ liệu (đều lọc IsArchived=0), kể cả tra cứu
+    /// barcode dùng cho quét trên app di động — dữ liệu vẫn còn trong DB, chỉ ẩn khỏi vận hành.
+    /// </summary>
+    [HttpPost("{id:int}/archive")]
+    public async Task<IActionResult> Archive(int id, [FromBody] ArchiveRequest req)
+    {
+        var affected = await _db.ExecuteAsync(
+            @"UPDATE PMC_Materials
+                 SET IsArchived = 1, UpdatedBy = :UserId, UpdatedAt = SYSTIMESTAMP
+               WHERE MaterialId = :MaterialId AND IsArchived = 0",
+            new OracleParameter("UserId", req.UserId),
+            new OracleParameter("MaterialId", id));
+
+        if (affected == 0)
+        {
+            return NotFound(new { message = "Không tìm thấy liệu, hoặc liệu này đã bị xoá trước đó." });
+        }
+
+        return Ok();
+    }
+
+    /// <summary>
     /// Danh sách liệu đang xuất quá 90 ngày chưa nhận lại (IsOverdue=1, cả xuất 1 phần lẫn xuất hết) —
     /// PMC đi kiểm tra thực tế: còn liệu thì để đó, hết liệu thì hủy (dùng luôn action Dispose).
     /// </summary>
@@ -286,6 +343,7 @@ public class MaterialsController : ControllerBase
     {
         var rows = (await _db.QueryAsync(
             @"SELECT m.MaterialId, m.Barcode, m.Dev, m.PoNo, m.Supplier, m.Model, m.Colorway, m.SizeSpec, m.MatlDescription, m.ColorCode,
+                     m.Season, m.Stage,
                      m.ArrivalQty, m.Balance, m.Unit, m.Status, l.Code AS LocationCode, m.IsOverdue, m.ArrivalDate, m.CreatedAt
                 FROM PMC_Materials m
                 LEFT JOIN PMC_StorageLocations l ON l.LocationId = m.CurrentLocationId
@@ -373,6 +431,7 @@ public class MaterialsController : ControllerBase
     {
         var rows = await _db.QueryAsync(
             @"SELECT m.MaterialId, m.Barcode, m.Dev, m.PoNo, m.Supplier, m.Model, m.Colorway, m.SizeSpec, m.MatlDescription, m.ColorCode,
+                     m.Season, m.Stage,
                      m.ArrivalQty, m.Balance, m.Unit, m.Status, l.Code AS LocationCode, m.IsOverdue, m.ArrivalDate, m.CreatedAt
                 FROM PMC_Materials m
                 LEFT JOIN PMC_StorageLocations l ON l.LocationId = m.CurrentLocationId
@@ -475,6 +534,7 @@ public class MaterialsController : ControllerBase
     {
         var rows = await _db.QueryAsync(
             @"SELECT m.MaterialId, m.Barcode, m.Dev, m.PoNo, m.Supplier, m.Model, m.Colorway, m.SizeSpec, m.MatlDescription, m.ColorCode,
+                     m.Season, m.Stage,
                      m.ArrivalQty, m.Balance, m.Unit, m.Status, l.Code AS LocationCode, m.IsOverdue, m.ArrivalDate, m.CreatedAt
                 FROM PMC_Materials m
                 LEFT JOIN PMC_StorageLocations l ON l.LocationId = m.CurrentLocationId
@@ -589,6 +649,7 @@ public class MaterialsController : ControllerBase
     {
         var rows = await _db.QueryAsync(
             @"SELECT m.MaterialId, m.Barcode, m.Dev, m.PoNo, m.Supplier, m.Model, m.Colorway, m.SizeSpec, m.MatlDescription, m.ColorCode,
+                     m.Season, m.Stage,
                      m.ArrivalQty, m.Balance, m.Unit, m.Status, l.Code AS LocationCode, m.IsOverdue, m.ArrivalDate, m.CreatedAt
                 FROM PMC_Materials m
                 LEFT JOIN PMC_StorageLocations l ON l.LocationId = m.CurrentLocationId
@@ -780,6 +841,8 @@ public class MaterialsController : ControllerBase
         SizeSpec = row["SIZESPEC"]?.ToString(),
         MatlDescription = row["MATLDESCRIPTION"]?.ToString(),
         ColorCode = row["COLORCODE"]?.ToString(),
+        Season = row["SEASON"]?.ToString(),
+        Stage = row["STAGE"]?.ToString(),
         ArrivalQty = row["ARRIVALQTY"] != null ? Convert.ToDecimal(row["ARRIVALQTY"]) : null,
         Balance = row["BALANCE"] != null ? Convert.ToDecimal(row["BALANCE"]) : null,
         Unit = row["UNIT"]?.ToString(),
@@ -789,6 +852,37 @@ public class MaterialsController : ControllerBase
         ArrivalDate = row["ARRIVALDATE"] != null ? Convert.ToDateTime(row["ARRIVALDATE"]) : null,
         CreatedAt = Convert.ToDateTime(row["CREATEDAT"]),
     };
+
+    /// <summary>
+    /// Bản mở rộng của MapMaterialListItem — thêm các trường mô tả còn lại (Season, Stage,
+    /// Component...) CHỈ dùng cho danh sách chính (Get ở trên) vì đó là nơi duy nhất SELECT đủ các
+    /// cột này. KHÔNG dùng hàm này cho GetByBarcode/Issuable/Returnable/Disposable... — SQL của
+    /// các endpoint đó hẹp hơn, thiếu cột sẽ ném KeyNotFoundException.
+    /// </summary>
+    private static MaterialListItem MapMaterialListItemFull(Dictionary<string, object?> row)
+    {
+        var item = MapMaterialListItem(row);
+        item.CsCode = row["CSCODE"] != null ? Convert.ToInt32(row["CSCODE"]) : null;
+        item.Season = row["SEASON"]?.ToString();
+        item.Stage = row["STAGE"]?.ToString();
+        item.Component = row["COMPONENT"]?.ToString();
+        item.ColorName = row["COLORNAME"]?.ToString();
+        item.FocFlag = row["FOCFLAG"]?.ToString();
+        item.Remark = row["REMARK"]?.ToString();
+        item.Testing = row["TESTING"] != null ? Convert.ToInt32(row["TESTING"]) : null;
+        item.TestRequire = row["TESTREQUIRE"]?.ToString();
+        item.TestQty = row["TESTQTY"]?.ToString();
+        item.Category = row["CATEGORY"]?.ToString();
+        item.RequestOn = row["REQUESTON"] != null ? Convert.ToDateTime(row["REQUESTON"]) : null;
+        item.MatlType = row["MATLTYPE"]?.ToString();
+        item.Pic = row["PIC"]?.ToString();
+        item.Mat = row["MAT"]?.ToString();
+        item.StockedInAt = row["STOCKEDINAT"] != null ? Convert.ToDateTime(row["STOCKEDINAT"]) : null;
+        item.LastIssuedAt = row["LASTISSUEDAT"] != null ? Convert.ToDateTime(row["LASTISSUEDAT"]) : null;
+        item.DisposedAt = row["DISPOSEDAT"] != null ? Convert.ToDateTime(row["DISPOSEDAT"]) : null;
+        item.UpdatedAt = row["UPDATEDAT"] != null ? Convert.ToDateTime(row["UPDATEDAT"]) : null;
+        return item;
+    }
 
     private static OverdueIssuedItem MapOverdueIssuedItem(Dictionary<string, object?> row) => new()
     {

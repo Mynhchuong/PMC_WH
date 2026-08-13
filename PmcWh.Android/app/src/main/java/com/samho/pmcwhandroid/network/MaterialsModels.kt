@@ -14,6 +14,8 @@ data class MaterialListItem(
     val sizeSpec: String? = null,
     val matlDescription: String? = null,
     val colorCode: String? = null,
+    val season: String? = null,
+    val stage: String? = null,
     val arrivalQty: Double? = null,
     val balance: Double? = null,
     val unit: String? = null,
@@ -57,24 +59,6 @@ data class RecipientDto(
     val recipientId: Int,
     val name: String,
     val isActive: Boolean = true,
-)
-
-@Serializable
-data class OverdueIssuedItem(
-    val materialId: Int,
-    val barcode: String,
-    val dev: String? = null,
-    val poNo: String? = null,
-    val matlDescription: String? = null,
-    val colorCode: String? = null,
-    val arrivalQty: Double? = null,
-    val balance: Double? = null,
-    val unit: String? = null,
-    val status: String = "",
-    val locationCode: String? = null,
-    val recipientName: String? = null,
-    val lastIssuedAt: String? = null,
-    val daysOut: Int = 0,
 )
 
 @Serializable

@@ -54,6 +54,13 @@ public class AccountController : Controller
             return View(model);
         }
 
+        // Yêu cầu PMC: role Member chỉ dùng app di động (PDA), không được đăng nhập vào web.
+        if (string.Equals(result.Role, "Member", StringComparison.OrdinalIgnoreCase))
+        {
+            ModelState.AddModelError(string.Empty, "Tài khoản này chỉ dùng được trên ứng dụng di động, không thể đăng nhập trên web.");
+            return View(model);
+        }
+
         var claims = new List<Claim>
         {
             new(ClaimTypes.NameIdentifier, result.UserId.ToString()),
