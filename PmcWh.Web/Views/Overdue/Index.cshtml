@@ -22,12 +22,24 @@
 
 <div class="card border-0 shadow-sm rounded-4">
     <div class="card-body">
-        <h5 class="card-title mb-3"><span data-i18n="listTitle">Danh sách</span> (@Model.Items.Count)</h5>
+        <div class="d-flex align-items-center justify-content-between mb-3 flex-wrap gap-2">
+            <h5 class="card-title mb-0"><span data-i18n="listTitle">Danh sách</span> (@Model.Items.Count)</h5>
+            <button type="button" id="btnBulkDelete" class="btn btn-sm btn-outline-danger d-inline-flex align-items-center gap-1" disabled>
+                <span class="material-icons" style="font-size:16px;">delete_sweep</span>
+                <span data-i18n="btnDeleteSelected">Xóa đã chọn</span>
+                <span id="bulkSelectedCount" class="badge bg-danger ms-1" style="display:none;"></span>
+            </button>
+        </div>
+
+        <form asp-controller="Overdue" asp-action="BulkDispose" method="post" id="bulkDisposeForm"></form>
 
         <div class="table-responsive">
             <table class="table align-middle">
                 <thead>
                     <tr class="text-uppercase text-muted small">
+                        <th style="width:36px;">
+                            <input type="checkbox" class="form-check-input" id="chkSelectAll" title="Chọn tất cả" data-i18n-title="selectAllLabel" />
+                        </th>
                         <th>Barcode</th>
                         <th>Dev</th>
                         <th>PO</th>
@@ -44,6 +56,9 @@
                     @foreach (var m in Model.Items)
                     {
                         <tr class="js-overdue-row js-detail-row" data-material-id="@m.MaterialId" data-barcode="@m.Barcode" title="Double-click để xem chi tiết">
+                            <td onclick="event.stopPropagation();">
+                                <input type="checkbox" class="form-check-input js-overdue-check" value="@m.MaterialId" />
+                            </td>
                             <td class="fw-semibold">@m.Barcode</td>
                             <td>@m.Dev</td>
                             <td>@m.PoNo</td>
@@ -68,7 +83,7 @@
                     @if (Model.Items.Count == 0)
                     {
                         <tr>
-                            <td colspan="10" class="text-center text-muted py-4" data-i18n="emptyOverdue">Không có liệu nào quá 90 ngày.</td>
+                            <td colspan="11" class="text-center text-muted py-4" data-i18n="emptyOverdue">Không có liệu nào quá 90 ngày.</td>
                         </tr>
                     }
                 </tbody>
@@ -100,6 +115,58 @@
                     }
                 });
             });
+
+            // Chọn tất cả + xóa hàng loạt.
+            var selectAll = document.getElementById('chkSelectAll');
+            var rowChecks = Array.prototype.slice.call(document.querySelectorAll('.js-overdue-check'));
+            var bulkBtn = document.getElementById('btnBulkDelete');
+            var bulkCountBadge = document.getElementById('bulkSelectedCount');
+            var bulkForm = document.getElementById('bulkDisposeForm');
+
+            function updateBulkUi() {
+                var checked = rowChecks.filter(function (c) { return c.checked; });
+                bulkBtn.disabled = checked.length === 0;
+                if (checked.length > 0) {
+                    bulkCountBadge.textContent = PmcWhI18n.t('selectedCountLabel').replace('{0}', checked.length);
+                    bulkCountBadge.style.display = '';
+                } else {
+                    bulkCountBadge.style.display = 'none';
+                }
+                if (selectAll) {
+                    selectAll.checked = rowChecks.length > 0 && checked.length === rowChecks.length;
+                    selectAll.indeterminate = checked.length > 0 && checked.length < rowChecks.length;
+                }
+            }
+
+            if (selectAll) {
+                selectAll.addEventListener('change', function () {
+                    rowChecks.forEach(function (c) { c.checked = selectAll.checked; });
+                    updateBulkUi();
+                });
+            }
+            rowChecks.forEach(function (c) { c.addEventListener('change', updateBulkUi); });
+            updateBulkUi();
+
+            if (bulkBtn) {
+                bulkBtn.addEventListener('click', async function () {
+                    var checked = rowChecks.filter(function (c) { return c.checked; });
+                    if (checked.length === 0) return;
+                    var ok = await PmcUI.confirmDelete(PmcWhI18n.t('confirmBulkOverdueDeleteMsg').replace('{0}', checked.length));
+                    if (!ok) return;
+                    // Chỉ xoá input materialIds cũ (nếu bấm lại lần 2) — KHÔNG dùng innerHTML=''
+                    // vì sẽ xoá luôn hidden input antiforgery token do asp-action tự chèn sẵn.
+                    bulkForm.querySelectorAll('input[name="materialIds"]').forEach(function (el) { el.remove(); });
+                    checked.forEach(function (c) {
+                        var input = document.createElement('input');
+                        input.type = 'hidden';
+                        input.name = 'materialIds';
+                        input.value = c.value;
+                        bulkForm.appendChild(input);
+                    });
+                    bulkBtn.disabled = true;
+                    bulkForm.submit();
+                });
+            }
         })();
     </script>
 }

@@ -21,46 +21,46 @@
     <span class="badge @badgeTextClass" style="@badgeStyle" data-i18n="@("status" + Model.Status)">@MaterialStatusHelper.Label(Model.Status)</span>
 </div>
 
-<div class="row row-cols-3 g-2 small">
-    <div><div class="text-muted">Dev</div><div class="fw-semibold">@Val(Model.Dev)</div></div>
-    <div><div class="text-muted">PO</div><div class="fw-semibold">@Val(Model.PoNo)</div></div>
-    <div><div class="text-muted">Supplier</div><div class="fw-semibold">@Val(Model.Supplier)</div></div>
-    <div><div class="text-muted">Model</div><div class="fw-semibold">@Val(Model.Model)</div></div>
-    <div><div class="text-muted">Season</div><div class="fw-semibold">@Val(Model.Season)</div></div>
-    <div><div class="text-muted">Stage</div><div class="fw-semibold">@Val(Model.Stage)</div></div>
-    <div><div class="text-muted">Colorway</div><div class="fw-semibold">@Val(Model.Colorway)</div></div>
-    <div><div class="text-muted">Component</div><div class="fw-semibold">@Val(Model.Component)</div></div>
-    <div><div class="text-muted">Color code</div><div class="fw-semibold">@Val(Model.ColorCode)</div></div>
-    <div><div class="text-muted">Color name</div><div class="fw-semibold">@Val(Model.ColorName)</div></div>
-    <div><div class="text-muted">Size</div><div class="fw-semibold">@Val(Model.SizeSpec)</div></div>
-    <div><div class="text-muted">FOC</div><div class="fw-semibold">@Val(Model.FocFlag)</div></div>
-    <div><div class="text-muted" data-i18n="detailArrivalQty">Số lượng nhập</div><div class="fw-semibold">@Model.ArrivalQty @Model.Unit</div></div>
-    <div><div class="text-muted" data-i18n="detailCurrentStock">Tồn hiện tại</div><div class="fw-semibold">@(Model.Balance?.ToString() ?? "—") @Model.Unit</div></div>
-    <div><div class="text-muted" data-i18n="detailArrivalDate">Ngày nhập</div><div class="fw-semibold">@Fmt(Model.ArrivalDate)</div></div>
-    <div><div class="text-muted">CS Code</div><div class="fw-semibold">@(Model.CsCode?.ToString() ?? "—")</div></div>
+<div class="row row-cols-4 g-1 small">
+    <div class="pmc-detail-cell"><div class="text-muted">Dev</div><div class="fw-semibold">@Val(Model.Dev)</div></div>
+    <div class="pmc-detail-cell"><div class="text-muted">PO</div><div class="fw-semibold">@Val(Model.PoNo)</div></div>
+    <div class="pmc-detail-cell"><div class="text-muted">Supplier</div><div class="fw-semibold">@Val(Model.Supplier)</div></div>
+    <div class="pmc-detail-cell"><div class="text-muted">Model</div><div class="fw-semibold">@Val(Model.Model)</div></div>
+    <div class="pmc-detail-cell"><div class="text-muted">Season</div><div class="fw-semibold">@Val(Model.Season)</div></div>
+    <div class="pmc-detail-cell"><div class="text-muted">Stage</div><div class="fw-semibold">@Val(Model.Stage)</div></div>
+    <div class="pmc-detail-cell"><div class="text-muted">Colorway</div><div class="fw-semibold">@Val(Model.Colorway)</div></div>
+    <div class="pmc-detail-cell"><div class="text-muted">Component</div><div class="fw-semibold">@Val(Model.Component)</div></div>
+    <div class="pmc-detail-cell"><div class="text-muted">Color code</div><div class="fw-semibold">@Val(Model.ColorCode)</div></div>
+    <div class="pmc-detail-cell"><div class="text-muted">Color name</div><div class="fw-semibold">@Val(Model.ColorName)</div></div>
+    <div class="pmc-detail-cell"><div class="text-muted">Size</div><div class="fw-semibold">@Val(Model.SizeSpec)</div></div>
+    <div class="pmc-detail-cell"><div class="text-muted">FOC</div><div class="fw-semibold">@Val(Model.FocFlag)</div></div>
+    <div class="pmc-detail-cell"><div class="text-muted" data-i18n="detailArrivalQty">Số lượng nhập</div><div class="fw-semibold">@Model.ArrivalQty @Model.Unit</div></div>
+    <div class="pmc-detail-cell"><div class="text-muted" data-i18n="detailCurrentStock">Tồn hiện tại</div><div class="fw-semibold">@(Model.Balance?.ToString() ?? "—") @Model.Unit</div></div>
+    <div class="pmc-detail-cell"><div class="text-muted" data-i18n="detailArrivalDate">Ngày nhập</div><div class="fw-semibold">@Fmt(Model.ArrivalDate)</div></div>
+    <div class="pmc-detail-cell"><div class="text-muted">CS Code</div><div class="fw-semibold">@(Model.CsCode?.ToString() ?? "—")</div></div>
     @if (Model.Testing.HasValue)
     {
-        <div><div class="text-muted">Testing</div><div class="fw-semibold" data-i18n="@(Model.Testing == 1 ? "yesOption" : "noOption")">@(Model.Testing == 1 ? "Có" : "Không")</div></div>
+        <div class="pmc-detail-cell"><div class="text-muted">Testing</div><div class="fw-semibold" data-i18n="@(Model.Testing == 1 ? "yesOption" : "noOption")">@(Model.Testing == 1 ? "Có" : "Không")</div></div>
     }
     else
     {
-        <div><div class="text-muted">Testing</div><div class="fw-semibold">—</div></div>
+        <div class="pmc-detail-cell"><div class="text-muted">Testing</div><div class="fw-semibold">—</div></div>
     }
-    <div><div class="text-muted">Test require</div><div class="fw-semibold">@Val(Model.TestRequire)</div></div>
-    <div><div class="text-muted">Test qty</div><div class="fw-semibold">@Val(Model.TestQty)</div></div>
-    <div><div class="text-muted">Category</div><div class="fw-semibold">@Val(Model.Category)</div></div>
-    <div><div class="text-muted">Request on</div><div class="fw-semibold">@Fmt(Model.RequestOn)</div></div>
-    <div><div class="text-muted">Mat'l Type</div><div class="fw-semibold">@Val(Model.MatlType)</div></div>
-    <div><div class="text-muted">PIC</div><div class="fw-semibold">@Val(Model.Pic)</div></div>
-    <div><div class="text-muted">Mat</div><div class="fw-semibold">@Val(Model.Mat)</div></div>
-    <div><div class="text-muted" data-i18n="detailShelvedAt">Lên kệ lúc</div><div class="fw-semibold">@Fmt(Model.StockedInAt)</div></div>
-    <div><div class="text-muted" data-i18n="detailLastIssued">Xuất gần nhất</div><div class="fw-semibold">@Fmt(Model.LastIssuedAt)</div></div>
-    <div><div class="text-muted" data-i18n="detailDisposedAt">Hủy lúc</div><div class="fw-semibold">@Fmt(Model.DisposedAt)</div></div>
-    <div><div class="text-muted" data-i18n="overdue90Days">Quá hạn 90 ngày</div><div class="fw-semibold" data-i18n="@(Model.IsOverdue ? "yesOption" : "noOption")">@(Model.IsOverdue ? "Có" : "Không")</div></div>
-    <div><div class="text-muted" data-i18n="detailCreatedAt">Ngày tạo</div><div class="fw-semibold">@Model.CreatedAt.ToString("dd/MM/yyyy HH:mm")</div></div>
-    <div><div class="text-muted" data-i18n="detailUpdatedAt">Cập nhật gần nhất</div><div class="fw-semibold">@(Model.UpdatedAt?.ToString("dd/MM/yyyy HH:mm") ?? "—")</div></div>
-    <div class="col-12"><div class="text-muted" data-i18n="editMatlDescription">Mô tả liệu</div><div class="fw-semibold">@Val(Model.MatlDescription)</div></div>
-    <div class="col-12"><div class="text-muted">Remark</div><div class="fw-semibold">@Val(Model.Remark)</div></div>
+    <div class="pmc-detail-cell"><div class="text-muted">Test require</div><div class="fw-semibold">@Val(Model.TestRequire)</div></div>
+    <div class="pmc-detail-cell"><div class="text-muted">Test qty</div><div class="fw-semibold">@Val(Model.TestQty)</div></div>
+    <div class="pmc-detail-cell"><div class="text-muted">Category</div><div class="fw-semibold">@Val(Model.Category)</div></div>
+    <div class="pmc-detail-cell"><div class="text-muted">Request on</div><div class="fw-semibold">@Fmt(Model.RequestOn)</div></div>
+    <div class="pmc-detail-cell"><div class="text-muted">Mat'l Type</div><div class="fw-semibold">@Val(Model.MatlType)</div></div>
+    <div class="pmc-detail-cell"><div class="text-muted">PIC</div><div class="fw-semibold">@Val(Model.Pic)</div></div>
+    <div class="pmc-detail-cell"><div class="text-muted">Mat</div><div class="fw-semibold">@Val(Model.Mat)</div></div>
+    <div class="pmc-detail-cell"><div class="text-muted" data-i18n="detailShelvedAt">Lên kệ lúc</div><div class="fw-semibold">@Fmt(Model.StockedInAt)</div></div>
+    <div class="pmc-detail-cell"><div class="text-muted" data-i18n="detailLastIssued">Xuất gần nhất</div><div class="fw-semibold">@Fmt(Model.LastIssuedAt)</div></div>
+    <div class="pmc-detail-cell"><div class="text-muted" data-i18n="detailDisposedAt">Hủy lúc</div><div class="fw-semibold">@Fmt(Model.DisposedAt)</div></div>
+    <div class="pmc-detail-cell"><div class="text-muted" data-i18n="overdue90Days">Quá hạn 90 ngày</div><div class="fw-semibold" data-i18n="@(Model.IsOverdue ? "yesOption" : "noOption")">@(Model.IsOverdue ? "Có" : "Không")</div></div>
+    <div class="pmc-detail-cell"><div class="text-muted" data-i18n="detailCreatedAt">Ngày tạo</div><div class="fw-semibold">@Model.CreatedAt.ToString("dd/MM/yyyy HH:mm")</div></div>
+    <div class="pmc-detail-cell"><div class="text-muted" data-i18n="detailUpdatedAt">Cập nhật gần nhất</div><div class="fw-semibold">@(Model.UpdatedAt?.ToString("dd/MM/yyyy HH:mm") ?? "—")</div></div>
+    <div class="col-12 pmc-detail-cell"><div class="text-muted" data-i18n="editMatlDescription">Mô tả liệu</div><div class="fw-semibold">@Val(Model.MatlDescription)</div></div>
+    <div class="col-12 pmc-detail-cell"><div class="text-muted">Remark</div><div class="fw-semibold">@Val(Model.Remark)</div></div>
 </div>
 
 <hr class="my-2" />
@@ -72,7 +72,7 @@
     </span>
 </div>
 <div class="table-responsive" style="max-height: 240px; overflow-y: auto;">
-    <table class="table table-sm align-middle small mb-0">
+    <table class="table table-sm align-middle small mb-0 pmc-excel-grid">
         <thead>
             <tr class="text-uppercase text-muted">
                 <th data-i18n="colType">Loại</th>

@@ -168,6 +168,48 @@ body {
   margin-bottom: 0;
 }
 
+/* Ô input/date trong khung filter bị mất viền — material-dashboard.css có 2 rule .form-control đè
+   nhau, rule sau cùng set border-style:none (chỉ .form-select như Trạng thái/Tìm theo là còn viền
+   vì khác class). Trả lại viền xám giống hệt .form-select cho đồng bộ. */
+.pmc-filter-card .form-control {
+  border: 1px solid #d2d6da;
+}
+
+/* Popup "Xem chi tiết" liệu (Materials/_MaterialDetail) — kẻ ô từng field như Excel thay vì chữ
+   nổi trần trên nền trắng, dễ tách bạch field này với field kia hơn. Dùng chung cho cả modal
+   Sửa thông tin (label + input) để đồng bộ giao diện. */
+.pmc-detail-cell {
+  border: 1px solid #dee2e6;
+  border-radius: 6px;
+  padding: 6px 10px;
+  background: #f8f9fa;
+}
+
+/* PMC yêu cầu popup Xem chi tiết gọn hơn, đỡ phải cuộn cả popup lên xuống — riêng khu vực field
+   (không đụng modal Sửa, vẫn cần chỗ rộng rãi hơn cho input) thu nhỏ padding tối đa. */
+#pmc-popup-body .pmc-detail-cell {
+  padding: 2px 8px;
+}
+
+/* Modal Sửa thông tin liệu dùng chung .pmc-detail-cell — nếu không có viền riêng, ô input/select
+   nhìn giống hệt chữ tĩnh bên popup Xem chi tiết, dễ tưởng nhầm là không sửa được. */
+.pmc-detail-cell .form-control,
+.pmc-detail-cell .form-select {
+  background: #fff;
+  border: 1px solid #d2d6da;
+}
+
+/* Bảng kẻ ô kiểu Excel dùng chung (VD: Lịch sử di chuyển trong popup chi tiết) — giống hệt cách
+   #materialsTable đang kẻ, nhưng đặt thành class riêng để dùng lại được ở bảng khác không phải
+   #materialsTable. */
+.pmc-excel-grid {
+  border-collapse: collapse;
+}
+.pmc-excel-grid th,
+.pmc-excel-grid td {
+  border: 1px solid #dee2e6;
+}
+
 /* Materials/Index: bảng cuộn trong khung cao cố định (thay vì cuộn theo cả trang) để dòng tiêu đề
    và thanh cuộn ngang luôn nằm trong tầm mắt — giống pin (freeze) dòng đầu trên Excel, không cần
    kéo hết trang xuống đáy mới thấy thanh cuộn ngang. */
@@ -203,6 +245,14 @@ body {
   background: #fff;
   text-align: center;
   font-weight: 800;
+}
+
+/* Checkbox chọn nhiều (Overdue/Index) — material-dashboard.css tự set .form-check-input {
+   border-style: none; } cho MỌI checkbox trong site, khiến checkbox chưa tick gần như vô hình
+   trên nền trắng. Trả lại viền riêng cho 2 checkbox này. */
+.js-overdue-check,
+#chkSelectAll {
+  border: 1px solid #adb5bd;
 }
 
 /* Resizable table columns (Materials/Index) — drag handle on the right edge of each <th>. */

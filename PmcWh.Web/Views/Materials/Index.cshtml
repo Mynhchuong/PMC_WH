@@ -32,7 +32,7 @@
             <div class="d-flex align-items-center gap-2">
                 <span class="d-inline-flex align-items-center justify-content-center rounded-3"
                       style="width:34px;height:34px;background:linear-gradient(135deg, #495057 0%, #212529 100%); flex-shrink:0;">
-                    <span class="material-icons text-white" style="font-size:18px;">storage</span>
+                    <span class="material-icons text-white" style="font-size:18px;">table_chart</span>
                 </span>
                 <div>
                     <h6 class="card-title mb-0" data-i18n="matDbTitle">Cơ sở dữ liệu của PMC</h6>
@@ -42,10 +42,10 @@
             <div class="d-flex align-items-center gap-1 flex-wrap">
                 @if (isAdmin)
                 {
-                    <button type="button" class="btn btn-sm pmc-btn-dark d-inline-flex align-items-center gap-1" data-bs-toggle="modal" data-bs-target="#importModal">
+                    <button type="button" class="btn btn-sm btn-warning text-white d-inline-flex align-items-center gap-1" data-bs-toggle="modal" data-bs-target="#importModal">
                         <span class="material-icons" style="font-size:15px;">cloud_upload</span> <span data-i18n="btnImport">Import</span>
                     </button>
-                    <a asp-controller="Materials" asp-action="DownloadTemplate" class="btn btn-sm btn-outline-secondary d-inline-flex align-items-center gap-1">
+                    <a asp-controller="Materials" asp-action="DownloadTemplate" class="btn btn-sm btn-info text-white d-inline-flex align-items-center gap-1">
                         <span class="material-icons" style="font-size:15px;">download</span> <span data-i18n="btnDownloadTemplate">Tải file mẫu</span>
                     </a>
                 }
@@ -53,7 +53,7 @@
                    asp-route-field="@Model.Field" asp-route-q="@Model.Q" asp-route-status="@Model.Status"
                    asp-route-fromDate="@Model.FromDate?.ToString("yyyy-MM-dd")" asp-route-toDate="@Model.ToDate?.ToString("yyyy-MM-dd")"
                    asp-route-isOverdue="@Model.IsOverdue"
-                   class="btn btn-sm pmc-btn-dark d-inline-flex align-items-center gap-1">
+                   class="btn btn-sm btn-success d-inline-flex align-items-center gap-1">
                     <span class="material-icons" style="font-size:15px;">file_download</span> <span data-i18n="btnExportExcel">Xuất Excel</span>
                 </a>
             </div>
@@ -233,31 +233,31 @@
                                     : "background-color:rgba(25,135,84,0.14); color:#198754;";
                         <tr class="js-detail-row" data-material-id="@m.MaterialId" data-barcode="@m.Barcode" title="Double-click để xem chi tiết">
                             <td class="fw-semibold">@m.Barcode</td>
-                            <td class="text-truncate" style="max-width: 0;" title="@m.Dev">@m.Dev</td>
-                            <td class="text-truncate" style="max-width: 0;" title="@m.PoNo">@m.PoNo</td>
-                            <td class="text-truncate" style="max-width: 0;" title="@m.Supplier">@m.Supplier</td>
+                            <td class="text-truncate" style="max-width: 0;" data-bs-toggle="tooltip" data-bs-placement="top" title="@m.Dev">@m.Dev</td>
+                            <td class="text-truncate" style="max-width: 0;" data-bs-toggle="tooltip" data-bs-placement="top" title="@m.PoNo">@m.PoNo</td>
+                            <td class="text-truncate" style="max-width: 0;" data-bs-toggle="tooltip" data-bs-placement="top" title="@m.Supplier">@m.Supplier</td>
                             <td>
-                                <div style="overflow-x: auto; white-space: nowrap;" title="@m.MatlDescription">@m.MatlDescription</div>
+                                <div style="overflow-x: auto; white-space: nowrap;" data-bs-toggle="tooltip" data-bs-placement="top" title="@m.MatlDescription">@m.MatlDescription</div>
                             </td>
-                            <td class="text-truncate" style="max-width: 0;" title="@m.ColorCode">@m.ColorCode</td>
-                            <td class="text-truncate" style="max-width: 0;" title="@m.Colorway">@m.Colorway</td>
-                            <td class="text-truncate" style="max-width: 0;" title="@m.SizeSpec">@m.SizeSpec</td>
-                            <td class="text-truncate" style="max-width: 0;" title="@m.Season">@m.Season</td>
-                            <td class="text-truncate" style="max-width: 0;" title="@m.Stage">@m.Stage</td>
-                            <td class="text-truncate" style="max-width: 0;" title="@m.Component">@m.Component</td>
-                            <td class="text-truncate" style="max-width: 0;" title="@m.ColorName">@m.ColorName</td>
-                            <td class="text-truncate" style="max-width: 0;" title="@m.FocFlag">@m.FocFlag</td>
+                            <td class="text-truncate" style="max-width: 0;" data-bs-toggle="tooltip" data-bs-placement="top" title="@m.ColorCode">@m.ColorCode</td>
+                            <td class="text-truncate" style="max-width: 0;" data-bs-toggle="tooltip" data-bs-placement="top" title="@m.Colorway">@m.Colorway</td>
+                            <td class="text-truncate" style="max-width: 0;" data-bs-toggle="tooltip" data-bs-placement="top" title="@m.SizeSpec">@m.SizeSpec</td>
+                            <td class="text-truncate" style="max-width: 0;" data-bs-toggle="tooltip" data-bs-placement="top" title="@m.Season">@m.Season</td>
+                            <td class="text-truncate" style="max-width: 0;" data-bs-toggle="tooltip" data-bs-placement="top" title="@m.Stage">@m.Stage</td>
+                            <td class="text-truncate" style="max-width: 0;" data-bs-toggle="tooltip" data-bs-placement="top" title="@m.Component">@m.Component</td>
+                            <td class="text-truncate" style="max-width: 0;" data-bs-toggle="tooltip" data-bs-placement="top" title="@m.ColorName">@m.ColorName</td>
+                            <td class="text-truncate" style="max-width: 0;" data-bs-toggle="tooltip" data-bs-placement="top" title="@m.FocFlag">@m.FocFlag</td>
                             <td class="text-truncate" style="max-width: 0;">@(m.CsCode?.ToString() ?? "—")</td>
-                            <td class="text-truncate" style="max-width: 0;" title="@m.Category">@m.Category</td>
-                            <td class="text-truncate" style="max-width: 0;" title="@m.MatlType">@m.MatlType</td>
-                            <td class="text-truncate" style="max-width: 0;" title="@m.Pic">@m.Pic</td>
-                            <td class="text-truncate" style="max-width: 0;" title="@m.Mat">@m.Mat</td>
+                            <td class="text-truncate" style="max-width: 0;" data-bs-toggle="tooltip" data-bs-placement="top" title="@m.Category">@m.Category</td>
+                            <td class="text-truncate" style="max-width: 0;" data-bs-toggle="tooltip" data-bs-placement="top" title="@m.MatlType">@m.MatlType</td>
+                            <td class="text-truncate" style="max-width: 0;" data-bs-toggle="tooltip" data-bs-placement="top" title="@m.Pic">@m.Pic</td>
+                            <td class="text-truncate" style="max-width: 0;" data-bs-toggle="tooltip" data-bs-placement="top" title="@m.Mat">@m.Mat</td>
                             <td class="text-truncate" style="max-width: 0;" data-i18n="@(m.Testing == 1 ? "yesOption" : m.Testing == 0 ? "noOption" : null)">@(m.Testing == 1 ? "Có" : m.Testing == 0 ? "Không" : "—")</td>
-                            <td class="text-truncate" style="max-width: 0;" title="@m.TestRequire">@m.TestRequire</td>
-                            <td class="text-truncate" style="max-width: 0;" title="@m.TestQty">@m.TestQty</td>
+                            <td class="text-truncate" style="max-width: 0;" data-bs-toggle="tooltip" data-bs-placement="top" title="@m.TestRequire">@m.TestRequire</td>
+                            <td class="text-truncate" style="max-width: 0;" data-bs-toggle="tooltip" data-bs-placement="top" title="@m.TestQty">@m.TestQty</td>
                             <td class="text-muted small">@(m.RequestOn?.ToString("dd/MM/yyyy") ?? "—")</td>
                             <td>
-                                <div style="overflow-x: auto; white-space: nowrap;" title="@m.Remark">@m.Remark</div>
+                                <div style="overflow-x: auto; white-space: nowrap;" data-bs-toggle="tooltip" data-bs-placement="top" title="@m.Remark">@m.Remark</div>
                             </td>
                             <td class="text-end">@m.ArrivalQty @m.Unit</td>
                             <td class="text-end">
@@ -335,7 +335,7 @@
                 </div>
                 <form asp-controller="Materials" asp-action="Index" method="post" enctype="multipart/form-data">
                     <div class="modal-body">
-                        <label class="form-label small fw-semibold text-secondary" data-i18n="chooseExcelFile">Chọn file Excel (.xlsx)</label>
+                        <label class="form-label small fw-semibold text-secondary mb-1" data-i18n="chooseExcelFile">Chọn file Excel (.xlsx)</label>
                         <input type="file" name="file" accept=".xlsx" class="form-control" required />
                     </div>
                     <div class="modal-footer border-0">
@@ -350,49 +350,49 @@
     </div>
 
     <div class="modal fade" id="editModal" tabindex="-1" aria-hidden="true">
-        <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-dialog modal-dialog-centered modal-xl modal-dialog-scrollable">
             <div class="modal-content border-0 rounded-4 shadow">
                 <div class="modal-header border-0">
                     <h5 class="modal-title" data-i18n="editModalTitle">Sửa thông tin liệu</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
-                <form asp-controller="Materials" asp-action="Edit" method="post" id="editForm">
+                <form asp-controller="Materials" asp-action="Edit" method="post" id="editForm" style="display:contents;">
                     <input type="hidden" name="MaterialId" id="edit_MaterialId" />
                     <input type="hidden" name="ReturnUrl" id="edit_ReturnUrl" />
                     <div class="modal-body">
-                        <div class="row row-cols-2 g-3">
-                            <div><label class="form-label small fw-semibold text-secondary" data-i18n="editArrivalQty">Số lượng (Q'ty)</label><input type="number" step="any" min="0.01" class="form-control" name="ArrivalQty" id="edit_ArrivalQty" required /></div>
-                            <div><label class="form-label small fw-semibold text-secondary">Dev</label><input class="form-control" name="Dev" id="edit_Dev" /></div>
-                            <div><label class="form-label small fw-semibold text-secondary">PO</label><input class="form-control" name="PoNo" id="edit_PoNo" /></div>
-                            <div><label class="form-label small fw-semibold text-secondary">Supplier</label><input class="form-control" name="Supplier" id="edit_Supplier" /></div>
-                            <div><label class="form-label small fw-semibold text-secondary">Model</label><input class="form-control" name="Model" id="edit_Model" /></div>
-                            <div><label class="form-label small fw-semibold text-secondary">Season</label><input class="form-control" name="Season" id="edit_Season" /></div>
-                            <div><label class="form-label small fw-semibold text-secondary">Stage</label><input class="form-control" name="Stage" id="edit_Stage" /></div>
-                            <div><label class="form-label small fw-semibold text-secondary">Colorway</label><input class="form-control" name="Colorway" id="edit_Colorway" /></div>
-                            <div><label class="form-label small fw-semibold text-secondary">Component</label><input class="form-control" name="Component" id="edit_Component" /></div>
-                            <div class="col-12"><label class="form-label small fw-semibold text-secondary" data-i18n="editMatlDescription">Mô tả liệu</label><input class="form-control" name="MatlDescription" id="edit_MatlDescription" /></div>
-                            <div><label class="form-label small fw-semibold text-secondary">Color code</label><input class="form-control" name="ColorCode" id="edit_ColorCode" /></div>
-                            <div><label class="form-label small fw-semibold text-secondary">Color name</label><input class="form-control" name="ColorName" id="edit_ColorName" /></div>
-                            <div><label class="form-label small fw-semibold text-secondary">Size</label><input class="form-control" name="SizeSpec" id="edit_SizeSpec" /></div>
-                            <div><label class="form-label small fw-semibold text-secondary" data-i18n="editUnit">Đơn vị</label><input class="form-control" name="Unit" id="edit_Unit" /></div>
-                            <div><label class="form-label small fw-semibold text-secondary">FOC</label><input class="form-control" name="FocFlag" id="edit_FocFlag" /></div>
-                            <div><label class="form-label small fw-semibold text-secondary" data-i18n="editArrivalDate">Ngày nhập (ATA)</label><input type="date" class="form-control" name="ArrivalDate" id="edit_ArrivalDate" /></div>
-                            <div>
-                                <label class="form-label small fw-semibold text-secondary">Testing</label>
+                        <div class="row row-cols-3 g-2">
+                            <div class="pmc-detail-cell"><label class="form-label small fw-semibold text-secondary mb-1" data-i18n="editArrivalQty">Số lượng (Q'ty)</label><input type="number" step="any" min="0.01" class="form-control" name="ArrivalQty" id="edit_ArrivalQty" required /></div>
+                            <div class="pmc-detail-cell"><label class="form-label small fw-semibold text-secondary mb-1">Dev</label><input class="form-control" name="Dev" id="edit_Dev" /></div>
+                            <div class="pmc-detail-cell"><label class="form-label small fw-semibold text-secondary mb-1">PO</label><input class="form-control" name="PoNo" id="edit_PoNo" /></div>
+                            <div class="pmc-detail-cell"><label class="form-label small fw-semibold text-secondary mb-1">Supplier</label><input class="form-control" name="Supplier" id="edit_Supplier" /></div>
+                            <div class="pmc-detail-cell"><label class="form-label small fw-semibold text-secondary mb-1">Model</label><input class="form-control" name="Model" id="edit_Model" /></div>
+                            <div class="pmc-detail-cell"><label class="form-label small fw-semibold text-secondary mb-1">Season</label><input class="form-control" name="Season" id="edit_Season" /></div>
+                            <div class="pmc-detail-cell"><label class="form-label small fw-semibold text-secondary mb-1">Stage</label><input class="form-control" name="Stage" id="edit_Stage" /></div>
+                            <div class="pmc-detail-cell"><label class="form-label small fw-semibold text-secondary mb-1">Colorway</label><input class="form-control" name="Colorway" id="edit_Colorway" /></div>
+                            <div class="pmc-detail-cell"><label class="form-label small fw-semibold text-secondary mb-1">Component</label><input class="form-control" name="Component" id="edit_Component" /></div>
+                            <div class="col-12 pmc-detail-cell"><label class="form-label small fw-semibold text-secondary mb-1" data-i18n="editMatlDescription">Mô tả liệu</label><input class="form-control" name="MatlDescription" id="edit_MatlDescription" /></div>
+                            <div class="pmc-detail-cell"><label class="form-label small fw-semibold text-secondary mb-1">Color code</label><input class="form-control" name="ColorCode" id="edit_ColorCode" /></div>
+                            <div class="pmc-detail-cell"><label class="form-label small fw-semibold text-secondary mb-1">Color name</label><input class="form-control" name="ColorName" id="edit_ColorName" /></div>
+                            <div class="pmc-detail-cell"><label class="form-label small fw-semibold text-secondary mb-1">Size</label><input class="form-control" name="SizeSpec" id="edit_SizeSpec" /></div>
+                            <div class="pmc-detail-cell"><label class="form-label small fw-semibold text-secondary mb-1" data-i18n="editUnit">Đơn vị</label><input class="form-control" name="Unit" id="edit_Unit" /></div>
+                            <div class="pmc-detail-cell"><label class="form-label small fw-semibold text-secondary mb-1">FOC</label><input class="form-control" name="FocFlag" id="edit_FocFlag" /></div>
+                            <div class="pmc-detail-cell"><label class="form-label small fw-semibold text-secondary mb-1" data-i18n="editArrivalDate">Ngày nhập (ATA)</label><input type="date" class="form-control" name="ArrivalDate" id="edit_ArrivalDate" /></div>
+                            <div class="pmc-detail-cell">
+                                <label class="form-label small fw-semibold text-secondary mb-1">Testing</label>
                                 <select class="form-select" name="Testing" id="edit_Testing">
                                     <option value="">—</option>
                                     <option value="1" data-i18n="yesOption">Có</option>
                                     <option value="0" data-i18n="noOption">Không</option>
                                 </select>
                             </div>
-                            <div><label class="form-label small fw-semibold text-secondary">Test require</label><input class="form-control" name="TestRequire" id="edit_TestRequire" /></div>
-                            <div><label class="form-label small fw-semibold text-secondary">Test qty</label><input class="form-control" name="TestQty" id="edit_TestQty" /></div>
-                            <div><label class="form-label small fw-semibold text-secondary">Category</label><input class="form-control" name="Category" id="edit_Category" /></div>
-                            <div><label class="form-label small fw-semibold text-secondary">Request on</label><input type="date" class="form-control" name="RequestOn" id="edit_RequestOn" /></div>
-                            <div><label class="form-label small fw-semibold text-secondary">Mat'l Type</label><input class="form-control" name="MatlType" id="edit_MatlType" /></div>
-                            <div><label class="form-label small fw-semibold text-secondary">PIC</label><input class="form-control" name="Pic" id="edit_Pic" /></div>
-                            <div><label class="form-label small fw-semibold text-secondary">Mat</label><input class="form-control" name="Mat" id="edit_Mat" /></div>
-                            <div class="col-12"><label class="form-label small fw-semibold text-secondary">Remark</label><textarea class="form-control" name="Remark" id="edit_Remark" rows="2"></textarea></div>
+                            <div class="pmc-detail-cell"><label class="form-label small fw-semibold text-secondary mb-1">Test require</label><input class="form-control" name="TestRequire" id="edit_TestRequire" /></div>
+                            <div class="pmc-detail-cell"><label class="form-label small fw-semibold text-secondary mb-1">Test qty</label><input class="form-control" name="TestQty" id="edit_TestQty" /></div>
+                            <div class="pmc-detail-cell"><label class="form-label small fw-semibold text-secondary mb-1">Category</label><input class="form-control" name="Category" id="edit_Category" /></div>
+                            <div class="pmc-detail-cell"><label class="form-label small fw-semibold text-secondary mb-1">Request on</label><input type="date" class="form-control" name="RequestOn" id="edit_RequestOn" /></div>
+                            <div class="pmc-detail-cell"><label class="form-label small fw-semibold text-secondary mb-1">Mat'l Type</label><input class="form-control" name="MatlType" id="edit_MatlType" /></div>
+                            <div class="pmc-detail-cell"><label class="form-label small fw-semibold text-secondary mb-1">PIC</label><input class="form-control" name="Pic" id="edit_Pic" /></div>
+                            <div class="pmc-detail-cell"><label class="form-label small fw-semibold text-secondary mb-1">Mat</label><input class="form-control" name="Mat" id="edit_Mat" /></div>
+                            <div class="col-12 pmc-detail-cell"><label class="form-label small fw-semibold text-secondary mb-1">Remark</label><textarea class="form-control" name="Remark" id="edit_Remark" rows="2"></textarea></div>
                         </div>
                     </div>
                 </form>
@@ -435,6 +435,15 @@
             if (flash.dataset.success) PmcUI.success(PmcWhI18n.renderFlash(flash.dataset.success));
             if (flash.dataset.warning) PmcUI.warning(PmcWhI18n.renderFlash(flash.dataset.warning));
             if (flash.dataset.error) PmcUI.error(PmcWhI18n.renderFlash(flash.dataset.error));
+
+            // Bảng quá dày (mỗi dòng ~27px) nên tooltip mặc định của trình duyệt (bám theo vị trí
+            // con trỏ chuột) hay đè lên chữ của dòng kế bên — chuyển qua Bootstrap Tooltip, ép hiện
+            // phía TRÊN ô đang trỏ vào (data-bs-placement="top") để không che dòng dưới.
+            document.querySelectorAll('#materialsTable [data-bs-toggle="tooltip"]').forEach(function (el) {
+                if (el.getAttribute('title')) {
+                    new bootstrap.Tooltip(el);
+                }
+            });
 
             var editModalEl = document.getElementById('editModal');
             if (editModalEl) {

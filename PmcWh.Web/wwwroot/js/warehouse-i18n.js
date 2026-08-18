@@ -11,6 +11,7 @@ window.PmcWhI18n = (function () {
     vi: {
       // ----- Header / Sidebar / Login (dùng chung toàn site) -----
       subtitlePortal: 'Warehouse Portal',
+      languageLabel: 'Language',
       logout: 'Đăng xuất',
       menuMaterialsGroup: 'Liệu',
       menuMaterialsDb: 'Cơ sở dữ liệu của PMC',
@@ -201,6 +202,13 @@ window.PmcWhI18n = (function () {
       emptyOverdue: 'Không có liệu nào quá 90 ngày.',
       confirmOverdueDeleteMsg: 'Xác nhận "{barcode}" đã hết liệu, không còn chờ nhận lại? Sẽ hủy hẳn liệu này.',
       overdueDisposedSuccess: "Đã hủy barcode '{0}' — hết liệu, không còn chờ nhận lại.",
+      selectAllLabel: 'Chọn tất cả',
+      btnDeleteSelected: 'Xóa đã chọn',
+      selectedCountLabel: 'Đã chọn {0}',
+      confirmBulkOverdueDeleteMsg: 'Xác nhận hủy {0} liệu đã chọn? Sẽ hủy hẳn, không thể hoàn tác.',
+      bulkOverdueDisposedSuccess: 'Đã hủy {0} liệu.',
+      bulkOverdueDisposedPartial: 'Đã hủy {0}/{1} liệu, số còn lại bị lỗi.',
+      bulkOverdueDisposedFail: 'Không hủy được liệu nào, vui lòng thử lại.',
 
       // ----- Reports/Issues -----
       reportsSubtitle: 'Ai đã nhận, xuất lúc nào, mã nào — kèm cảnh báo quá 90 ngày',
@@ -291,6 +299,7 @@ window.PmcWhI18n = (function () {
     en: {
       // ----- Header / Sidebar / Login (site-wide) -----
       subtitlePortal: 'Warehouse Portal',
+      languageLabel: 'Ngôn ngữ',
       logout: 'Log out',
       menuMaterialsGroup: 'Materials',
       menuMaterialsDb: 'PMC Materials Database',
@@ -481,6 +490,13 @@ window.PmcWhI18n = (function () {
       emptyOverdue: 'No materials over 90 days.',
       confirmOverdueDeleteMsg: 'Confirm "{barcode}" has been fully used and is no longer awaiting return? This will permanently dispose it.',
       overdueDisposedSuccess: "Disposed barcode '{0}' — fully used, no longer awaiting return.",
+      selectAllLabel: 'Select all',
+      btnDeleteSelected: 'Delete selected',
+      selectedCountLabel: '{0} selected',
+      confirmBulkOverdueDeleteMsg: 'Confirm dispose {0} selected materials? This cannot be undone.',
+      bulkOverdueDisposedSuccess: 'Disposed {0} materials.',
+      bulkOverdueDisposedPartial: 'Disposed {0}/{1} materials, the rest failed.',
+      bulkOverdueDisposedFail: 'Could not dispose any material, please try again.',
 
       // ----- Reports/Issues -----
       reportsSubtitle: 'Who received it, when it was issued, which barcode — includes 90-day overdue warning',

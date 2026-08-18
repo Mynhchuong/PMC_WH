@@ -160,7 +160,7 @@ const PmcUI = (function () {
             modalEl.className = "modal fade";
             modalEl.tabIndex = -1;
             modalEl.innerHTML =
-                '<div class="modal-dialog modal-dialog-centered">' +
+                '<div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">' +
                 '<div class="modal-content border-0 rounded-4 shadow">' +
                 '<div class="modal-header border-0">' +
                 '<h5 id="pmc-popup-title" class="modal-title"></h5>' +

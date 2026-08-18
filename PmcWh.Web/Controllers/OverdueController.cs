@@ -60,6 +60,44 @@ public class OverdueController : Controller
         return RedirectToAction(nameof(Index));
     }
 
+    /// <summary>Hủy nhiều liệu quá hạn cùng lúc (checkbox chọn nhiều ở Overdue/Index) — gọi tuần tự
+    /// từng cái qua đúng API dispose (không có endpoint batch riêng bên Api), gộp lại 1 thông báo
+    /// tổng kết thay vì spam nhiều toast, chỉ báo warehouseChanged 1 lần ở cuối.</summary>
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> BulkDispose(int[] materialIds)
+    {
+        if (materialIds == null || materialIds.Length == 0)
+        {
+            return RedirectToAction(nameof(Index));
+        }
+
+        var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
+        var client = _httpClientFactory.CreateClient("PmcApi");
+
+        var successCount = 0;
+        foreach (var materialId in materialIds)
+        {
+            var response = await client.PostAsJsonAsync($"api/Materials/{materialId}/dispose", new { userId });
+            if (response.IsSuccessStatusCode) successCount++;
+        }
+
+        var failCount = materialIds.Length - successCount;
+        if (successCount > 0)
+        {
+            TempData["FlashSuccess"] = failCount > 0
+                ? FlashHelper.Msg("bulkOverdueDisposedPartial", successCount.ToString(), materialIds.Length.ToString())
+                : FlashHelper.Msg("bulkOverdueDisposedSuccess", successCount.ToString());
+            await _hub.Clients.All.SendAsync("warehouseChanged");
+        }
+        else
+        {
+            TempData["FlashError"] = FlashHelper.Msg("bulkOverdueDisposedFail");
+        }
+
+        return RedirectToAction(nameof(Index));
+    }
+
     private class ApiMessage
     {
         public string? Message { get; set; }
