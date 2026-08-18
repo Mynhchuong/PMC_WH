@@ -589,6 +589,7 @@
       return { fwd: fwd, frontPt: frontPt, footPt: footPt, cornerPt: cornerPt, laneZ: laneZ };
     }
     function repositionPlacedLadder(route) {
+      if (!placedLadder) return; // chưa dựng mesh thang xong thì bỏ qua, tránh crash toàn bộ scene
       var ldir = route.frontPt.clone().sub(route.footPt), llen = ldir.length(); ldir.normalize();
       placedLadder.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), ldir);
       placedLadder.scale.set(1, llen / LADDER_LEN, 1);
@@ -632,9 +633,13 @@
     }
 
     (function () {
+      // Phải dựng mesh cây thang (placedLadder) TRƯỚC khi gọi buildLadderRoute() lần đầu — hàm đó
+      // gọi repositionPlacedLadder() ngay bên trong, cần placedLadder đã tồn tại sẵn, không thì lỗi
+      // "placedLadder.quaternion" (null) ngay lúc mới vào trang.
+      placedLadder = buildLadderMesh(); placedLadder.visible = false; scene.add(placedLadder);
+
       var route = buildLadderRoute();
       if (!route) return;
-      placedLadder = buildLadderMesh(); placedLadder.visible = false; scene.add(placedLadder);
 
       var lw = buildWorker();
       carriedLadder = buildLadderMesh(); carriedLadder.scale.set(1, 0.6, 1);

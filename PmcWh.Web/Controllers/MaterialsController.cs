@@ -4,7 +4,9 @@ using System.Security.Claims;
 using System.Text.Json;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.SignalR;
 using PmcWh.Web.Helpers;
+using PmcWh.Web.Hubs;
 using PmcWh.Web.Models;
 
 namespace PmcWh.Web.Controllers;
@@ -15,10 +17,12 @@ public class MaterialsController : Controller
     private static readonly JsonSerializerOptions ApiJsonOptions = new(JsonSerializerDefaults.Web);
 
     private readonly IHttpClientFactory _httpClientFactory;
+    private readonly IHubContext<WarehouseHub> _hub;
 
-    public MaterialsController(IHttpClientFactory httpClientFactory)
+    public MaterialsController(IHttpClientFactory httpClientFactory, IHubContext<WarehouseHub> hub)
     {
         _httpClientFactory = httpClientFactory;
+        _hub = hub;
     }
 
     private static readonly List<string> TemplateHeaders = new()
@@ -163,6 +167,33 @@ public class MaterialsController : Controller
         {
             var problem = await response.Content.ReadFromJsonAsync<ApiMessage>(ApiJsonOptions);
             TempData["FlashError"] = problem?.Message ?? FlashHelper.Msg("deleteMaterialFailFallback");
+        }
+
+        return RedirectToLocal(returnUrl);
+    }
+
+    /// <summary>Hủy 1 liệu (Status='Disposed' bên Api, Balance về 0, ghi StockMovements) — dùng cho
+    /// nút "Huỷ" nhanh ở Materials/Index. Gọi chung endpoint Api với trang Hủy liệu (DisposeController),
+    /// chỉ khác là redirect về lại returnUrl (Materials/Index) thay vì luôn về Dispose/Index.</summary>
+    [HttpPost]
+    [Authorize(Roles = "Admin")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> Dispose(int materialId, string? barcode, string? returnUrl)
+    {
+        var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
+        var client = _httpClientFactory.CreateClient("PmcApi");
+
+        var response = await client.PostAsJsonAsync($"api/Materials/{materialId}/dispose", new { UserId = userId });
+
+        if (response.IsSuccessStatusCode)
+        {
+            TempData["FlashSuccess"] = FlashHelper.Msg("disposedSuccess", barcode);
+            await _hub.Clients.All.SendAsync("warehouseChanged");
+        }
+        else
+        {
+            var problem = await response.Content.ReadFromJsonAsync<ApiMessage>(ApiJsonOptions);
+            TempData["FlashError"] = problem?.Message ?? FlashHelper.Msg("disposeFailFallback", barcode);
         }
 
         return RedirectToLocal(returnUrl);

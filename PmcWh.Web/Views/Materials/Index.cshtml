@@ -26,61 +26,61 @@
     var currentField = string.IsNullOrWhiteSpace(Model.Field) ? "barcode" : Model.Field;
 }
 
-<div class="card border-0 shadow-sm rounded-4 mb-3">
-    <div class="card-body">
-        <div class="d-flex align-items-center justify-content-between gap-3 mb-4 flex-wrap">
-            <div class="d-flex align-items-center gap-3">
-                <span class="d-inline-flex align-items-center justify-content-center rounded-4"
-                      style="width:48px;height:48px;background:linear-gradient(135deg, #495057 0%, #212529 100%); flex-shrink:0;">
-                    <span class="material-icons text-white">storage</span>
+<div class="card border-0 shadow-sm rounded-4 mb-2 pmc-filter-card">
+    <div class="card-body py-2">
+        <div class="d-flex align-items-center justify-content-between gap-2 mb-2 flex-wrap">
+            <div class="d-flex align-items-center gap-2">
+                <span class="d-inline-flex align-items-center justify-content-center rounded-3"
+                      style="width:34px;height:34px;background:linear-gradient(135deg, #495057 0%, #212529 100%); flex-shrink:0;">
+                    <span class="material-icons text-white" style="font-size:18px;">storage</span>
                 </span>
                 <div>
-                    <h5 class="card-title mb-0" data-i18n="matDbTitle">Cơ sở dữ liệu của PMC</h5>
-                    <p class="text-muted small mb-0" data-i18n="matDbSubtitle">Toàn bộ liệu đã nhập vào hệ thống</p>
+                    <h6 class="card-title mb-0" data-i18n="matDbTitle">Cơ sở dữ liệu của PMC</h6>
+                    <p class="text-muted mb-0" style="font-size:0.7rem;" data-i18n="matDbSubtitle">Toàn bộ liệu đã nhập vào hệ thống</p>
                 </div>
             </div>
-            <div class="d-flex align-items-center gap-2 flex-wrap">
+            <div class="d-flex align-items-center gap-1 flex-wrap">
                 @if (isAdmin)
                 {
-                    <button type="button" class="btn pmc-btn-dark d-inline-flex align-items-center gap-1" data-bs-toggle="modal" data-bs-target="#importModal">
-                        <span class="material-icons" style="font-size:18px;">cloud_upload</span> <span data-i18n="btnImport">Import</span>
+                    <button type="button" class="btn btn-sm pmc-btn-dark d-inline-flex align-items-center gap-1" data-bs-toggle="modal" data-bs-target="#importModal">
+                        <span class="material-icons" style="font-size:15px;">cloud_upload</span> <span data-i18n="btnImport">Import</span>
                     </button>
-                    <a asp-controller="Materials" asp-action="DownloadTemplate" class="btn btn-outline-secondary d-inline-flex align-items-center gap-1">
-                        <span class="material-icons" style="font-size:18px;">download</span> <span data-i18n="btnDownloadTemplate">Tải file mẫu</span>
+                    <a asp-controller="Materials" asp-action="DownloadTemplate" class="btn btn-sm btn-outline-secondary d-inline-flex align-items-center gap-1">
+                        <span class="material-icons" style="font-size:15px;">download</span> <span data-i18n="btnDownloadTemplate">Tải file mẫu</span>
                     </a>
                 }
                 <a asp-controller="Materials" asp-action="ExportExcel"
                    asp-route-field="@Model.Field" asp-route-q="@Model.Q" asp-route-status="@Model.Status"
                    asp-route-fromDate="@Model.FromDate?.ToString("yyyy-MM-dd")" asp-route-toDate="@Model.ToDate?.ToString("yyyy-MM-dd")"
                    asp-route-isOverdue="@Model.IsOverdue"
-                   class="btn pmc-btn-dark d-inline-flex align-items-center gap-1">
-                    <span class="material-icons" style="font-size:18px;">file_download</span> <span data-i18n="btnExportExcel">Xuất Excel</span>
+                   class="btn btn-sm pmc-btn-dark d-inline-flex align-items-center gap-1">
+                    <span class="material-icons" style="font-size:15px;">file_download</span> <span data-i18n="btnExportExcel">Xuất Excel</span>
                 </a>
             </div>
         </div>
 
-        <form asp-controller="Materials" asp-action="Index" method="get" class="d-flex flex-wrap align-items-end gap-3">
-            <div style="width:140px;">
-                <label class="form-label small fw-semibold text-secondary" data-i18n="colSearchField">Tìm theo</label>
-                <select name="field" class="form-select">
+        <form asp-controller="Materials" asp-action="Index" method="get" class="d-flex flex-wrap align-items-end gap-2">
+            <div style="width:130px;">
+                <label class="form-label small fw-semibold text-secondary mb-1" data-i18n="colSearchField">Tìm theo</label>
+                <select name="field" class="form-select form-select-sm">
                     @foreach (var f in searchFields)
                     {
                         <option value="@f.Value" selected="@(currentField == f.Value)" data-i18n="@f.I18nKey">@f.Label</option>
                     }
                 </select>
             </div>
-            <div style="width:230px;">
-                <label class="form-label small fw-semibold text-secondary" data-i18n="filterBarcodeLabel">Nội dung tìm</label>
-                <div class="input-group">
+            <div style="width:210px;">
+                <label class="form-label small fw-semibold text-secondary mb-1" data-i18n="filterBarcodeLabel">Nội dung tìm</label>
+                <div class="input-group input-group-sm">
                     <button type="submit" class="input-group-text bg-white" style="cursor:pointer;" title="Tìm kiếm" data-i18n-title="btnSearchTooltip">
-                        <span class="material-icons" style="font-size:18px;">search</span>
+                        <span class="material-icons" style="font-size:16px;">search</span>
                     </button>
                     <input type="text" name="q" value="@Model.Q" class="form-control" placeholder="Nhập nội dung cần tìm..." data-i18n-placeholder="filterBarcodePlaceholder" />
                 </div>
             </div>
-            <div style="width:140px;">
-                <label class="form-label small fw-semibold text-secondary" data-i18n="filterStatusLabel">Trạng thái</label>
-                <select name="status" class="form-select">
+            <div style="width:130px;">
+                <label class="form-label small fw-semibold text-secondary mb-1" data-i18n="filterStatusLabel">Trạng thái</label>
+                <select name="status" class="form-select form-select-sm">
                     <option value="" data-i18n="filterStatusAll">Tất cả</option>
                     @foreach (var s in statusOptions)
                     {
@@ -88,21 +88,21 @@
                     }
                 </select>
             </div>
-            <div style="width:150px;">
-                <label class="form-label small fw-semibold text-secondary" data-i18n="filterFromDate">Ngày nhập từ</label>
-                <input type="date" name="fromDate" value="@Model.FromDate?.ToString("yyyy-MM-dd")" class="form-control" />
+            <div style="width:135px;">
+                <label class="form-label small fw-semibold text-secondary mb-1" data-i18n="filterFromDate">Ngày nhập từ</label>
+                <input type="date" name="fromDate" value="@Model.FromDate?.ToString("yyyy-MM-dd")" class="form-control form-control-sm" />
             </div>
-            <div style="width:150px;">
-                <label class="form-label small fw-semibold text-secondary" data-i18n="filterToDate">Đến ngày</label>
-                <input type="date" name="toDate" value="@Model.ToDate?.ToString("yyyy-MM-dd")" class="form-control" />
+            <div style="width:135px;">
+                <label class="form-label small fw-semibold text-secondary mb-1" data-i18n="filterToDate">Đến ngày</label>
+                <input type="date" name="toDate" value="@Model.ToDate?.ToString("yyyy-MM-dd")" class="form-control form-control-sm" />
             </div>
-            <div class="form-check mb-2">
+            <div class="form-check mb-1">
                 <input type="checkbox" name="isOverdue" value="true" class="form-check-input" id="isOverdueCheck" checked="@(Model.IsOverdue == true)" />
                 <label class="form-check-label small" for="isOverdueCheck" data-i18n="overdue90Days">Quá 90 ngày</label>
             </div>
             <div>
-                <button type="submit" class="btn btn-outline-dark d-inline-flex align-items-center gap-1">
-                    <span class="material-icons" style="font-size:18px;">filter_alt</span> <span data-i18n="btnFilter">Lọc</span>
+                <button type="submit" class="btn btn-sm btn-outline-dark d-inline-flex align-items-center gap-1">
+                    <span class="material-icons" style="font-size:15px;">filter_alt</span> <span data-i18n="btnFilter">Lọc</span>
                 </button>
             </div>
         </form>
@@ -138,22 +138,22 @@
 }
 
 <div class="card border-0 shadow-sm rounded-4">
-    <div class="card-body">
-        <div class="table-responsive">
-            <table id="materialsTable" class="table align-middle pmc-table-compact" style="table-layout: fixed;">
+    <div class="card-body py-2">
+        <div class="table-responsive pmc-table-scroll">
+            <table id="materialsTable" class="table align-middle table-sm pmc-table-compact" style="table-layout: fixed;">
                 <colgroup>
-                    <col data-col-key="barcode" style="width: 150px">
+                    <col data-col-key="barcode" style="width: 110px">
                     <col data-col-key="dev" style="width: 90px">
-                    <col data-col-key="po" style="width: 80px">
+                    <col data-col-key="po" style="width: 190px">
                     <col data-col-key="supplier" style="width: 90px">
                     <col data-col-key="matlDescription" style="width: 170px">
                     <col data-col-key="colorCode" style="width: 80px">
                     <col data-col-key="colorway" style="width: 80px">
                     <col data-col-key="sizeSpec" style="width: 70px">
                     <col data-col-key="season" style="width: 80px">
-                    <col data-col-key="stage" style="width: 80px">
-                    <col data-col-key="component" style="width: 90px">
-                    <col data-col-key="colorName" style="width: 90px">
+                    <col data-col-key="stage" style="width: 120px">
+                    <col data-col-key="component" style="width: 130px">
+                    <col data-col-key="colorName" style="width: 120px">
                     <col data-col-key="focFlag" style="width: 60px">
                     <col data-col-key="csCode" style="width: 70px">
                     <col data-col-key="category" style="width: 90px">
@@ -168,7 +168,7 @@
                     <col data-col-key="qty" style="width: 80px">
                     <col data-col-key="balance" style="width: 80px">
                     <col data-col-key="ata" style="width: 80px">
-                    <col data-col-key="status" style="width: 190px">
+                    <col data-col-key="status" style="width: 150px">
                     <col data-col-key="shelf" style="width: 110px">
                     <col data-col-key="stockedInAt" style="width: 100px">
                     <col data-col-key="lastIssuedAt" style="width: 100px">
@@ -176,7 +176,7 @@
                     <col data-col-key="updatedAt" style="width: 100px">
                     @if (isAdmin)
                     {
-                        <col data-col-key="action" style="width: 90px">
+                        <col data-col-key="action" style="width: 160px">
                     }
                 </colgroup>
                 <thead>
@@ -204,8 +204,8 @@
                         <th class="pmc-resizable-th"><span data-i18n="colTestQty">Test Qty</span><span class="col-resizer" data-col-key="testQty"></span></th>
                         <th class="pmc-resizable-th"><span data-i18n="colRequestOn">Request On</span><span class="col-resizer" data-col-key="requestOn"></span></th>
                         <th class="pmc-resizable-th"><span data-i18n="colRemark">Remark</span><span class="col-resizer" data-col-key="remark"></span></th>
-                        <th class="text-end pmc-resizable-th"><span>Qty</span><span class="col-resizer" data-col-key="qty"></span></th>
-                        <th class="text-end pmc-resizable-th"><span>Balance</span><span class="col-resizer" data-col-key="balance"></span></th>
+                        <th class="pmc-resizable-th"><span>Qty</span><span class="col-resizer" data-col-key="qty"></span></th>
+                        <th class="pmc-resizable-th"><span>Balance</span><span class="col-resizer" data-col-key="balance"></span></th>
                         <th class="pmc-resizable-th"><span>ATA</span><span class="col-resizer" data-col-key="ata"></span></th>
                         <th class="pmc-resizable-th"><span data-i18n="colStatus">Trạng thái</span><span class="col-resizer" data-col-key="status"></span></th>
                         <th class="pmc-resizable-th"><span data-i18n="colCurrentShelf">Kệ hiện tại</span><span class="col-resizer" data-col-key="shelf"></span></th>
@@ -215,7 +215,7 @@
                         <th class="pmc-resizable-th"><span data-i18n="colUpdatedAt">Cập nhật gần nhất</span><span class="col-resizer" data-col-key="updatedAt"></span></th>
                         @if (isAdmin)
                         {
-                            <th class="text-end pmc-resizable-th"><span data-i18n="colAction">Hành động</span><span class="col-resizer" data-col-key="action"></span></th>
+                            <th class="pmc-resizable-th"><span data-i18n="colAction">Hành động</span><span class="col-resizer" data-col-key="action"></span></th>
                         }
                     </tr>
                 </thead>
@@ -223,11 +223,16 @@
                     @foreach (var m in Model.Items)
                     {
                         var (badgeTextClass, badgeStyle) = MaterialStatusHelper.BadgeStyle(m.Status);
+                        // Màu Balance so với Qty (A.Q'TY): còn đủ = xanh, đã xuất bớt (còn hàng) = vàng, hết sạch = đỏ.
+                        var balanceStyle = m.Balance == null || m.ArrivalQty == null
+                            ? "color:#6c757d;"
+                            : m.Balance == 0
+                                ? "background-color:rgba(220,53,69,0.14); color:#dc3545;"
+                                : m.Balance < m.ArrivalQty
+                                    ? "background-color:rgba(255,193,7,0.2); color:#b8860b;"
+                                    : "background-color:rgba(25,135,84,0.14); color:#198754;";
                         <tr class="js-detail-row" data-material-id="@m.MaterialId" data-barcode="@m.Barcode" title="Double-click để xem chi tiết">
-                            <td class="fw-semibold">
-                                @m.Barcode
-                                <div class="text-muted small fw-normal">@m.CreatedAt.ToString("dd/MM/yyyy")</div>
-                            </td>
+                            <td class="fw-semibold">@m.Barcode</td>
                             <td class="text-truncate" style="max-width: 0;" title="@m.Dev">@m.Dev</td>
                             <td class="text-truncate" style="max-width: 0;" title="@m.PoNo">@m.PoNo</td>
                             <td class="text-truncate" style="max-width: 0;" title="@m.Supplier">@m.Supplier</td>
@@ -255,7 +260,9 @@
                                 <div style="overflow-x: auto; white-space: nowrap;" title="@m.Remark">@m.Remark</div>
                             </td>
                             <td class="text-end">@m.ArrivalQty @m.Unit</td>
-                            <td class="text-end">@m.Balance @m.Unit</td>
+                            <td class="text-end">
+                                <span class="badge" style="@balanceStyle font-weight:700;">@m.Balance @m.Unit</span>
+                            </td>
                             <td class="text-muted small">@(m.ArrivalDate?.ToString("dd/MM/yyyy") ?? "—")</td>
                             <td>
                                 <div class="d-flex flex-column align-items-start gap-1">
@@ -266,7 +273,16 @@
                                     }
                                 </div>
                             </td>
-                            <td>@(m.LocationCode ?? "—")</td>
+                            <td>
+                                @if (m.LocationCode != null)
+                                {
+                                    <span class="badge pmc-badge-soft-blue" style="font-weight:700;">@m.LocationCode</span>
+                                }
+                                else
+                                {
+                                    <span class="text-muted">—</span>
+                                }
+                            </td>
                             <td class="text-muted small">@(m.StockedInAt?.ToString("dd/MM/yyyy") ?? "—")</td>
                             <td class="text-muted small">@(m.LastIssuedAt?.ToString("dd/MM/yyyy") ?? "—")</td>
                             <td class="text-muted small">@(m.DisposedAt?.ToString("dd/MM/yyyy") ?? "—")</td>
@@ -274,9 +290,20 @@
                             @if (isAdmin)
                             {
                                 <td class="text-end">
-                                    <button type="button" class="btn btn-sm btn-outline-secondary js-edit-btn" data-id="@m.MaterialId" title="Sửa thông tin" data-i18n-title="editTooltip">
-                                        <span class="material-icons" style="font-size:16px;">edit</span>
-                                    </button>
+                                    <div class="d-flex gap-2 justify-content-end">
+                                        <button type="button" class="btn btn-sm btn-outline-secondary js-view-btn" data-id="@m.MaterialId" data-barcode="@m.Barcode" title="Xem chi tiết" data-i18n-title="viewDetailTooltip">
+                                            <span class="material-icons" style="font-size:16px;">visibility</span>
+                                        </button>
+                                        @if (m.Status != "Disposed")
+                                        {
+                                            <button type="button" class="btn btn-sm btn-outline-secondary js-edit-btn" data-id="@m.MaterialId" title="Sửa thông tin" data-i18n-title="editTooltip">
+                                                <span class="material-icons" style="font-size:16px;">edit</span>
+                                            </button>
+                                            <button type="button" class="btn btn-sm btn-outline-danger js-dispose-btn" data-id="@m.MaterialId" data-barcode="@m.Barcode" title="Hủy liệu" data-i18n-title="disposeRowTooltip">
+                                                <span class="material-icons" style="font-size:16px;">delete_outline</span>
+                                            </button>
+                                        }
+                                    </div>
                                 </td>
                             }
                         </tr>
@@ -373,6 +400,11 @@
                     <input type="hidden" name="materialId" id="delete_MaterialId" />
                     <input type="hidden" name="returnUrl" id="delete_ReturnUrl" />
                 </form>
+                <form asp-controller="Materials" asp-action="Dispose" method="post" id="disposeForm">
+                    <input type="hidden" name="materialId" id="dispose_MaterialId" />
+                    <input type="hidden" name="barcode" id="dispose_Barcode" />
+                    <input type="hidden" name="returnUrl" id="dispose_ReturnUrl" />
+                </form>
                 <div class="modal-footer border-0 d-flex justify-content-between">
                     <button type="submit" form="deleteForm" class="btn btn-outline-danger d-inline-flex align-items-center gap-1">
                         <span class="material-icons" style="font-size:18px;">delete</span> <span data-i18n="btnDelete">Xóa</span>
@@ -460,6 +492,33 @@
                             document.querySelector('button[form="deleteForm"]').disabled = true;
                             deleteForm.submit();
                         }
+                    });
+                }
+
+                document.querySelectorAll('.js-view-btn').forEach(function (btn) {
+                    btn.addEventListener('click', function (e) {
+                        e.stopPropagation();
+                        PmcMaterialDetail.show(btn.dataset.id, btn.dataset.barcode);
+                    });
+                });
+
+                // Nút "Huỷ" ngay trên dòng — khác Xoá (ẩn khỏi hệ thống): chuyển Status='Disposed',
+                // Balance về 0, vẫn còn trong danh sách 30 ngày ở màn Hủy liệu. Dùng chung 1 <form>
+                // ẩn (disposeForm) cho mọi dòng, không cần mở modal như nút Sửa.
+                var disposeForm = document.getElementById('disposeForm');
+                if (disposeForm) {
+                    document.querySelectorAll('.js-dispose-btn').forEach(function (btn) {
+                        btn.addEventListener('click', async function (e) {
+                            e.stopPropagation();
+                            var barcode = btn.dataset.barcode || '';
+                            var ok = await PmcUI.confirmDelete(PmcWhI18n.t('confirmDisposeMsg').replace('{barcode}', barcode));
+                            if (!ok) return;
+                            document.getElementById('dispose_MaterialId').value = btn.dataset.id;
+                            document.getElementById('dispose_Barcode').value = barcode;
+                            document.getElementById('dispose_ReturnUrl').value = window.location.pathname + window.location.search;
+                            btn.disabled = true;
+                            disposeForm.submit();
+                        });
                     });
                 }
             }

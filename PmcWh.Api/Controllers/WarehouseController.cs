@@ -147,7 +147,7 @@ public class WarehouseController : ControllerBase
                     FROM PMC_StockMovements mv
                     JOIN PMC_Materials m ON m.MaterialId = mv.MaterialId
                     LEFT JOIN PMC_StorageLocations l ON l.LocationId = mv.LocationId
-                   WHERE mv.MovementType = 'Inbound'
+                   WHERE mv.MovementType = 'Inbound' AND m.IsArchived = 0
                    ORDER BY mv.OccurredAt DESC
               ) WHERE ROWNUM <= 5");
 
@@ -157,7 +157,7 @@ public class WarehouseController : ControllerBase
                     FROM PMC_StockMovements mv
                     JOIN PMC_Materials m ON m.MaterialId = mv.MaterialId
                     LEFT JOIN PMC_Recipients r ON r.RecipientId = mv.RecipientId
-                   WHERE mv.MovementType = 'IssueToWorkshop'
+                   WHERE mv.MovementType = 'IssueToWorkshop' AND m.IsArchived = 0
                    ORDER BY mv.OccurredAt DESC
               ) WHERE ROWNUM <= 5");
 
@@ -185,6 +185,7 @@ public class WarehouseController : ControllerBase
                 LEFT JOIN PMC_Users u ON u.UserId = mv.UserId
                 LEFT JOIN PMC_Recipients r ON r.RecipientId = mv.RecipientId
                WHERE TRUNC(mv.OccurredAt) = TRUNC(SYSDATE)
+                 AND m.IsArchived = 0
                  AND (:movementType IS NULL OR mv.MovementType = :movementType)
                ORDER BY mv.OccurredAt DESC, mv.MovementId DESC";
 
