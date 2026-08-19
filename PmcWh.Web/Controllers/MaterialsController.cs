@@ -14,6 +14,10 @@ namespace PmcWh.Web.Controllers;
 public class MaterialsController : Controller
 {
     private static readonly string[] DateFormats = { "d/M/yyyy H:mm:ss", "d/M/yyyy", "yyyy-MM-dd" };
+
+    // Recipient đặc biệt cho lượng OUT của data cũ import từ file có sẵn (đã xuất trước khi dùng
+    // app, không rõ nơi nhận thật) — tạo sẵn trong PMC_Recipients, xem Index POST bên dưới.
+    private const string LegacyDataRecipientName = "Dữ liệu cũ (trước khi dùng app)";
     private static readonly JsonSerializerOptions ApiJsonOptions = new(JsonSerializerDefaults.Web);
 
     private readonly IHttpClientFactory _httpClientFactory;
@@ -25,21 +29,25 @@ public class MaterialsController : Controller
         _hub = hub;
     }
 
+    // Đúng số lượng + thứ tự cột PMC yêu cầu (nhắn 19/8). Cột OUT/BALANCE không lưu trực tiếp vào
+    // PMC_Materials — dùng để backfill data cũ có sẵn từ trước khi dùng app (xem xử lý ở Index POST).
     private static readonly List<string> TemplateHeaders = new()
     {
-        "DEV", "PO", "SUPPLIER", "MODEL", "SEASON", "STAGE", "COLORWAY", "COMPONENT", "MAT",
-        "MAT'L DESCRIPTION", "COLOR CODE", "COLOR NAME", "SIZE", "A.Q'TY", "UNIT", "FOC", "ATA",
-        "CS_CODE", "REMARK", "BARCODE", "TESTING", "TEST REQUIRE", "TEST Q'TY", "CATEGORY",
-        "REQUEST ON", "MAT'L TYPE", "PIC", "RACK NO.",
+        "DEV", "PODATE", "ETD", "PO", "SUPPLIER", "MODEL", "SEASON", "STAGE", "COLORWAY", "COMPONENT", "MAT",
+        "MAT'L DESCRIPTION", "COLOR CODE", "COLOR NAME", "SIZE", "Q'TY", "UNIT",
+        "ORIGINAL PRICE", "PAYMENT PRICE", "AMOUNT", "FOC/NON FOC", "ATA (INPUT)", "MAT'L TYPE", "REMARK", "PIC",
+        "BARCODE", "TESTING (YES/NO)", "TEST REQUIRE", "TEST Q'TY", "CATEGORY",
+        "RACK NO", "OUT", "BALANCE",
     };
 
     [HttpGet]
-    public async Task<IActionResult> Index(string? field, string? q, string? status, DateTime? fromDate, DateTime? toDate, bool? isOverdue, int page = 1, int pageSize = 20)
+    public async Task<IActionResult> Index(
+        string? field, string? q, string? field2, string? q2, string? field3, string? q3,
+        string? status, DateTime? fromDate, DateTime? toDate, bool? isOverdue, int page = 1, int pageSize = 20)
     {
         var client = _httpClientFactory.CreateClient("PmcApi");
         var query = $"api/Materials?page={page}&pageSize={pageSize}" +
-                    $"&field={Uri.EscapeDataString(field ?? string.Empty)}" +
-                    $"&q={Uri.EscapeDataString(q ?? string.Empty)}" +
+                    $"&{SearchFilterHelper.ToQueryString(field, q, field2, q2, field3, q3)}" +
                     $"&status={Uri.EscapeDataString(status ?? string.Empty)}" +
                     $"&fromDate={Uri.EscapeDataString(fromDate?.ToString("yyyy-MM-dd") ?? string.Empty)}" +
                     $"&toDate={Uri.EscapeDataString(toDate?.ToString("yyyy-MM-dd") ?? string.Empty)}" +
@@ -51,6 +59,10 @@ public class MaterialsController : Controller
             Items = paged?.Items ?? new List<MaterialListItem>(),
             Field = field,
             Q = q,
+            Field2 = field2,
+            Q2 = q2,
+            Field3 = field3,
+            Q3 = q3,
             Status = status,
             FromDate = fromDate,
             ToDate = toDate,
@@ -67,6 +79,10 @@ public class MaterialsController : Controller
                 {
                     ["field"] = field,
                     ["q"] = q,
+                    ["field2"] = field2,
+                    ["q2"] = q2,
+                    ["field3"] = field3,
+                    ["q3"] = q3,
                     ["status"] = status,
                     ["fromDate"] = fromDate?.ToString("yyyy-MM-dd"),
                     ["toDate"] = toDate?.ToString("yyyy-MM-dd"),
@@ -131,6 +147,7 @@ public class MaterialsController : Controller
             form.SizeSpec, form.Unit, form.FocFlag, form.ArrivalDate, form.Remark, form.Testing,
             form.TestRequire, form.TestQty, form.Category, form.RequestOn,
             form.MatlType, form.Pic, form.Mat,
+            form.PoDate, form.Etd, form.OriginalPrice, form.PaymentPrice, form.Amount,
             UserId = userId,
         });
 
@@ -221,12 +238,13 @@ public class MaterialsController : Controller
     /// <summary>Xuất Excel danh sách liệu theo đúng bộ lọc đang xem — đủ cột như file PMC yêu cầu,
     /// kèm 3 cột trạng thái hiện tại (STATUS/BALANCE/RACK NO.) ở cuối.</summary>
     [HttpGet]
-    public async Task<IActionResult> ExportExcel(string? field, string? q, string? status, DateTime? fromDate, DateTime? toDate, bool? isOverdue)
+    public async Task<IActionResult> ExportExcel(
+        string? field, string? q, string? field2, string? q2, string? field3, string? q3,
+        string? status, DateTime? fromDate, DateTime? toDate, bool? isOverdue)
     {
         var client = _httpClientFactory.CreateClient("PmcApi");
         var query = "api/Materials/export" +
-                    $"?field={Uri.EscapeDataString(field ?? string.Empty)}" +
-                    $"&q={Uri.EscapeDataString(q ?? string.Empty)}" +
+                    $"?{SearchFilterHelper.ToQueryString(field, q, field2, q2, field3, q3)}" +
                     $"&status={Uri.EscapeDataString(status ?? string.Empty)}" +
                     $"&fromDate={Uri.EscapeDataString(fromDate?.ToString("yyyy-MM-dd") ?? string.Empty)}" +
                     $"&toDate={Uri.EscapeDataString(toDate?.ToString("yyyy-MM-dd") ?? string.Empty)}" +
@@ -239,17 +257,19 @@ public class MaterialsController : Controller
         // PMC yêu cầu xuất FULL, không được thiếu trường nào có trong hệ thống.
         var headers = new List<string>
         {
-            "MATERIAL ID", "DEV", "PO", "SUPPLIER", "MODEL", "SEASON", "STAGE", "COLORWAY", "COMPONENT", "MAT",
-            "MAT'L DESCRIPTION", "COLOR CODE", "COLOR NAME", "SIZE", "A.Q'TY", "UNIT", "FOC", "ATA",
-            "CS_CODE", "REMARK", "BARCODE", "TESTING", "TEST REQUIRE", "TEST Q'TY", "CATEGORY",
+            "MATERIAL ID", "DEV", "PODATE", "ETD", "PO", "SUPPLIER", "MODEL", "SEASON", "STAGE", "COLORWAY", "COMPONENT", "MAT",
+            "MAT'L DESCRIPTION", "COLOR CODE", "COLOR NAME", "SIZE", "Q'TY", "UNIT",
+            "ORIGINAL PRICE", "PAYMENT PRICE", "AMOUNT", "FOC/NON FOC", "ATA (INPUT)",
+            "CS_CODE", "REMARK", "BARCODE", "TESTING (YES/NO)", "TEST REQUIRE", "TEST Q'TY", "CATEGORY",
             "REQUEST ON", "MAT'L TYPE", "PIC",
             "STATUS", "BALANCE", "RACK NO. (hiện tại)",
             "NGÀY LÊN KỆ", "XUẤT GẦN NHẤT", "NGÀY HỦY", "QUÁ 90 NGÀY", "NGÀY TẠO", "CẬP NHẬT GẦN NHẤT",
         };
         var rows = items.Select(m => (IReadOnlyList<object?>)new List<object?>
         {
-            m.MaterialId, m.Dev, m.PoNo, m.Supplier, m.Model, m.Season, m.Stage, m.Colorway, m.Component, m.Mat,
-            m.MatlDescription, m.ColorCode, m.ColorName, m.SizeSpec, m.ArrivalQty, m.Unit, m.FocFlag,
+            m.MaterialId, m.Dev, m.PoDate?.ToString("yyyy-MM-dd"), m.Etd?.ToString("yyyy-MM-dd"), m.PoNo, m.Supplier, m.Model, m.Season, m.Stage, m.Colorway, m.Component, m.Mat,
+            m.MatlDescription, m.ColorCode, m.ColorName, m.SizeSpec, m.ArrivalQty, m.Unit,
+            m.OriginalPrice, m.PaymentPrice, m.Amount, m.FocFlag,
             m.ArrivalDate?.ToString("yyyy-MM-dd"), m.CsCode, m.Remark, m.Barcode,
             m.Testing == 1 ? "YES" : m.Testing == 0 ? "NO" : null, m.TestRequire, m.TestQty,
             m.Category, m.RequestOn?.ToString("yyyy-MM-dd"), m.MatlType, m.Pic,
@@ -323,6 +343,7 @@ public class MaterialsController : Controller
         // tự Inbound luôn sau Import, không cần quét tay lại. Mã kệ không khớp/để trống -> giữ
         // nguyên Staging (chờ quét sau ở màn Quét lên kệ).
         var inboundedCount = 0;
+        var inboundedMaterials = new Dictionary<string, (int MaterialId, decimal ArrivalQty)>(StringComparer.OrdinalIgnoreCase);
         var rowsWithRack = parsedRows
             .Where(r => !string.IsNullOrWhiteSpace(r.RackNo) && !string.IsNullOrWhiteSpace(r.Barcode) && !skippedBarcodes.Contains(r.Barcode!))
             .ToList();
@@ -342,7 +363,64 @@ public class MaterialsController : Controller
                 if (mat == null) continue;
 
                 var inboundResp = await client.PostAsJsonAsync($"api/Materials/{mat.MaterialId}/inbound", new { locationId, userId });
-                if (inboundResp.IsSuccessStatusCode) inboundedCount++;
+                if (inboundResp.IsSuccessStatusCode)
+                {
+                    inboundedCount++;
+                    inboundedMaterials[row.Barcode!] = (mat.MaterialId, mat.ArrivalQty ?? row.ArrivalQty ?? 0);
+                }
+            }
+        }
+
+        // Dòng có cột "OUT" > 0 (data cũ đã xuất trước khi dùng app, không có lịch sử StockMovements
+        // thật) VÀ đã lên kệ thành công ở bước trên -> tự Issue luôn cho recipient đặc biệt
+        // LegacyDataRecipientName, để Balance/Status ra đúng mà vẫn giữ StockMovements audit trail
+        // (thay vì ghi thẳng Balance vào DB, phá vỡ nguyên tắc "mọi thay đổi tồn kho đều qua nghiệp
+        // vụ Inbound/Issue/Return/Dispose"). Nếu PMC có điền thêm BALANCE, đối chiếu OUT+BALANCE
+        // phải khớp Q'TY — lệch thì bỏ qua, không tự xuất, tránh xuất sai số lượng.
+        var issuedCount = 0;
+        var rowsWithOut = parsedRows
+            .Where(r => r.Out is > 0 && !string.IsNullOrWhiteSpace(r.Barcode) && inboundedMaterials.ContainsKey(r.Barcode!))
+            .ToList();
+        if (rowsWithOut.Count > 0)
+        {
+            var recipients = await client.GetFromJsonAsync<PagedResultDto<RecipientDto>>(
+                "api/Recipients?includeInactive=true&pageSize=200", ApiJsonOptions);
+            var legacyRecipient = recipients?.Items.FirstOrDefault(r => r.Name == LegacyDataRecipientName);
+
+            if (legacyRecipient != null)
+            {
+                var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
+                foreach (var row in rowsWithOut)
+                {
+                    var (materialId, arrivalQty) = inboundedMaterials[row.Barcode!];
+                    if (row.Balance.HasValue && Math.Abs((arrivalQty - row.Out!.Value) - row.Balance.Value) > 0.01m)
+                    {
+                        skipped.Add(new MaterialImportSkipItem(row.Barcode!,
+                            $"OUT ({row.Out}) + BALANCE ({row.Balance}) không khớp Q'TY ({arrivalQty}) — chưa tự xuất, kiểm tra lại rồi xuất tay ở màn Xuất hàng."));
+                        continue;
+                    }
+
+                    var issueResp = await client.PostAsJsonAsync($"api/Materials/{materialId}/issue",
+                        new { recipientId = legacyRecipient.RecipientId, qty = row.Out!.Value, userId });
+                    if (issueResp.IsSuccessStatusCode)
+                    {
+                        issuedCount++;
+                    }
+                    else
+                    {
+                        var errBody = await issueResp.Content.ReadAsStringAsync();
+                        skipped.Add(new MaterialImportSkipItem(row.Barcode!,
+                            $"Tự xuất OUT ({row.Out}) thất bại — kiểm tra lại rồi xuất tay ở màn Xuất hàng. ({errBody})"));
+                    }
+                }
+            }
+            else
+            {
+                foreach (var row in rowsWithOut)
+                {
+                    skipped.Add(new MaterialImportSkipItem(row.Barcode!,
+                        $"Không tìm thấy recipient \"{LegacyDataRecipientName}\" — chưa tự xuất OUT ({row.Out}), kiểm tra lại rồi xuất tay ở màn Xuất hàng."));
+                }
             }
         }
 
@@ -355,6 +433,10 @@ public class MaterialsController : Controller
             if (inboundedCount > 0)
             {
                 parts.Add(("importedAutoShelvedSuffix", new[] { inboundedCount.ToString() }));
+            }
+            if (issuedCount > 0)
+            {
+                parts.Add(("importedAutoIssuedSuffix", new[] { issuedCount.ToString() }));
             }
             if (skipped.Count > 0)
             {
@@ -411,21 +493,29 @@ public class MaterialsController : Controller
             ColorCode = Get("COLOR CODE"),
             ColorName = Get("COLOR NAME"),
             SizeSpec = Get("SIZE"),
-            ArrivalQty = ParseDecimal(Get("A.Q'TY")),
+            // Q'TY = tên cột mới PMC yêu cầu, A.Q'TY = tên cũ — giữ fallback cho file mẫu cũ đã tải trước đó.
+            ArrivalQty = ParseDecimal(Get("Q'TY") ?? Get("A.Q'TY")),
             Unit = Get("UNIT"),
-            FocFlag = Get("FOC"),
-            ArrivalDate = ParseDate(Get("ATA")),
+            FocFlag = Get("FOC/NON FOC") ?? Get("FOC"),
+            ArrivalDate = ParseDate(Get("ATA (INPUT)") ?? Get("ATA")),
             CsCode = ParseInt(Get("CS_CODE")),
             Remark = Get("REMARK"),
             Barcode = Get("BARCODE"),
-            Testing = ParseYesNo(Get("TESTING")),
+            Testing = ParseYesNo(Get("TESTING (YES/NO)") ?? Get("TESTING")),
             TestRequire = Get("TEST REQUIRE"),
             TestQty = Get("TEST Q'TY"),
             Category = Get("CATEGORY"),
             RequestOn = ParseDate(Get("REQUEST ON")),
             MatlType = Get("MAT'L TYPE"),
             Pic = Get("PIC"),
-            RackNo = Get("RACK NO."),
+            PoDate = ParseDate(Get("PODATE")),
+            Etd = ParseDate(Get("ETD")),
+            OriginalPrice = ParseDecimal(Get("ORIGINAL PRICE")),
+            PaymentPrice = ParseDecimal(Get("PAYMENT PRICE")),
+            Amount = ParseDecimal(Get("AMOUNT")),
+            RackNo = Get("RACK NO") ?? Get("RACK NO."),
+            Out = ParseDecimal(Get("OUT")),
+            Balance = ParseDecimal(Get("BALANCE")),
         };
     }
 

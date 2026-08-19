@@ -1,29 +1,12 @@
 @using PmcWh.Web.Helpers
 @model PmcWh.Web.Models.MaterialListViewModel
 @{
-    ViewData["Title"] = "Cơ sở dữ liệu của PMC";
+    ViewData["Title"] = "Cơ sở dữ liệu";
     ViewData["TitleKey"] = "matDbTitle";
     var statusOptions = MaterialStatusHelper.AllStatuses;
     var isAdmin = User.IsInRole("Admin");
-    // Whitelist cột tìm kiếm hiển thị ở dropdown — phải khớp đúng các "case" đang được
-    // PmcWh.Api MaterialsController.SearchColumnFor() chấp nhận, kẻo chọn 1 đằng tìm ra 1 nẻo.
-    var searchFields = new (string Value, string I18nKey, string Label)[]
-    {
-        ("barcode", "colBarcode", "Barcode"),
-        ("dev", "colDev", "Dev"),
-        ("po", "colPo", "PO"),
-        ("supplier", "colSupplier", "Supplier"),
-        ("model", "colModel", "Model"),
-        ("matldescription", "colMatlDescription", "Mat'l Description"),
-        ("colorcode", "colColorCode", "Color Code"),
-        ("colorway", "colColorway", "Colorway"),
-        ("sizespec", "colSize", "Size"),
-        ("category", "colCategory", "Category"),
-        ("matltype", "colMatlType", "Mat'l Type"),
-        ("pic", "colPic", "PIC"),
-        ("remark", "colRemark", "Remark"),
-    };
-    var currentField = string.IsNullOrWhiteSpace(Model.Field) ? "barcode" : Model.Field;
+    var hasAnyFilter = Model.HasAnySearch
+        || !string.IsNullOrWhiteSpace(Model.Status) || Model.FromDate.HasValue || Model.ToDate.HasValue || Model.IsOverdue == true;
 }
 
 <div class="card border-0 shadow-sm rounded-4 mb-2 pmc-filter-card">
@@ -35,7 +18,7 @@
                     <span class="material-icons text-white" style="font-size:18px;">table_chart</span>
                 </span>
                 <div>
-                    <h6 class="card-title mb-0" data-i18n="matDbTitle">Cơ sở dữ liệu của PMC</h6>
+                    <h6 class="card-title mb-0" data-i18n="matDbTitle">Cơ sở dữ liệu</h6>
                     <p class="text-muted mb-0" style="font-size:0.7rem;" data-i18n="matDbSubtitle">Toàn bộ liệu đã nhập vào hệ thống</p>
                 </div>
             </div>
@@ -49,35 +32,34 @@
                         <span class="material-icons" style="font-size:15px;">download</span> <span data-i18n="btnDownloadTemplate">Tải file mẫu</span>
                     </a>
                 }
-                <a asp-controller="Materials" asp-action="ExportExcel"
-                   asp-route-field="@Model.Field" asp-route-q="@Model.Q" asp-route-status="@Model.Status"
-                   asp-route-fromDate="@Model.FromDate?.ToString("yyyy-MM-dd")" asp-route-toDate="@Model.ToDate?.ToString("yyyy-MM-dd")"
-                   asp-route-isOverdue="@Model.IsOverdue"
-                   class="btn btn-sm btn-success d-inline-flex align-items-center gap-1">
-                    <span class="material-icons" style="font-size:15px;">file_download</span> <span data-i18n="btnExportExcel">Xuất Excel</span>
-                </a>
+                @{
+                    var exportFilteredUrl = Url.Action("ExportExcel", "Materials", new
+                    {
+                        field = Model.Field, q = Model.Q, field2 = Model.Field2, q2 = Model.Q2, field3 = Model.Field3, q3 = Model.Q3,
+                        status = Model.Status, fromDate = Model.FromDate?.ToString("yyyy-MM-dd"), toDate = Model.ToDate?.ToString("yyyy-MM-dd"),
+                        isOverdue = Model.IsOverdue,
+                    });
+                    var exportAllUrl = Url.Action("ExportExcel", "Materials");
+                }
+                @if (hasAnyFilter)
+                {
+                    <button type="button" id="btnExportChoice" class="btn btn-sm btn-success d-inline-flex align-items-center gap-1"
+                            data-export-filtered-url="@exportFilteredUrl" data-export-all-url="@exportAllUrl"
+                            data-filtered-count="@Model.Pagination.TotalCount">
+                        <span class="material-icons" style="font-size:15px;">file_download</span> <span data-i18n="btnExportExcel">Xuất Excel</span>
+                    </button>
+                }
+                else
+                {
+                    <a href="@exportAllUrl" class="btn btn-sm btn-success d-inline-flex align-items-center gap-1">
+                        <span class="material-icons" style="font-size:15px;">file_download</span> <span data-i18n="btnExportExcel">Xuất Excel</span>
+                    </a>
+                }
             </div>
         </div>
 
         <form asp-controller="Materials" asp-action="Index" method="get" class="d-flex flex-wrap align-items-end gap-2">
-            <div style="width:130px;">
-                <label class="form-label small fw-semibold text-secondary mb-1" data-i18n="colSearchField">Tìm theo</label>
-                <select name="field" class="form-select form-select-sm">
-                    @foreach (var f in searchFields)
-                    {
-                        <option value="@f.Value" selected="@(currentField == f.Value)" data-i18n="@f.I18nKey">@f.Label</option>
-                    }
-                </select>
-            </div>
-            <div style="width:210px;">
-                <label class="form-label small fw-semibold text-secondary mb-1" data-i18n="filterBarcodeLabel">Nội dung tìm</label>
-                <div class="input-group input-group-sm">
-                    <button type="submit" class="input-group-text bg-white" style="cursor:pointer;" title="Tìm kiếm" data-i18n-title="btnSearchTooltip">
-                        <span class="material-icons" style="font-size:16px;">search</span>
-                    </button>
-                    <input type="text" name="q" value="@Model.Q" class="form-control" placeholder="Nhập nội dung cần tìm..." data-i18n-placeholder="filterBarcodePlaceholder" />
-                </div>
-            </div>
+            @await Html.PartialAsync("_SearchConditions", (PmcWh.Web.Models.SearchFilterFields)Model)
             <div style="width:130px;">
                 <label class="form-label small fw-semibold text-secondary mb-1" data-i18n="filterStatusLabel">Trạng thái</label>
                 <select name="status" class="form-select form-select-sm">
@@ -100,10 +82,16 @@
                 <input type="checkbox" name="isOverdue" value="true" class="form-check-input" id="isOverdueCheck" checked="@(Model.IsOverdue == true)" />
                 <label class="form-check-label small" for="isOverdueCheck" data-i18n="overdue90Days">Quá 90 ngày</label>
             </div>
-            <div>
+            <div class="d-flex gap-1">
                 <button type="submit" class="btn btn-sm btn-outline-dark d-inline-flex align-items-center gap-1">
                     <span class="material-icons" style="font-size:15px;">filter_alt</span> <span data-i18n="btnFilter">Lọc</span>
                 </button>
+                @if (hasAnyFilter)
+                {
+                    <a asp-controller="Materials" asp-action="Index" class="btn btn-sm btn-outline-secondary d-inline-flex align-items-center gap-1">
+                        <span class="material-icons" style="font-size:15px;">filter_alt_off</span> <span data-i18n="btnClearFilter">Bỏ lọc</span>
+                    </a>
+                }
             </div>
         </form>
     </div>
@@ -145,6 +133,8 @@
                     <col data-col-key="barcode" style="width: 110px">
                     <col data-col-key="dev" style="width: 90px">
                     <col data-col-key="po" style="width: 190px">
+                    <col data-col-key="poDate" style="width: 90px">
+                    <col data-col-key="etd" style="width: 90px">
                     <col data-col-key="supplier" style="width: 90px">
                     <col data-col-key="matlDescription" style="width: 170px">
                     <col data-col-key="colorCode" style="width: 80px">
@@ -166,6 +156,9 @@
                     <col data-col-key="requestOn" style="width: 90px">
                     <col data-col-key="remark" style="width: 150px">
                     <col data-col-key="qty" style="width: 80px">
+                    <col data-col-key="originalPrice" style="width: 90px">
+                    <col data-col-key="paymentPrice" style="width: 90px">
+                    <col data-col-key="amount" style="width: 90px">
                     <col data-col-key="balance" style="width: 80px">
                     <col data-col-key="ata" style="width: 80px">
                     <col data-col-key="status" style="width: 150px">
@@ -184,6 +177,8 @@
                         <th class="pmc-resizable-th"><span>Barcode</span><span class="col-resizer" data-col-key="barcode"></span></th>
                         <th class="pmc-resizable-th"><span>Dev</span><span class="col-resizer" data-col-key="dev"></span></th>
                         <th class="pmc-resizable-th"><span>PO</span><span class="col-resizer" data-col-key="po"></span></th>
+                        <th class="pmc-resizable-th"><span data-i18n="colPoDate">PO Date</span><span class="col-resizer" data-col-key="poDate"></span></th>
+                        <th class="pmc-resizable-th"><span data-i18n="colEtd">ETD</span><span class="col-resizer" data-col-key="etd"></span></th>
                         <th class="pmc-resizable-th"><span data-i18n="colSupplier">Supplier</span><span class="col-resizer" data-col-key="supplier"></span></th>
                         <th class="pmc-resizable-th"><span data-i18n="colMatlDescription">Mat'l Description</span><span class="col-resizer" data-col-key="matlDescription"></span></th>
                         <th class="pmc-resizable-th"><span data-i18n="colColorCode">Color Code</span><span class="col-resizer" data-col-key="colorCode"></span></th>
@@ -205,6 +200,9 @@
                         <th class="pmc-resizable-th"><span data-i18n="colRequestOn">Request On</span><span class="col-resizer" data-col-key="requestOn"></span></th>
                         <th class="pmc-resizable-th"><span data-i18n="colRemark">Remark</span><span class="col-resizer" data-col-key="remark"></span></th>
                         <th class="pmc-resizable-th"><span>Qty</span><span class="col-resizer" data-col-key="qty"></span></th>
+                        <th class="text-end pmc-resizable-th"><span data-i18n="colOriginalPrice">Original Price</span><span class="col-resizer" data-col-key="originalPrice"></span></th>
+                        <th class="text-end pmc-resizable-th"><span data-i18n="colPaymentPrice">Payment Price</span><span class="col-resizer" data-col-key="paymentPrice"></span></th>
+                        <th class="text-end pmc-resizable-th"><span data-i18n="colAmount">Amount</span><span class="col-resizer" data-col-key="amount"></span></th>
                         <th class="pmc-resizable-th"><span>Balance</span><span class="col-resizer" data-col-key="balance"></span></th>
                         <th class="pmc-resizable-th"><span>ATA</span><span class="col-resizer" data-col-key="ata"></span></th>
                         <th class="pmc-resizable-th"><span data-i18n="colStatus">Trạng thái</span><span class="col-resizer" data-col-key="status"></span></th>
@@ -235,6 +233,8 @@
                             <td class="fw-semibold">@m.Barcode</td>
                             <td class="text-truncate" style="max-width: 0;" data-bs-toggle="tooltip" data-bs-placement="top" title="@m.Dev">@m.Dev</td>
                             <td class="text-truncate" style="max-width: 0;" data-bs-toggle="tooltip" data-bs-placement="top" title="@m.PoNo">@m.PoNo</td>
+                            <td class="text-muted small">@(m.PoDate?.ToString("dd/MM/yyyy") ?? "—")</td>
+                            <td class="text-muted small">@(m.Etd?.ToString("dd/MM/yyyy") ?? "—")</td>
                             <td class="text-truncate" style="max-width: 0;" data-bs-toggle="tooltip" data-bs-placement="top" title="@m.Supplier">@m.Supplier</td>
                             <td>
                                 <div style="overflow-x: auto; white-space: nowrap;" data-bs-toggle="tooltip" data-bs-placement="top" title="@m.MatlDescription">@m.MatlDescription</div>
@@ -260,6 +260,9 @@
                                 <div style="overflow-x: auto; white-space: nowrap;" data-bs-toggle="tooltip" data-bs-placement="top" title="@m.Remark">@m.Remark</div>
                             </td>
                             <td class="text-end">@m.ArrivalQty @m.Unit</td>
+                            <td class="text-end text-muted small">@(m.OriginalPrice?.ToString("N2") ?? "—")</td>
+                            <td class="text-end text-muted small">@(m.PaymentPrice?.ToString("N2") ?? "—")</td>
+                            <td class="text-end text-muted small">@(m.Amount?.ToString("N2") ?? "—")</td>
                             <td class="text-end">
                                 <span class="badge" style="@balanceStyle font-weight:700;">@m.Balance @m.Unit</span>
                             </td>
@@ -311,7 +314,7 @@
                     @if (Model.Items.Count == 0)
                     {
                         <tr>
-                            <td colspan="@(isAdmin ? 33 : 32)" class="text-center text-muted py-4" data-i18n="emptyMaterials">Không có dữ liệu phù hợp.</td>
+                            <td colspan="@(isAdmin ? 38 : 37)" class="text-center text-muted py-4" data-i18n="emptyMaterials">Không có dữ liệu phù hợp.</td>
                         </tr>
                     }
                 </tbody>
@@ -364,6 +367,8 @@
                             <div class="pmc-detail-cell"><label class="form-label small fw-semibold text-secondary mb-1" data-i18n="editArrivalQty">Số lượng (Q'ty)</label><input type="number" step="any" min="0.01" class="form-control" name="ArrivalQty" id="edit_ArrivalQty" required /></div>
                             <div class="pmc-detail-cell"><label class="form-label small fw-semibold text-secondary mb-1">Dev</label><input class="form-control" name="Dev" id="edit_Dev" /></div>
                             <div class="pmc-detail-cell"><label class="form-label small fw-semibold text-secondary mb-1">PO</label><input class="form-control" name="PoNo" id="edit_PoNo" /></div>
+                            <div class="pmc-detail-cell"><label class="form-label small fw-semibold text-secondary mb-1" data-i18n="colPoDate">PO Date</label><input type="date" class="form-control" name="PoDate" id="edit_PoDate" /></div>
+                            <div class="pmc-detail-cell"><label class="form-label small fw-semibold text-secondary mb-1" data-i18n="colEtd">ETD</label><input type="date" class="form-control" name="Etd" id="edit_Etd" /></div>
                             <div class="pmc-detail-cell"><label class="form-label small fw-semibold text-secondary mb-1">Supplier</label><input class="form-control" name="Supplier" id="edit_Supplier" /></div>
                             <div class="pmc-detail-cell"><label class="form-label small fw-semibold text-secondary mb-1">Model</label><input class="form-control" name="Model" id="edit_Model" /></div>
                             <div class="pmc-detail-cell"><label class="form-label small fw-semibold text-secondary mb-1">Season</label><input class="form-control" name="Season" id="edit_Season" /></div>
@@ -392,6 +397,9 @@
                             <div class="pmc-detail-cell"><label class="form-label small fw-semibold text-secondary mb-1">Mat'l Type</label><input class="form-control" name="MatlType" id="edit_MatlType" /></div>
                             <div class="pmc-detail-cell"><label class="form-label small fw-semibold text-secondary mb-1">PIC</label><input class="form-control" name="Pic" id="edit_Pic" /></div>
                             <div class="pmc-detail-cell"><label class="form-label small fw-semibold text-secondary mb-1">Mat</label><input class="form-control" name="Mat" id="edit_Mat" /></div>
+                            <div class="pmc-detail-cell"><label class="form-label small fw-semibold text-secondary mb-1" data-i18n="colOriginalPrice">Original Price</label><input type="number" step="any" min="0" class="form-control" name="OriginalPrice" id="edit_OriginalPrice" /></div>
+                            <div class="pmc-detail-cell"><label class="form-label small fw-semibold text-secondary mb-1" data-i18n="colPaymentPrice">Payment Price</label><input type="number" step="any" min="0" class="form-control" name="PaymentPrice" id="edit_PaymentPrice" /></div>
+                            <div class="pmc-detail-cell"><label class="form-label small fw-semibold text-secondary mb-1" data-i18n="colAmount">Amount</label><input type="number" step="any" min="0" class="form-control" name="Amount" id="edit_Amount" /></div>
                             <div class="col-12 pmc-detail-cell"><label class="form-label small fw-semibold text-secondary mb-1">Remark</label><textarea class="form-control" name="Remark" id="edit_Remark" rows="2"></textarea></div>
                         </div>
                     </div>
@@ -436,6 +444,28 @@
             if (flash.dataset.warning) PmcUI.warning(PmcWhI18n.renderFlash(flash.dataset.warning));
             if (flash.dataset.error) PmcUI.error(PmcWhI18n.renderFlash(flash.dataset.error));
 
+            // Đang lọc lúc bấm Xuất Excel -> hỏi rõ xuất theo bộ lọc đang xem hay xuất toàn bộ,
+            // tránh trường hợp tưởng "Xuất Excel" luôn là xuất hết nhưng thật ra chỉ ra data đã lọc
+            // (hoặc ngược lại) — PMC có ~11k dòng nên chọn nhầm rất dễ xuất thiếu/thừa số liệu.
+            var btnExportChoice = document.getElementById('btnExportChoice');
+            if (btnExportChoice) {
+                btnExportChoice.addEventListener('click', function () {
+                    var filteredUrl = btnExportChoice.dataset.exportFilteredUrl;
+                    var allUrl = btnExportChoice.dataset.exportAllUrl;
+                    var count = btnExportChoice.dataset.filteredCount;
+                    var body =
+                        '<div class="d-flex flex-column gap-2">' +
+                        '<a href="' + filteredUrl + '" class="btn pmc-btn-dark d-flex align-items-center justify-content-between">' +
+                            '<span data-i18n="exportFilteredOption">Xuất theo bộ lọc đang xem</span>' +
+                            '<span class="badge bg-white text-dark">' + count + '</span>' +
+                        '</a>' +
+                        '<a href="' + allUrl + '" class="btn btn-outline-secondary" data-i18n="exportAllOption">Xuất toàn bộ dữ liệu (bỏ qua bộ lọc)</a>' +
+                        '</div>';
+                    PmcUI.popup(PmcWhI18n.t('exportChoiceTitle'), body);
+                    PmcWhI18n.applyDom();
+                });
+            }
+
             // Bảng quá dày (mỗi dòng ~27px) nên tooltip mặc định của trình duyệt (bám theo vị trí
             // con trỏ chuột) hay đè lên chữ của dòng kế bên — chuyển qua Bootstrap Tooltip, ép hiện
             // phía TRÊN ô đang trỏ vào (data-bs-placement="top") để không che dòng dưới.
@@ -473,13 +503,15 @@
                             ['arrivalQty', 'dev', 'poNo', 'supplier', 'model', 'season', 'stage', 'colorway', 'component',
                              'matlDescription', 'colorCode', 'colorName', 'sizeSpec', 'unit', 'focFlag',
                              'remark', 'testRequire', 'testQty', 'category',
-                             'matlType', 'pic', 'mat'].forEach(function (field) {
+                             'matlType', 'pic', 'mat', 'originalPrice', 'paymentPrice', 'amount'].forEach(function (field) {
                                 var elId = 'edit_' + field.charAt(0).toUpperCase() + field.slice(1);
                                 document.getElementById(elId).value = detail[field] || '';
                             });
                             document.getElementById('edit_Testing').value = detail.testing === null || detail.testing === undefined ? '' : detail.testing;
                             document.getElementById('edit_ArrivalDate').value = detail.arrivalDate ? detail.arrivalDate.substring(0, 10) : '';
                             document.getElementById('edit_RequestOn').value = detail.requestOn ? detail.requestOn.substring(0, 10) : '';
+                            document.getElementById('edit_PoDate').value = detail.poDate ? detail.poDate.substring(0, 10) : '';
+                            document.getElementById('edit_Etd').value = detail.etd ? detail.etd.substring(0, 10) : '';
                             editModal.show();
                         } catch (err) {
                             PmcUI.error(PmcWhI18n.t('loadMaterialInfoError'));

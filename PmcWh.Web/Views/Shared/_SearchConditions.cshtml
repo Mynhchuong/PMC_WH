@@ -1,0 +1,65 @@
+@using PmcWh.Web.Helpers
+@model PmcWh.Web.Models.SearchFilterFields
+@{
+    // 3 ô "Tìm theo + Nội dung tìm" kết hợp AND — dùng chung cho mọi màn danh sách liệu (CSDL,
+    // Quét lên kệ, Xuất hàng, Hủy liệu). PMC cần lọc nhiều cột 1 lượt vì data nhiều (VD: tìm tên
+    // liệu -> color code -> DEV mới ra đúng kết quả). Đặt bên trong <form method="get"> của trang gọi.
+    var searchFields = SearchFieldsCatalog.All;
+    var currentField = string.IsNullOrWhiteSpace(Model.Field) ? "barcode" : Model.Field;
+    var currentField2 = string.IsNullOrWhiteSpace(Model.Field2) ? "dev" : Model.Field2;
+    var currentField3 = string.IsNullOrWhiteSpace(Model.Field3) ? "colorcode" : Model.Field3;
+}
+<div style="width:120px;">
+    <label class="form-label small fw-semibold text-secondary mb-1" data-i18n="colSearchField">Tìm theo</label>
+    <select name="field" class="form-select form-select-sm">
+        @foreach (var f in searchFields)
+        {
+            <option value="@f.Value" selected="@(currentField == f.Value)" data-i18n="@f.I18nKey">@f.Label</option>
+        }
+    </select>
+</div>
+<div style="width:170px;">
+    <label class="form-label small fw-semibold text-secondary mb-1" data-i18n="filterBarcodeLabel">Nội dung tìm</label>
+    <div class="input-group input-group-sm">
+        <button type="submit" class="input-group-text bg-white" style="cursor:pointer;" title="Tìm kiếm" data-i18n-title="btnSearchTooltip">
+            <span class="material-icons" style="font-size:16px;">search</span>
+        </button>
+        <input type="text" name="q" value="@Model.Q" class="form-control" placeholder="Nhập nội dung cần tìm..." data-i18n-placeholder="filterBarcodePlaceholder" />
+    </div>
+</div>
+<div style="width:120px;">
+    <label class="form-label small fw-semibold text-secondary mb-1" data-i18n="colSearchField">Tìm theo</label>
+    <select name="field2" class="form-select form-select-sm">
+        @foreach (var f in searchFields)
+        {
+            <option value="@f.Value" selected="@(currentField2 == f.Value)" data-i18n="@f.I18nKey">@f.Label</option>
+        }
+    </select>
+</div>
+<div style="width:170px;">
+    <label class="form-label small fw-semibold text-secondary mb-1" data-i18n="filterBarcodeLabel">Nội dung tìm</label>
+    <div class="input-group input-group-sm">
+        <button type="submit" class="input-group-text bg-white" style="cursor:pointer;" title="Tìm kiếm" data-i18n-title="btnSearchTooltip">
+            <span class="material-icons" style="font-size:16px;">search</span>
+        </button>
+        <input type="text" name="q2" value="@Model.Q2" class="form-control" placeholder="Nhập nội dung cần tìm..." data-i18n-placeholder="filterBarcodePlaceholder" />
+    </div>
+</div>
+<div style="width:120px;">
+    <label class="form-label small fw-semibold text-secondary mb-1" data-i18n="colSearchField">Tìm theo</label>
+    <select name="field3" class="form-select form-select-sm">
+        @foreach (var f in searchFields)
+        {
+            <option value="@f.Value" selected="@(currentField3 == f.Value)" data-i18n="@f.I18nKey">@f.Label</option>
+        }
+    </select>
+</div>
+<div style="width:170px;">
+    <label class="form-label small fw-semibold text-secondary mb-1" data-i18n="filterBarcodeLabel">Nội dung tìm</label>
+    <div class="input-group input-group-sm">
+        <button type="submit" class="input-group-text bg-white" style="cursor:pointer;" title="Tìm kiếm" data-i18n-title="btnSearchTooltip">
+            <span class="material-icons" style="font-size:16px;">search</span>
+        </button>
+        <input type="text" name="q3" value="@Model.Q3" class="form-control" placeholder="Nhập nội dung cần tìm..." data-i18n-placeholder="filterBarcodePlaceholder" />
+    </div>
+</div>

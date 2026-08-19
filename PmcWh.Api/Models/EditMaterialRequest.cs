@@ -30,5 +30,10 @@ public class EditMaterialRequest
     public string? MatlType { get; set; }
     public string? Pic { get; set; }
     public string? Mat { get; set; }
+    public DateTime? PoDate { get; set; }
+    public DateTime? Etd { get; set; }
+    public decimal? OriginalPrice { get; set; }
+    public decimal? PaymentPrice { get; set; }
+    public decimal? Amount { get; set; }
     public int UserId { get; set; }
 }

@@ -24,6 +24,8 @@
 <div class="row row-cols-4 g-1 small">
     <div class="pmc-detail-cell"><div class="text-muted">Dev</div><div class="fw-semibold">@Val(Model.Dev)</div></div>
     <div class="pmc-detail-cell"><div class="text-muted">PO</div><div class="fw-semibold">@Val(Model.PoNo)</div></div>
+    <div class="pmc-detail-cell"><div class="text-muted" data-i18n="colPoDate">PO Date</div><div class="fw-semibold">@Fmt(Model.PoDate)</div></div>
+    <div class="pmc-detail-cell"><div class="text-muted" data-i18n="colEtd">ETD</div><div class="fw-semibold">@Fmt(Model.Etd)</div></div>
     <div class="pmc-detail-cell"><div class="text-muted">Supplier</div><div class="fw-semibold">@Val(Model.Supplier)</div></div>
     <div class="pmc-detail-cell"><div class="text-muted">Model</div><div class="fw-semibold">@Val(Model.Model)</div></div>
     <div class="pmc-detail-cell"><div class="text-muted">Season</div><div class="fw-semibold">@Val(Model.Season)</div></div>
@@ -35,6 +37,9 @@
     <div class="pmc-detail-cell"><div class="text-muted">Size</div><div class="fw-semibold">@Val(Model.SizeSpec)</div></div>
     <div class="pmc-detail-cell"><div class="text-muted">FOC</div><div class="fw-semibold">@Val(Model.FocFlag)</div></div>
     <div class="pmc-detail-cell"><div class="text-muted" data-i18n="detailArrivalQty">Số lượng nhập</div><div class="fw-semibold">@Model.ArrivalQty @Model.Unit</div></div>
+    <div class="pmc-detail-cell"><div class="text-muted" data-i18n="colOriginalPrice">Original Price</div><div class="fw-semibold">@(Model.OriginalPrice?.ToString("N2") ?? "—")</div></div>
+    <div class="pmc-detail-cell"><div class="text-muted" data-i18n="colPaymentPrice">Payment Price</div><div class="fw-semibold">@(Model.PaymentPrice?.ToString("N2") ?? "—")</div></div>
+    <div class="pmc-detail-cell"><div class="text-muted" data-i18n="colAmount">Amount</div><div class="fw-semibold">@(Model.Amount?.ToString("N2") ?? "—")</div></div>
     <div class="pmc-detail-cell"><div class="text-muted" data-i18n="detailCurrentStock">Tồn hiện tại</div><div class="fw-semibold">@(Model.Balance?.ToString() ?? "—") @Model.Unit</div></div>
     <div class="pmc-detail-cell"><div class="text-muted" data-i18n="detailArrivalDate">Ngày nhập</div><div class="fw-semibold">@Fmt(Model.ArrivalDate)</div></div>
     <div class="pmc-detail-cell"><div class="text-muted">CS Code</div><div class="fw-semibold">@(Model.CsCode?.ToString() ?? "—")</div></div>

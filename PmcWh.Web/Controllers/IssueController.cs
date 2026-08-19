@@ -22,11 +22,12 @@ public class IssueController : Controller
         _hub = hub;
     }
 
-    public async Task<IActionResult> Index()
+    public async Task<IActionResult> Index(string? field, string? q, string? field2, string? q2, string? field3, string? q3)
     {
         var client = _httpClientFactory.CreateClient("PmcApi");
+        var searchQuery = SearchFilterHelper.ToQueryString(field, q, field2, q2, field3, q3);
 
-        var issuableTask = client.GetFromJsonAsync<List<MaterialListItem>>("api/Materials/issuable", ApiJsonOptions);
+        var issuableTask = client.GetFromJsonAsync<List<MaterialListItem>>($"api/Materials/issuable?{searchQuery}", ApiJsonOptions);
         var recipientsTask = client.GetFromJsonAsync<PagedResultDto<RecipientDto>>("api/Recipients", ApiJsonOptions);
 
         await Task.WhenAll(issuableTask, recipientsTask);
@@ -35,6 +36,12 @@ public class IssueController : Controller
         {
             IssuableItems = await issuableTask ?? new List<MaterialListItem>(),
             Recipients = (await recipientsTask)?.Items ?? new List<RecipientDto>(),
+            Field = field,
+            Q = q,
+            Field2 = field2,
+            Q2 = q2,
+            Field3 = field3,
+            Q3 = q3,
         };
 
         if (TempData["FlashSuccess"] is string success) ViewData["FlashSuccess"] = success;

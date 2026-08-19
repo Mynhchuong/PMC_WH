@@ -38,17 +38,20 @@ public class MaterialListItem
     public string? MatlType { get; set; }
     public string? Pic { get; set; }
     public string? Mat { get; set; }
+    public DateTime? PoDate { get; set; }
+    public DateTime? Etd { get; set; }
+    public decimal? OriginalPrice { get; set; }
+    public decimal? PaymentPrice { get; set; }
+    public decimal? Amount { get; set; }
     public DateTime? StockedInAt { get; set; }
     public DateTime? LastIssuedAt { get; set; }
     public DateTime? DisposedAt { get; set; }
     public DateTime? UpdatedAt { get; set; }
 }
 
-public class MaterialListViewModel
+public class MaterialListViewModel : SearchFilterFields
 {
     public List<MaterialListItem> Items { get; set; } = new();
-    public string? Field { get; set; }
-    public string? Q { get; set; }
     public string? Status { get; set; }
     public DateTime? FromDate { get; set; }
     public DateTime? ToDate { get; set; }
@@ -89,6 +92,11 @@ public class MaterialDetail
     public string? MatlType { get; set; }
     public string? Pic { get; set; }
     public string? Mat { get; set; }
+    public DateTime? PoDate { get; set; }
+    public DateTime? Etd { get; set; }
+    public decimal? OriginalPrice { get; set; }
+    public decimal? PaymentPrice { get; set; }
+    public decimal? Amount { get; set; }
     public decimal? Balance { get; set; }
     public string Status { get; set; } = string.Empty;
     public string? LocationCode { get; set; }
@@ -141,5 +149,10 @@ public class EditMaterialFormModel
     public string? MatlType { get; set; }
     public string? Pic { get; set; }
     public string? Mat { get; set; }
+    public DateTime? PoDate { get; set; }
+    public DateTime? Etd { get; set; }
+    public decimal? OriginalPrice { get; set; }
+    public decimal? PaymentPrice { get; set; }
+    public decimal? Amount { get; set; }
     public string? ReturnUrl { get; set; }
 }

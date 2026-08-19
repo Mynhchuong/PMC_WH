@@ -8,7 +8,7 @@ public class StorageLocationDto
     public string Code { get; set; } = string.Empty;
 }
 
-public class InboundViewModel
+public class InboundViewModel : SearchFilterFields
 {
     public List<MaterialListItem> StagingItems { get; set; } = new();
     public List<MaterialListItem> ReturnableItems { get; set; } = new();

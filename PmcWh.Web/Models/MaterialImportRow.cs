@@ -29,8 +29,23 @@ public class MaterialImportRow
     public string? MatlType { get; set; }
     public string? Pic { get; set; }
     public string? Mat { get; set; }
+    public DateTime? PoDate { get; set; }
+    public DateTime? Etd { get; set; }
+    public decimal? OriginalPrice { get; set; }
+    public decimal? PaymentPrice { get; set; }
+    public decimal? Amount { get; set; }
 
     /// <summary>Mã ô kệ (VD "1.2") — chỉ dùng ở tầng Web để tự Inbound sau khi Import, KHÔNG gửi
     /// lên Api (Api.MaterialImportRow không có field này vì Import chỉ tạo Staging).</summary>
     public string? RackNo { get; set; }
+
+    /// <summary>Số lượng đã xuất TRƯỚC KHI dùng app (backfill data cũ, không có lịch sử
+    /// StockMovements thật) — chỉ dùng ở tầng Web để tự gọi Issue sau khi Inbound, xem
+    /// MaterialsController (Web) Index POST. Chỉ áp dụng được khi dòng ĐÃ có RackNo hợp lệ.</summary>
+    public decimal? Out { get; set; }
+
+    /// <summary>Số lượng còn lại PMC tự nhập cho data cũ (đối chiếu OUT + BALANCE phải = Q'TY) —
+    /// KHÔNG ghi thẳng vào cột Balance, chỉ dùng để validate rồi Balance thật vẫn do Inbound+Issue
+    /// tự tính ra, xem MaterialsController (Web) Index POST.</summary>
+    public decimal? Balance { get; set; }
 }

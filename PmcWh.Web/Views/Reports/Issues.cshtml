@@ -3,19 +3,20 @@
 @{
     ViewData["Title"] = "Báo cáo xuất kho";
     ViewData["TitleKey"] = "menuReportsIssues";
+    var hasAnyFilter = Model.FromDate.HasValue || Model.ToDate.HasValue || Model.RecipientId.HasValue || Model.OverdueOnly;
 }
 
-<div class="card border-0 shadow-sm rounded-4 mb-3">
-    <div class="card-body">
-        <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-4">
-            <div class="d-flex align-items-center gap-3">
-                <span class="d-inline-flex align-items-center justify-content-center rounded-4"
-                      style="width:48px;height:48px;background:linear-gradient(135deg, #495057 0%, #212529 100%); flex-shrink:0;">
-                    <span class="material-icons text-white">summarize</span>
+<div class="card border-0 shadow-sm rounded-4 mb-2">
+    <div class="card-body py-2">
+        <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-2">
+            <div class="d-flex align-items-center gap-2">
+                <span class="d-inline-flex align-items-center justify-content-center rounded-3"
+                      style="width:34px;height:34px;background:linear-gradient(135deg, #495057 0%, #212529 100%); flex-shrink:0;">
+                    <span class="material-icons text-white" style="font-size:18px;">summarize</span>
                 </span>
                 <div>
-                    <h5 class="card-title mb-0" data-i18n="menuReportsIssues">Báo cáo xuất kho</h5>
-                    <p class="text-muted small mb-0" data-i18n="reportsSubtitle">Ai đã nhận, xuất lúc nào, mã nào — kèm cảnh báo quá 90 ngày</p>
+                    <h6 class="card-title mb-0" data-i18n="menuReportsIssues">Báo cáo xuất kho</h6>
+                    <p class="text-muted mb-0" style="font-size:0.7rem;" data-i18n="reportsSubtitle">Ai đã nhận, xuất lúc nào, mã nào — kèm cảnh báo quá 90 ngày</p>
                 </div>
             </div>
             <a asp-controller="Reports" asp-action="ExportIssuesExcel"
@@ -23,23 +24,23 @@
                asp-route-toDate="@Model.ToDate?.ToString("yyyy-MM-dd")"
                asp-route-recipientId="@Model.RecipientId"
                asp-route-overdueOnly="@Model.OverdueOnly"
-               class="btn pmc-btn-dark d-inline-flex align-items-center gap-1">
-                <span class="material-icons" style="font-size:18px;">file_download</span> <span data-i18n="btnExportExcel">Xuất Excel</span>
+               class="btn btn-sm pmc-btn-dark d-inline-flex align-items-center gap-1">
+                <span class="material-icons" style="font-size:15px;">file_download</span> <span data-i18n="btnExportExcel">Xuất Excel</span>
             </a>
         </div>
 
-        <form asp-controller="Reports" asp-action="Issues" method="get" class="row g-2 align-items-end">
-            <div class="col-sm-4 col-md-2">
-                <label class="form-label small fw-semibold text-secondary" data-i18n="fromDateLabel">Từ ngày</label>
-                <input type="date" name="fromDate" value="@Model.FromDate?.ToString("yyyy-MM-dd")" class="form-control" />
+        <form asp-controller="Reports" asp-action="Issues" method="get" class="d-flex flex-wrap align-items-end gap-2">
+            <div style="width:135px;">
+                <label class="form-label small fw-semibold text-secondary mb-1" data-i18n="fromDateLabel">Từ ngày</label>
+                <input type="date" name="fromDate" value="@Model.FromDate?.ToString("yyyy-MM-dd")" class="form-control form-control-sm" />
             </div>
-            <div class="col-sm-4 col-md-2">
-                <label class="form-label small fw-semibold text-secondary" data-i18n="filterToDate">Đến ngày</label>
-                <input type="date" name="toDate" value="@Model.ToDate?.ToString("yyyy-MM-dd")" class="form-control" />
+            <div style="width:135px;">
+                <label class="form-label small fw-semibold text-secondary mb-1" data-i18n="filterToDate">Đến ngày</label>
+                <input type="date" name="toDate" value="@Model.ToDate?.ToString("yyyy-MM-dd")" class="form-control form-control-sm" />
             </div>
-            <div class="col-sm-4 col-md-3">
-                <label class="form-label small fw-semibold text-secondary" data-i18n="issuedForLabel">Xuất cho</label>
-                <select name="recipientId" class="form-select">
+            <div style="width:180px;">
+                <label class="form-label small fw-semibold text-secondary mb-1" data-i18n="issuedForLabel">Xuất cho</label>
+                <select name="recipientId" class="form-select form-select-sm">
                     <option value="" data-i18n="filterStatusAll">Tất cả</option>
                     @foreach (var r in Model.Recipients)
                     {
@@ -47,16 +48,20 @@
                     }
                 </select>
             </div>
-            <div class="col-sm-4 col-md-2 d-flex align-items-center">
-                <div class="form-check">
-                    <input type="checkbox" name="overdueOnly" value="true" class="form-check-input" id="overdueOnlyCheck" checked="@Model.OverdueOnly" />
-                    <label class="form-check-label small" for="overdueOnlyCheck" data-i18n="overdueOnlyLabel">Chỉ quá 90 ngày</label>
-                </div>
+            <div class="form-check mb-1">
+                <input type="checkbox" name="overdueOnly" value="true" class="form-check-input" id="overdueOnlyCheck" checked="@Model.OverdueOnly" />
+                <label class="form-check-label small" for="overdueOnlyCheck" data-i18n="overdueOnlyLabel">Chỉ quá 90 ngày</label>
             </div>
-            <div class="col-sm-4 col-md-2">
-                <button type="submit" class="btn btn-outline-dark w-100 d-inline-flex align-items-center justify-content-center gap-1">
-                    <span class="material-icons" style="font-size:18px;">filter_alt</span> <span data-i18n="btnFilter">Lọc</span>
+            <div class="d-flex gap-1">
+                <button type="submit" class="btn btn-sm btn-outline-dark d-inline-flex align-items-center justify-content-center gap-1">
+                    <span class="material-icons" style="font-size:15px;">filter_alt</span> <span data-i18n="btnFilter">Lọc</span>
                 </button>
+                @if (hasAnyFilter)
+                {
+                    <a asp-controller="Reports" asp-action="Issues" class="btn btn-sm btn-outline-secondary d-inline-flex align-items-center justify-content-center gap-1">
+                        <span class="material-icons" style="font-size:15px;">filter_alt_off</span> <span data-i18n="btnClearFilter">Bỏ lọc</span>
+                    </a>
+                }
             </div>
         </form>
     </div>

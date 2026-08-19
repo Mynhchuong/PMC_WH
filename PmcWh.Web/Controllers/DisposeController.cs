@@ -24,12 +24,22 @@ public class DisposeController : Controller
         _hub = hub;
     }
 
-    public async Task<IActionResult> Index()
+    public async Task<IActionResult> Index(string? field, string? q, string? field2, string? q2, string? field3, string? q3)
     {
         var client = _httpClientFactory.CreateClient("PmcApi");
-        var items = await client.GetFromJsonAsync<List<MaterialListItem>>("api/Materials/disposable", ApiJsonOptions);
+        var searchQuery = SearchFilterHelper.ToQueryString(field, q, field2, q2, field3, q3);
+        var items = await client.GetFromJsonAsync<List<MaterialListItem>>($"api/Materials/disposable?{searchQuery}", ApiJsonOptions);
 
-        var model = new DisposeViewModel { DisposableItems = items ?? new List<MaterialListItem>() };
+        var model = new DisposeViewModel
+        {
+            DisposableItems = items ?? new List<MaterialListItem>(),
+            Field = field,
+            Q = q,
+            Field2 = field2,
+            Q2 = q2,
+            Field3 = field3,
+            Q3 = q3,
+        };
 
         if (TempData["FlashSuccess"] is string success) ViewData["FlashSuccess"] = success;
         if (TempData["FlashError"] is string error) ViewData["FlashError"] = error;

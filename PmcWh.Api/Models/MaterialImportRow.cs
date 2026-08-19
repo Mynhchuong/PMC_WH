@@ -29,4 +29,15 @@ public class MaterialImportRow
     public string? MatlType { get; set; }
     public string? Pic { get; set; }
     public string? Mat { get; set; }
+    public DateTime? PoDate { get; set; }
+    public DateTime? Etd { get; set; }
+    public decimal? OriginalPrice { get; set; }
+    public decimal? PaymentPrice { get; set; }
+    public decimal? Amount { get; set; }
+
+    // Không lưu trực tiếp vào PMC_Materials — dùng để backfill data cũ có sẵn từ trước khi dùng app
+    // (đã xuất 1 phần/hết trước đó, không có lịch sử StockMovements thật). Sau khi insert xong,
+    // Web MaterialsController gọi lại API Inbound + Issue (y hệt luồng quét tay) để Balance/Status
+    // ra đúng và vẫn có StockMovements audit trail đầy đủ — xem MaterialsController (Web) Index POST.
+    public decimal? Out { get; set; }
 }

@@ -30,6 +30,11 @@ public class MaterialDetail
     public string? MatlType { get; set; }
     public string? Pic { get; set; }
     public string? Mat { get; set; }
+    public DateTime? PoDate { get; set; }
+    public DateTime? Etd { get; set; }
+    public decimal? OriginalPrice { get; set; }
+    public decimal? PaymentPrice { get; set; }
+    public decimal? Amount { get; set; }
     public decimal? Balance { get; set; }
     public string Status { get; set; } = string.Empty;
     public string? LocationCode { get; set; }

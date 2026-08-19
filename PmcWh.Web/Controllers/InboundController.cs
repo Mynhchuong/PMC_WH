@@ -22,13 +22,14 @@ public class InboundController : Controller
         _hub = hub;
     }
 
-    public async Task<IActionResult> Index()
+    public async Task<IActionResult> Index(string? field, string? q, string? field2, string? q2, string? field3, string? q3)
     {
         var client = _httpClientFactory.CreateClient("PmcApi");
+        var searchQuery = SearchFilterHelper.ToQueryString(field, q, field2, q2, field3, q3);
 
         var stagingTask = client.GetFromJsonAsync<PagedResultDto<MaterialListItem>>(
-            "api/Materials?status=Staging&page=1&pageSize=500", ApiJsonOptions);
-        var returnableTask = client.GetFromJsonAsync<List<MaterialListItem>>("api/Materials/returnable", ApiJsonOptions);
+            $"api/Materials?status=Staging&page=1&pageSize=500&{searchQuery}", ApiJsonOptions);
+        var returnableTask = client.GetFromJsonAsync<List<MaterialListItem>>($"api/Materials/returnable?{searchQuery}", ApiJsonOptions);
         var locationsTask = client.GetFromJsonAsync<List<StorageLocationDto>>("api/StorageLocations", ApiJsonOptions);
 
         await Task.WhenAll(stagingTask, returnableTask, locationsTask);
@@ -44,6 +45,12 @@ public class InboundController : Controller
             StagingItems = stagingItems,
             ReturnableItems = await returnableTask ?? new List<MaterialListItem>(),
             Locations = await locationsTask ?? new List<StorageLocationDto>(),
+            Field = field,
+            Q = q,
+            Field2 = field2,
+            Q2 = q2,
+            Field3 = field3,
+            Q3 = q3,
         };
 
         if (TempData["FlashSuccess"] is string success) ViewData["FlashSuccess"] = success;

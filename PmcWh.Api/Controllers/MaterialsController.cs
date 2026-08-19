@@ -17,11 +17,13 @@ public class MaterialsController : ControllerBase
         INSERT INTO PMC_Materials
             (Barcode, CsCode, Dev, PoNo, Supplier, Model, Season, Stage, Colorway, Component,
              MatlDescription, ColorCode, ColorName, SizeSpec, ArrivalQty, Unit, FocFlag, ArrivalDate,
-             Remark, Testing, TestRequire, TestQty, Category, RequestOn, MatlType, Pic, Mat, Balance)
+             Remark, Testing, TestRequire, TestQty, Category, RequestOn, MatlType, Pic, Mat,
+             PoDate, Etd, OriginalPrice, PaymentPrice, Amount, Balance)
         VALUES
             (:Barcode, :CsCode, :Dev, :PoNo, :Supplier, :Model, :Season, :Stage, :Colorway, :Component,
              :MatlDescription, :ColorCode, :ColorName, :SizeSpec, :ArrivalQty, :Unit, :FocFlag, :ArrivalDate,
-             :Remark, :Testing, :TestRequire, :TestQty, :Category, :RequestOn, :MatlType, :Pic, :Mat, 0)";
+             :Remark, :Testing, :TestRequire, :TestQty, :Category, :RequestOn, :MatlType, :Pic, :Mat,
+             :PoDate, :Etd, :OriginalPrice, :PaymentPrice, :Amount, 0)";
 
     private readonly OracleDataService _db;
 
@@ -34,26 +36,30 @@ public class MaterialsController : ControllerBase
     /// Danh sách liệu (phân trang) — đủ cột mô tả (không chỉ 18 cột cốt lõi) để màn "Cơ sở dữ liệu
     /// PMC" hiện được nhiều cột hơn. Tìm theo [field] (mặc định "barcode", giữ tương thích tham số
     /// [barcode] kiểu cũ) trong [q], lọc thêm Status và khoảng Ngày Nhập (ArrivalDate).
+    /// PMC cần lọc kết hợp nhiều cột cùng lúc (VD: tên liệu + color code + DEV) mới ra đúng kết quả
+    /// vì data nhiều — [field2]/[q2] và [field3]/[q3] là 2 điều kiện AND thêm, đều optional.
     /// Luôn ẩn IsArchived=1 (đã xoá mềm).
     /// </summary>
     [HttpGet]
     public async Task<ActionResult<PagedResult<MaterialListItem>>> Get(
-        string? barcode, string? field, string? q, string? status, DateTime? fromDate, DateTime? toDate, bool? isOverdue, int page = 1, int pageSize = 20)
+        string? barcode, string? field, string? q, string? field2, string? q2, string? field3, string? q3,
+        string? status, DateTime? fromDate, DateTime? toDate, bool? isOverdue, int page = 1, int pageSize = 20)
     {
         var searchValue = !string.IsNullOrWhiteSpace(q) ? q : barcode;
-        var searchColumn = SearchColumnFor(field);
+        var (searchSql, searchParams) = BuildSearchFilter(field, searchValue, field2, q2, field3, q3);
 
         var innerSql = $@"
             SELECT m.MaterialId, m.Barcode, m.CsCode, m.Dev, m.PoNo, m.Supplier, m.Model, m.Season, m.Stage,
                    m.Colorway, m.Component, m.MatlDescription, m.ColorCode, m.ColorName, m.SizeSpec,
                    m.ArrivalQty, m.Balance, m.Unit, m.FocFlag, m.Remark, m.Testing, m.TestRequire, m.TestQty,
                    m.Category, m.RequestOn, m.MatlType, m.Pic, m.Mat,
+                   m.PoDate, m.Etd, m.OriginalPrice, m.PaymentPrice, m.Amount,
                    m.Status, l.Code AS LocationCode, m.IsOverdue, m.ArrivalDate, m.CreatedAt,
                    m.StockedInAt, m.LastIssuedAt, m.DisposedAt, m.UpdatedAt
               FROM PMC_Materials m
               LEFT JOIN PMC_StorageLocations l ON l.LocationId = m.CurrentLocationId
              WHERE m.IsArchived = 0
-               AND (:q IS NULL OR UPPER({searchColumn}) LIKE '%' || UPPER(:q) || '%')
+               {searchSql}
                AND (:status IS NULL OR m.Status = :status)
                AND (:fromDate IS NULL OR m.ArrivalDate >= :fromDate)
                AND (:toDate IS NULL OR m.ArrivalDate < :toDate + 1)
@@ -61,11 +67,13 @@ public class MaterialsController : ControllerBase
              ORDER BY m.CreatedAt DESC";
 
         var paged = await _db.QueryPagedAsync(innerSql, page, pageSize,
-            new OracleParameter("q", (object?)searchValue ?? DBNull.Value),
-            new OracleParameter("status", (object?)status ?? DBNull.Value),
-            new OracleParameter("fromDate", OracleDbType.Date) { Value = (object?)fromDate ?? DBNull.Value },
-            new OracleParameter("toDate", OracleDbType.Date) { Value = (object?)toDate ?? DBNull.Value },
-            new OracleParameter("isOverdue", (object?)(isOverdue.HasValue ? (isOverdue.Value ? 1 : 0) : null) ?? DBNull.Value));
+            searchParams.Concat(new[]
+            {
+                new OracleParameter("status", (object?)status ?? DBNull.Value),
+                new OracleParameter("fromDate", OracleDbType.Date) { Value = (object?)fromDate ?? DBNull.Value },
+                new OracleParameter("toDate", OracleDbType.Date) { Value = (object?)toDate ?? DBNull.Value },
+                new OracleParameter("isOverdue", (object?)(isOverdue.HasValue ? (isOverdue.Value ? 1 : 0) : null) ?? DBNull.Value),
+            }).ToArray());
 
         var items = paged.Items.Select(MapMaterialListItemFull).ToList();
 
@@ -101,15 +109,43 @@ public class MaterialsController : ControllerBase
     };
 
     /// <summary>
+    /// Điều kiện tìm kết hợp tối đa 3 cột cùng lúc (field/q, field2/q2, field3/q3, đều optional,
+    /// AND với nhau) — PMC cần lọc nhiều cột 1 lượt vì data nhiều, lọc 1 cột chưa ra đúng kết quả.
+    /// Dùng chung cho MỌI endpoint trả danh sách liệu (Get, Export, Issuable, Disposable,
+    /// Returnable) thay vì lặp lại cùng 1 khối SQL + OracleParameter ở từng nơi.
+    /// Ghép <paramref name="sql"/> vào ngay sau điều kiện WHERE hiện có của endpoint, rồi nối thêm
+    /// <paramref name="parameters"/> vào mảng OracleParameter của câu QueryAsync/QueryPagedAsync đó.
+    /// </summary>
+    private static (string Sql, OracleParameter[] Parameters) BuildSearchFilter(
+        string? field, string? q, string? field2, string? q2, string? field3, string? q3)
+    {
+        var sql = $@"
+               AND (:q IS NULL OR UPPER({SearchColumnFor(field)}) LIKE '%' || UPPER(:q) || '%')
+               AND (:q2 IS NULL OR UPPER({SearchColumnFor(field2)}) LIKE '%' || UPPER(:q2) || '%')
+               AND (:q3 IS NULL OR UPPER({SearchColumnFor(field3)}) LIKE '%' || UPPER(:q3) || '%')";
+
+        var parameters = new[]
+        {
+            new OracleParameter("q", (object?)(string.IsNullOrWhiteSpace(q) ? null : q) ?? DBNull.Value),
+            new OracleParameter("q2", (object?)(string.IsNullOrWhiteSpace(q2) ? null : q2) ?? DBNull.Value),
+            new OracleParameter("q3", (object?)(string.IsNullOrWhiteSpace(q3) ? null : q3) ?? DBNull.Value),
+        };
+
+        return (sql, parameters);
+    }
+
+    /// <summary>
     /// Xuất Excel: cùng bộ lọc như danh sách nhưng KHÔNG phân trang, trả đủ mọi field mô tả
-    /// (giống hệt cột trong file import PMC) — giới hạn an toàn 5000 dòng.
+    /// (giống hệt cột trong file import PMC) — giới hạn an toàn 20000 dòng (PMC hiện có ~11k dòng
+    /// data thật, để dư phòng tăng trưởng).
     /// </summary>
     [HttpGet("export")]
     public async Task<ActionResult<List<MaterialDetail>>> Export(
-        string? barcode, string? field, string? q, string? status, DateTime? fromDate, DateTime? toDate, bool? isOverdue)
+        string? barcode, string? field, string? q, string? field2, string? q2, string? field3, string? q3,
+        string? status, DateTime? fromDate, DateTime? toDate, bool? isOverdue)
     {
         var searchValue = !string.IsNullOrWhiteSpace(q) ? q : barcode;
-        var searchColumn = SearchColumnFor(field);
+        var (searchSql, searchParams) = BuildSearchFilter(field, searchValue, field2, q2, field3, q3);
 
         var sql = $@"
             SELECT * FROM (
@@ -117,25 +153,28 @@ public class MaterialsController : ControllerBase
                        m.Colorway, m.Component, m.MatlDescription, m.ColorCode, m.ColorName, m.SizeSpec,
                        m.ArrivalQty, m.Unit, m.FocFlag, m.ArrivalDate, m.Remark, m.Testing, m.TestRequire,
                        m.TestQty, m.Category, m.RequestOn, m.MatlType, m.Pic, m.Mat,
+                       m.PoDate, m.Etd, m.OriginalPrice, m.PaymentPrice, m.Amount,
                        m.Balance, m.Status, l.Code AS LocationCode, m.StockedInAt, m.LastIssuedAt,
                        m.DisposedAt, m.IsOverdue, m.CreatedAt, m.UpdatedAt
                   FROM PMC_Materials m
                   LEFT JOIN PMC_StorageLocations l ON l.LocationId = m.CurrentLocationId
                  WHERE m.IsArchived = 0
-                   AND (:q IS NULL OR UPPER({searchColumn}) LIKE '%' || UPPER(:q) || '%')
+                   {searchSql}
                    AND (:status IS NULL OR m.Status = :status)
                    AND (:fromDate IS NULL OR m.ArrivalDate >= :fromDate)
                    AND (:toDate IS NULL OR m.ArrivalDate < :toDate + 1)
                    AND (:isOverdue IS NULL OR m.IsOverdue = :isOverdue)
                  ORDER BY m.CreatedAt DESC
-            ) WHERE ROWNUM <= 5000";
+            ) WHERE ROWNUM <= 20000";
 
         var rows = await _db.QueryAsync(sql,
-            new OracleParameter("q", (object?)searchValue ?? DBNull.Value),
-            new OracleParameter("status", (object?)status ?? DBNull.Value),
-            new OracleParameter("fromDate", OracleDbType.Date) { Value = (object?)fromDate ?? DBNull.Value },
-            new OracleParameter("toDate", OracleDbType.Date) { Value = (object?)toDate ?? DBNull.Value },
-            new OracleParameter("isOverdue", (object?)(isOverdue.HasValue ? (isOverdue.Value ? 1 : 0) : null) ?? DBNull.Value));
+            searchParams.Concat(new[]
+            {
+                new OracleParameter("status", (object?)status ?? DBNull.Value),
+                new OracleParameter("fromDate", OracleDbType.Date) { Value = (object?)fromDate ?? DBNull.Value },
+                new OracleParameter("toDate", OracleDbType.Date) { Value = (object?)toDate ?? DBNull.Value },
+                new OracleParameter("isOverdue", (object?)(isOverdue.HasValue ? (isOverdue.Value ? 1 : 0) : null) ?? DBNull.Value),
+            }).ToArray());
 
         return Ok(rows.Select(MapMaterialDetail).ToList());
     }
@@ -150,7 +189,7 @@ public class MaterialsController : ControllerBase
             @"SELECT m.MaterialId, m.Barcode, m.CsCode, m.Dev, m.PoNo, m.Supplier, m.Model, m.Season, m.Stage, m.Colorway,
                      m.Component, m.MatlDescription, m.ColorCode, m.ColorName, m.SizeSpec, m.ArrivalQty, m.Unit, m.FocFlag,
                      m.ArrivalDate, m.Remark, m.Testing, m.TestRequire, m.TestQty, m.Category, m.RequestOn,
-                     m.MatlType, m.Pic, m.Mat,
+                     m.MatlType, m.Pic, m.Mat, m.PoDate, m.Etd, m.OriginalPrice, m.PaymentPrice, m.Amount,
                      m.Balance, m.Status, l.Code AS LocationCode, m.StockedInAt, m.LastIssuedAt, m.DisposedAt,
                      m.IsOverdue, m.CreatedAt, m.UpdatedAt
                 FROM PMC_Materials m
@@ -242,6 +281,8 @@ public class MaterialsController : ControllerBase
                      Remark = :Remark, Testing = :Testing, TestRequire = :TestRequire, TestQty = :TestQty,
                      Category = :Category, RequestOn = :RequestOn,
                      MatlType = :MatlType, Pic = :Pic, Mat = :Mat,
+                     PoDate = :PoDate, Etd = :Etd, OriginalPrice = :OriginalPrice,
+                     PaymentPrice = :PaymentPrice, Amount = :Amount,
                      UpdatedBy = :UserId, UpdatedAt = SYSTIMESTAMP, VersionNo = VersionNo + 1
                WHERE MaterialId = :MaterialId AND Status <> 'Disposed'",
             new OracleParameter("ArrivalQty", req.ArrivalQty.Value),
@@ -270,6 +311,11 @@ public class MaterialsController : ControllerBase
             new OracleParameter("MatlType", (object?)req.MatlType ?? DBNull.Value),
             new OracleParameter("Pic", (object?)req.Pic ?? DBNull.Value),
             new OracleParameter("Mat", (object?)req.Mat ?? DBNull.Value),
+            new OracleParameter("PoDate", OracleDbType.Date) { Value = (object?)req.PoDate ?? DBNull.Value },
+            new OracleParameter("Etd", OracleDbType.Date) { Value = (object?)req.Etd ?? DBNull.Value },
+            new OracleParameter("OriginalPrice", (object?)req.OriginalPrice ?? DBNull.Value),
+            new OracleParameter("PaymentPrice", (object?)req.PaymentPrice ?? DBNull.Value),
+            new OracleParameter("Amount", (object?)req.Amount ?? DBNull.Value),
             new OracleParameter("UserId", req.UserId),
             new OracleParameter("MaterialId", id));
 
@@ -424,13 +470,17 @@ public class MaterialsController : ControllerBase
     }
 
     /// <summary>
-    /// Danh sách liệu có thể xuất (InStock hoặc PartiallyIssued, còn Balance > 0).
+    /// Danh sách liệu có thể xuất (InStock hoặc PartiallyIssued, còn Balance > 0). Cùng bộ lọc 3
+    /// điều kiện kết hợp (field/q, field2/q2, field3/q3) như Get/Export — xem BuildSearchFilter().
     /// </summary>
     [HttpGet("issuable")]
-    public async Task<ActionResult<List<MaterialListItem>>> Issuable()
+    public async Task<ActionResult<List<MaterialListItem>>> Issuable(
+        string? field, string? q, string? field2, string? q2, string? field3, string? q3)
     {
+        var (searchSql, searchParams) = BuildSearchFilter(field, q, field2, q2, field3, q3);
+
         var rows = await _db.QueryAsync(
-            @"SELECT m.MaterialId, m.Barcode, m.Dev, m.PoNo, m.Supplier, m.Model, m.Colorway, m.SizeSpec, m.MatlDescription, m.ColorCode,
+            $@"SELECT m.MaterialId, m.Barcode, m.Dev, m.PoNo, m.Supplier, m.Model, m.Colorway, m.SizeSpec, m.MatlDescription, m.ColorCode,
                      m.Season, m.Stage,
                      m.ArrivalQty, m.Balance, m.Unit, m.Status, l.Code AS LocationCode, m.IsOverdue, m.ArrivalDate, m.CreatedAt
                 FROM PMC_Materials m
@@ -438,7 +488,9 @@ public class MaterialsController : ControllerBase
                WHERE m.IsArchived = 0
                  AND m.Status IN ('InStock', 'PartiallyIssued')
                  AND m.Balance > 0
-               ORDER BY m.LastIssuedAt NULLS FIRST, m.CreatedAt");
+                 {searchSql}
+               ORDER BY m.LastIssuedAt NULLS FIRST, m.CreatedAt",
+            searchParams);
 
         return Ok(rows.Select(MapMaterialListItem).ToList());
     }
@@ -527,20 +579,26 @@ public class MaterialsController : ControllerBase
     }
 
     /// <summary>
-    /// Danh sách liệu đang out (IssuedOut/PartiallyIssued) — có thể nhận lại (Return).
+    /// Danh sách liệu đang out (IssuedOut/PartiallyIssued) — có thể nhận lại (Return). Cùng bộ lọc
+    /// 3 điều kiện kết hợp như Get/Export — xem BuildSearchFilter().
     /// </summary>
     [HttpGet("returnable")]
-    public async Task<ActionResult<List<MaterialListItem>>> Returnable()
+    public async Task<ActionResult<List<MaterialListItem>>> Returnable(
+        string? field, string? q, string? field2, string? q2, string? field3, string? q3)
     {
+        var (searchSql, searchParams) = BuildSearchFilter(field, q, field2, q2, field3, q3);
+
         var rows = await _db.QueryAsync(
-            @"SELECT m.MaterialId, m.Barcode, m.Dev, m.PoNo, m.Supplier, m.Model, m.Colorway, m.SizeSpec, m.MatlDescription, m.ColorCode,
+            $@"SELECT m.MaterialId, m.Barcode, m.Dev, m.PoNo, m.Supplier, m.Model, m.Colorway, m.SizeSpec, m.MatlDescription, m.ColorCode,
                      m.Season, m.Stage,
                      m.ArrivalQty, m.Balance, m.Unit, m.Status, l.Code AS LocationCode, m.IsOverdue, m.ArrivalDate, m.CreatedAt
                 FROM PMC_Materials m
                 LEFT JOIN PMC_StorageLocations l ON l.LocationId = m.CurrentLocationId
                WHERE m.IsArchived = 0
                  AND m.Status IN ('IssuedOut', 'PartiallyIssued')
-               ORDER BY m.LastIssuedAt NULLS FIRST, m.CreatedAt");
+                 {searchSql}
+               ORDER BY m.LastIssuedAt NULLS FIRST, m.CreatedAt",
+            searchParams);
 
         return Ok(rows.Select(MapMaterialListItem).ToList());
     }
@@ -642,20 +700,26 @@ public class MaterialsController : ControllerBase
     }
 
     /// <summary>
-    /// Danh sách liệu có thể hủy — mọi liệu chưa hủy, chưa bị xoá mềm.
+    /// Danh sách liệu có thể hủy — mọi liệu chưa hủy, chưa bị xoá mềm. Cùng bộ lọc 3 điều kiện kết
+    /// hợp như Get/Export — xem BuildSearchFilter().
     /// </summary>
     [HttpGet("disposable")]
-    public async Task<ActionResult<List<MaterialListItem>>> Disposable()
+    public async Task<ActionResult<List<MaterialListItem>>> Disposable(
+        string? field, string? q, string? field2, string? q2, string? field3, string? q3)
     {
+        var (searchSql, searchParams) = BuildSearchFilter(field, q, field2, q2, field3, q3);
+
         var rows = await _db.QueryAsync(
-            @"SELECT m.MaterialId, m.Barcode, m.Dev, m.PoNo, m.Supplier, m.Model, m.Colorway, m.SizeSpec, m.MatlDescription, m.ColorCode,
+            $@"SELECT m.MaterialId, m.Barcode, m.Dev, m.PoNo, m.Supplier, m.Model, m.Colorway, m.SizeSpec, m.MatlDescription, m.ColorCode,
                      m.Season, m.Stage,
                      m.ArrivalQty, m.Balance, m.Unit, m.Status, l.Code AS LocationCode, m.IsOverdue, m.ArrivalDate, m.CreatedAt
                 FROM PMC_Materials m
                 LEFT JOIN PMC_StorageLocations l ON l.LocationId = m.CurrentLocationId
                WHERE m.IsArchived = 0
                  AND m.Status <> 'Disposed'
-               ORDER BY m.CreatedAt DESC");
+                 {searchSql}
+               ORDER BY m.CreatedAt DESC",
+            searchParams);
 
         return Ok(rows.Select(MapMaterialListItem).ToList());
     }
@@ -877,6 +941,11 @@ public class MaterialsController : ControllerBase
         item.MatlType = row["MATLTYPE"]?.ToString();
         item.Pic = row["PIC"]?.ToString();
         item.Mat = row["MAT"]?.ToString();
+        item.PoDate = row["PODATE"] != null ? Convert.ToDateTime(row["PODATE"]) : null;
+        item.Etd = row["ETD"] != null ? Convert.ToDateTime(row["ETD"]) : null;
+        item.OriginalPrice = row["ORIGINALPRICE"] != null ? Convert.ToDecimal(row["ORIGINALPRICE"]) : null;
+        item.PaymentPrice = row["PAYMENTPRICE"] != null ? Convert.ToDecimal(row["PAYMENTPRICE"]) : null;
+        item.Amount = row["AMOUNT"] != null ? Convert.ToDecimal(row["AMOUNT"]) : null;
         item.StockedInAt = row["STOCKEDINAT"] != null ? Convert.ToDateTime(row["STOCKEDINAT"]) : null;
         item.LastIssuedAt = row["LASTISSUEDAT"] != null ? Convert.ToDateTime(row["LASTISSUEDAT"]) : null;
         item.DisposedAt = row["DISPOSEDAT"] != null ? Convert.ToDateTime(row["DISPOSEDAT"]) : null;
@@ -932,6 +1001,11 @@ public class MaterialsController : ControllerBase
         MatlType = row["MATLTYPE"]?.ToString(),
         Pic = row["PIC"]?.ToString(),
         Mat = row["MAT"]?.ToString(),
+        PoDate = row["PODATE"] != null ? Convert.ToDateTime(row["PODATE"]) : null,
+        Etd = row["ETD"] != null ? Convert.ToDateTime(row["ETD"]) : null,
+        OriginalPrice = row["ORIGINALPRICE"] != null ? Convert.ToDecimal(row["ORIGINALPRICE"]) : null,
+        PaymentPrice = row["PAYMENTPRICE"] != null ? Convert.ToDecimal(row["PAYMENTPRICE"]) : null,
+        Amount = row["AMOUNT"] != null ? Convert.ToDecimal(row["AMOUNT"]) : null,
         Balance = row["BALANCE"] != null ? Convert.ToDecimal(row["BALANCE"]) : null,
         Status = row["STATUS"]?.ToString() ?? string.Empty,
         LocationCode = row["LOCATIONCODE"]?.ToString(),
@@ -984,5 +1058,10 @@ public class MaterialsController : ControllerBase
         new OracleParameter("MatlType", (object?)r.MatlType ?? DBNull.Value),
         new OracleParameter("Pic", (object?)r.Pic ?? DBNull.Value),
         new OracleParameter("Mat", (object?)r.Mat ?? DBNull.Value),
+        new OracleParameter("PoDate", (object?)r.PoDate ?? DBNull.Value),
+        new OracleParameter("Etd", (object?)r.Etd ?? DBNull.Value),
+        new OracleParameter("OriginalPrice", (object?)r.OriginalPrice ?? DBNull.Value),
+        new OracleParameter("PaymentPrice", (object?)r.PaymentPrice ?? DBNull.Value),
+        new OracleParameter("Amount", (object?)r.Amount ?? DBNull.Value),
     };
 }

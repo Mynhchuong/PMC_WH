@@ -5,24 +5,39 @@
     ViewData["TitleKey"] = "menuDispose";
 }
 
-<div class="card border-0 shadow-sm rounded-4 mb-3">
-    <div class="card-body">
-        <div class="d-flex align-items-center gap-3 mb-4">
-            <span class="d-inline-flex align-items-center justify-content-center rounded-4"
-                  style="width:48px;height:48px;background:linear-gradient(135deg, #495057 0%, #212529 100%); flex-shrink:0;">
-                <span class="material-icons text-white">delete_forever</span>
+<div class="card border-0 shadow-sm rounded-4 mb-2">
+    <div class="card-body py-2">
+        <div class="d-flex align-items-center gap-2 mb-2">
+            <span class="d-inline-flex align-items-center justify-content-center rounded-3"
+                  style="width:34px;height:34px;background:linear-gradient(135deg, #495057 0%, #212529 100%); flex-shrink:0;">
+                <span class="material-icons text-white" style="font-size:18px;">delete_forever</span>
             </span>
             <div>
-                <h5 class="card-title mb-0" data-i18n="menuDispose">Hủy liệu</h5>
-                <p class="text-muted small mb-0" data-i18n="disposeSubtitle">Liệu hủy sẽ giữ lại 30 ngày rồi tự ẩn khỏi hệ thống</p>
+                <h6 class="card-title mb-0" data-i18n="menuDispose">Hủy liệu</h6>
+                <p class="text-muted mb-0" style="font-size:0.7rem;" data-i18n="disposeSubtitle">Liệu hủy sẽ giữ lại 30 ngày rồi tự ẩn khỏi hệ thống</p>
             </div>
         </div>
 
-        <label class="form-label small fw-semibold text-secondary" data-i18n="scanBarcodeLabel">Quét barcode</label>
-        <div class="input-group" style="max-width: 420px;">
-            <span class="input-group-text bg-white"><span class="material-icons" style="font-size:18px;">qr_code_scanner</span></span>
+        <label class="form-label small fw-semibold text-secondary mb-1" data-i18n="scanBarcodeLabel">Quét barcode</label>
+        <div class="input-group input-group-sm mb-2" style="max-width: 420px;">
+            <span class="input-group-text bg-white"><span class="material-icons" style="font-size:16px;">qr_code_scanner</span></span>
             <input type="text" id="scanInput" class="form-control" placeholder="Quét hoặc gõ barcode rồi Enter..." data-i18n-placeholder="scanBarcodePlaceholder" autofocus autocomplete="off" />
         </div>
+
+        <form asp-controller="Dispose" asp-action="Index" method="get" class="d-flex flex-wrap align-items-end gap-2">
+            @await Html.PartialAsync("_SearchConditions", (PmcWh.Web.Models.SearchFilterFields)Model)
+            <div class="d-flex gap-1">
+                <button type="submit" class="btn btn-sm btn-outline-dark d-inline-flex align-items-center gap-1">
+                    <span class="material-icons" style="font-size:15px;">filter_alt</span> <span data-i18n="btnFilter">Lọc</span>
+                </button>
+                @if (Model.HasAnySearch)
+                {
+                    <a asp-controller="Dispose" asp-action="Index" class="btn btn-sm btn-outline-secondary d-inline-flex align-items-center gap-1">
+                        <span class="material-icons" style="font-size:15px;">filter_alt_off</span> <span data-i18n="btnClearFilter">Bỏ lọc</span>
+                    </a>
+                }
+            </div>
+        </form>
     </div>
 </div>
 

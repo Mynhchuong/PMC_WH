@@ -11,12 +11,12 @@ public static class SideMenuBuilder
             new SideMenuItem
             {
                 Id = "Materials",
-                Title = "Liệu",
+                Title = "Trang chủ",
                 TranslationKey = "menuMaterialsGroup",
                 Icon = "inventory_2",
                 Children = new List<SideMenuItem>
                 {
-                    new SideMenuItem { Title = "Cơ sở dữ liệu của PMC", TranslationKey = "menuMaterialsDb", Controller = "Materials", Action = "Index", Icon = "storage" },
+                    new SideMenuItem { Title = "Cơ sở dữ liệu", TranslationKey = "menuMaterialsDb", Controller = "Materials", Action = "Index", Icon = "storage" },
                     new SideMenuItem { Title = "Quét lên kệ", TranslationKey = "menuInbound", Controller = "Inbound", Action = "Index", Icon = "qr_code_scanner" },
                     new SideMenuItem { Title = "Xuất hàng", TranslationKey = "menuIssue", Controller = "Issue", Action = "Index", Icon = "local_shipping" },
                     new SideMenuItem { Title = "Hủy liệu", TranslationKey = "menuDispose", Controller = "Dispose", Action = "Index", Icon = "delete_forever", VisibleWhen = () => isAdmin },
