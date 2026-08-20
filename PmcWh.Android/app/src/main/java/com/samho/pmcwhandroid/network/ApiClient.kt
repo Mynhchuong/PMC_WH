@@ -49,4 +49,5 @@ object ApiClient {
     val materialsApi: MaterialsApi = retrofit.create(MaterialsApi::class.java)
     val recipientsApi: RecipientsApi = retrofit.create(RecipientsApi::class.java)
     val warehouseApi: WarehouseApi = retrofit.create(WarehouseApi::class.java)
+    val barcodeCollectionApi: BarcodeCollectionApi = retrofit.create(BarcodeCollectionApi::class.java)
 }

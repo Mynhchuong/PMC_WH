@@ -102,6 +102,30 @@ public class MaterialsController : Controller
         return View(model);
     }
 
+    /// <summary>
+    /// Tra materialId theo Barcode — dùng cho các trang chỉ có sẵn chuỗi Barcode chứ không có
+    /// MaterialId (VD "Thu thập Barcode", vốn không có FK tới PMC_Materials), để mở được popup
+    /// <see cref="Detail"/> vốn cần id. Không phải Barcode nào ở đây cũng khớp 1 liệu thật.
+    /// </summary>
+    [HttpGet("Materials/ByBarcode/{barcode}")]
+    public async Task<IActionResult> ByBarcode(string barcode)
+    {
+        var client = _httpClientFactory.CreateClient("PmcApi");
+        var response = await client.GetAsync($"api/Materials/by-barcode/{Uri.EscapeDataString(barcode)}");
+        if (!response.IsSuccessStatusCode)
+        {
+            return NotFound();
+        }
+
+        var item = await response.Content.ReadFromJsonAsync<MaterialListItem>(ApiJsonOptions);
+        if (item == null)
+        {
+            return NotFound();
+        }
+
+        return Ok(new { materialId = item.MaterialId });
+    }
+
     [HttpGet("Materials/{id:int}/Detail")]
     public async Task<IActionResult> Detail(int id)
     {

@@ -22,6 +22,7 @@ public static class SideMenuBuilder
                     new SideMenuItem { Title = "Hủy liệu", TranslationKey = "menuDispose", Controller = "Dispose", Action = "Index", Icon = "delete_forever", ColorFrom = "#d63384", ColorTo = "#99245c", VisibleWhen = () => isAdmin },
                     new SideMenuItem { Title = "Hàng xuất quá 90 ngày", TranslationKey = "menuOverdue", Controller = "Overdue", Action = "Index", Icon = "warning_amber", ColorFrom = "#dc3545", ColorTo = "#842029", VisibleWhen = () => isAdmin },
                     new SideMenuItem { Title = "Bản đồ kho 3D", TranslationKey = "menuWarehouseMap", Controller = "Warehouse", Action = "Map", Icon = "warehouse", ColorFrom = "#ff8a3d", ColorTo = "#c9501a" },
+                    new SideMenuItem { Title = "Thu thập Barcode", TranslationKey = "menuBarcodeCollection", Controller = "BarcodeCollection", Action = "Index", Icon = "qr_code_2", ColorFrom = "#20c997", ColorTo = "#12704f" },
                 }
             },
 

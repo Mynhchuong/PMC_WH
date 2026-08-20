@@ -1,0 +1,131 @@
+@model PmcWh.Web.Models.BarcodeCollectionDetailViewModel
+@{
+    ViewData["Title"] = Model.ListName;
+    var totalScans = Model.Items.Sum(i => i.ScanCount);
+}
+
+<div class="card border-0 shadow-sm rounded-4 mb-3">
+    <div class="card-body">
+        <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-2">
+            <div class="d-flex align-items-center gap-3">
+                <span class="d-inline-flex align-items-center justify-content-center rounded-4"
+                      style="width:48px;height:48px;background:linear-gradient(135deg, #20c997 0%, #12704f 100%); flex-shrink:0;">
+                    <span class="material-icons text-white">qr_code_2</span>
+                </span>
+                <div>
+                    <h5 class="card-title mb-0">@Model.ListName</h5>
+                    <p class="text-muted small mb-0">
+                        <span data-i18n="colItemCount">Số mã</span>: @Model.Items.Count ·
+                        <span data-i18n="colTotalScans">Tổng lượt quét</span>: @totalScans
+                    </p>
+                </div>
+            </div>
+            <div class="d-flex align-items-center gap-2">
+                <a asp-controller="BarcodeCollection" asp-action="Index" class="btn btn-sm btn-outline-secondary d-inline-flex align-items-center gap-1">
+                    <span class="material-icons" style="font-size:15px;">arrow_back</span> <span data-i18n="btnBackToList">Về danh sách list</span>
+                </a>
+                <a asp-controller="BarcodeCollection" asp-action="ExportExcel" asp-route-id="@Model.ListId" class="btn btn-sm btn-success d-inline-flex align-items-center gap-1">
+                    <span class="material-icons" style="font-size:15px;">file_download</span> <span data-i18n="btnExportExcel">Xuất Excel</span>
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card border-0 shadow-sm rounded-4">
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table align-middle pmc-excel-grid table-sm">
+                <thead>
+                    <tr class="text-uppercase text-muted small">
+                        <th data-i18n="colBarcode">Barcode</th>
+                        <th class="text-end" data-i18n="colScanCount">Số lần quét</th>
+                        <th data-i18n="colLastScannedAt">Quét gần nhất</th>
+                        <th class="text-end" data-i18n="colAction">Hành động</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var item in Model.Items)
+                    {
+                        <tr>
+                            <td class="fw-semibold">@item.Barcode</td>
+                            <td class="text-end">
+                                <span class="badge @(item.ScanCount > 1 ? "bg-warning-subtle text-warning-emphasis" : "bg-success-subtle text-success-emphasis")" style="font-weight:700;">@item.ScanCount</span>
+                            </td>
+                            <td class="text-muted small">@item.LastScannedAt.ToString("dd/MM/yyyy HH:mm")</td>
+                            <td class="text-end">
+                                <button type="button" class="btn btn-sm btn-outline-secondary js-view-barcode-detail" data-barcode="@item.Barcode" title="Xem chi tiết liệu" data-i18n-title="viewDetailTooltip">
+                                    <span class="material-icons" style="font-size:16px;">visibility</span>
+                                </button>
+                                <form asp-controller="BarcodeCollection" asp-action="DeleteItem" method="post" class="d-inline js-delete-item-form">
+                                    <input type="hidden" name="listId" value="@Model.ListId" />
+                                    <input type="hidden" name="itemId" value="@item.ItemId" />
+                                    <input type="hidden" name="barcode" value="@item.Barcode" />
+                                    <button type="submit" class="btn btn-sm btn-outline-danger" title="Xoá mã này" data-i18n-title="btnDeleteItem">
+                                        <span class="material-icons" style="font-size:16px;">delete_outline</span>
+                                    </button>
+                                </form>
+                            </td>
+                        </tr>
+                    }
+                    @if (Model.Items.Count == 0)
+                    {
+                        <tr>
+                            <td colspan="4" class="text-center text-muted py-4" data-i18n="emptyBarcodeItems">Chưa quét mã nào trong list này — mở app Android quét vào list này.</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<div id="pmc-flash"
+     data-success="@(ViewData["FlashSuccess"] as string)"
+     data-error="@(ViewData["FlashError"] as string)"
+     style="display:none"></div>
+
+@section Scripts {
+    <script>
+        (function () {
+            var flash = document.getElementById('pmc-flash');
+            if (flash.dataset.success) PmcUI.success(PmcWhI18n.renderFlash(flash.dataset.success));
+            if (flash.dataset.error) PmcUI.error(PmcWhI18n.renderFlash(flash.dataset.error));
+
+            document.querySelectorAll('.js-delete-item-form').forEach(function (form) {
+                form.addEventListener('submit', async function (e) {
+                    e.preventDefault();
+                    var barcode = form.querySelector('input[name="barcode"]').value;
+                    var ok = await PmcUI.confirmDelete(PmcWhI18n.t('confirmDeleteItemMsg').replace('{barcode}', barcode));
+                    if (ok) {
+                        form.querySelector('button[type="submit"]').disabled = true;
+                        form.submit();
+                    }
+                });
+            });
+
+            // Barcode Collection chỉ lưu chuỗi Barcode (không có MaterialId) — tra cứu qua
+            // Materials/ByBarcode trước rồi mới mở được popup chi tiết liệu (PmcMaterialDetail.show
+            // cần materialId). Không phải Barcode nào ở đây cũng khớp 1 liệu thật.
+            document.querySelectorAll('.js-view-barcode-detail').forEach(function (btn) {
+                btn.addEventListener('click', async function () {
+                    var barcode = btn.dataset.barcode;
+                    btn.disabled = true;
+                    try {
+                        var res = await fetch('Materials/ByBarcode/' + encodeURIComponent(barcode));
+                        if (!res.ok) {
+                            PmcUI.info(PmcWhI18n.t('barcodeNotAMaterial').replace('{barcode}', barcode));
+                            return;
+                        }
+                        var data = await res.json();
+                        PmcMaterialDetail.show(data.materialId, barcode);
+                    } catch (err) {
+                        PmcUI.error(PmcWhI18n.t('networkError'));
+                    } finally {
+                        btn.disabled = false;
+                    }
+                });
+            });
+        })();
+    </script>
+}

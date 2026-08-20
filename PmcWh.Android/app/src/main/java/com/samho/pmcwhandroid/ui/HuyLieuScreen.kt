@@ -46,6 +46,7 @@ import com.samho.pmcwhandroid.scan.DataWedgeScanField
 import com.samho.pmcwhandroid.scan.ScanFeedback
 import com.samho.pmcwhandroid.scan.ScanFeedbackBanner
 import com.samho.pmcwhandroid.ui.components.InfoRow
+import com.samho.pmcwhandroid.ui.components.rememberExitConfirm
 import com.samho.pmcwhandroid.ui.components.PendingBatchList
 import com.samho.pmcwhandroid.ui.components.PendingRow
 import com.samho.pmcwhandroid.ui.components.PendingRowStatus
@@ -75,9 +76,10 @@ private data class DisposePendingRow(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HuyLieuScreen(session: UserSession, onBack: () -> Unit) {
-    BackHandler(onBack = onBack)
     var disposableItems by remember { mutableStateOf<List<MaterialListItem>>(emptyList()) }
     var pendingDispose by remember { mutableStateOf<List<DisposePendingRow>>(emptyList()) }
+    val (guardedBack, exitConfirmDialog) = rememberExitConfirm(hasPendingWork = pendingDispose.isNotEmpty(), onExit = onBack)
+    BackHandler(onBack = guardedBack)
     var showConfirm by remember { mutableStateOf(false) }
     var isSaving by remember { mutableStateOf(false) }
     var showCamera by remember { mutableStateOf(false) }
@@ -119,12 +121,14 @@ fun HuyLieuScreen(session: UserSession, onBack: () -> Unit) {
     suspend fun saveBatch() {
         isSaving = true
         val toSave = pendingDispose.filter { it.status != PendingRowStatus.SAVING }
+        var savedCount = 0
         for (row in toSave) {
             pendingDispose = pendingDispose.map { if (it.key == row.key) it.copy(status = PendingRowStatus.SAVING) else it }
             try {
                 val resp = ApiClient.materialsApi.dispose(row.item.materialId, DisposeRequest(userId = session.userId))
                 if (resp.isSuccessful) {
                     pendingDispose = pendingDispose.filterNot { it.key == row.key }
+                    savedCount++
                 } else {
                     val msg = resp.errorMessageOrDefault("Hủy liệu thất bại.")
                     pendingDispose = pendingDispose.map { if (it.key == row.key) it.copy(status = PendingRowStatus.ERROR, error = msg) else it }
@@ -138,6 +142,11 @@ fun HuyLieuScreen(session: UserSession, onBack: () -> Unit) {
         isSaving = false
         showConfirm = false
         loadDisposable()
+        // Màn hình phải "sạch" ngay sau khi lưu để hủy tiếp lô khác — xem giải thích ở XuatKhoScreen.
+        lastFeedback = null
+        if (savedCount > 0) {
+            snackbarHostState.showSnackbar("Đã hủy xong $savedCount liệu — quét tiếp được ngay.")
+        }
     }
 
     HuyLieuScreenContent(
@@ -147,7 +156,7 @@ fun HuyLieuScreen(session: UserSession, onBack: () -> Unit) {
         showCamera = showCamera,
         lastFeedback = lastFeedback,
         snackbarHostState = snackbarHostState,
-        onBack = onBack,
+        onBack = guardedBack,
         onOpenCamera = { showCamera = true },
         onCloseCamera = { showCamera = false },
         onScan = { code -> scanChannel.trySend(code) },
@@ -157,6 +166,8 @@ fun HuyLieuScreen(session: UserSession, onBack: () -> Unit) {
         onConfirmSave = { scope.launch { saveBatch() } },
         onDismissFeedback = { lastFeedback = null },
     )
+
+    exitConfirmDialog()
 }
 
 /** Phần giao diện thuần (không gọi API) — tách riêng để @Preview render được với dữ liệu mẫu. */
@@ -222,8 +233,17 @@ private fun HuyLieuScreenContent(
                 ) { row ->
                     Text(row.item.barcode, style = MaterialTheme.typography.titleMedium)
                     Text(
-                        listOfNotNull(row.item.dev, row.item.matlDescription, row.item.status).joinToString(" / "),
+                        listOfNotNull(row.item.dev, row.item.model).joinToString(" / "),
                         style = MaterialTheme.typography.bodySmall,
+                    )
+                    Text(
+                        listOfNotNull(row.item.matlDescription, row.item.colorCode).joinToString(" · "),
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                    Text(
+                        row.item.status,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
                 Button(

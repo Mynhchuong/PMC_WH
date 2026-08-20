@@ -1,0 +1,126 @@
+@model PmcWh.Web.Models.BarcodeCollectionIndexViewModel
+@{
+    ViewData["Title"] = "Thu thập Barcode";
+    ViewData["TitleKey"] = "menuBarcodeCollection";
+}
+
+<div class="card border-0 shadow-sm rounded-4 mb-3">
+    <div class="card-body">
+        <div class="d-flex align-items-center gap-3 mb-4">
+            <span class="d-inline-flex align-items-center justify-content-center rounded-4"
+                  style="width:48px;height:48px;background:linear-gradient(135deg, #20c997 0%, #12704f 100%); flex-shrink:0;">
+                <span class="material-icons text-white">qr_code_2</span>
+            </span>
+            <div>
+                <h5 class="card-title mb-0" data-i18n="menuBarcodeCollection">Thu thập Barcode</h5>
+                <p class="text-muted small mb-0" data-i18n="barcodeCollectionSubtitle">Tạo list rồi quét bằng điện thoại — đồng bộ về đây để xem/xoá/xuất Excel</p>
+            </div>
+        </div>
+
+        @if (!ViewData.ModelState.IsValid)
+        {
+            <div class="alert alert-danger d-flex align-items-center gap-2" role="alert">
+                <span class="material-icons">error_outline</span>
+                <div>
+                    @foreach (var error in ViewData.ModelState.Values.SelectMany(v => v.Errors))
+                    {
+                        <div>@error.ErrorMessage</div>
+                    }
+                </div>
+            </div>
+        }
+
+        <form asp-controller="BarcodeCollection" asp-action="Create" method="post" class="row g-3 align-items-end">
+            <div class="col-sm-8 col-md-4">
+                <label asp-for="NewList.Name" class="form-label small fw-semibold text-secondary" data-i18n="listNameLabel"></label>
+                <div class="input-group">
+                    <span class="input-group-text bg-white"><span class="material-icons" style="font-size:18px;">qr_code_2</span></span>
+                    <input asp-for="NewList.Name" class="form-control" placeholder="VD: Liệu test 20/08" />
+                </div>
+            </div>
+            <div class="col-sm-4 col-md-2">
+                <button type="submit" class="btn pmc-btn-dark w-100 d-inline-flex align-items-center justify-content-center gap-1">
+                    <span class="material-icons" style="font-size:18px;">add</span> <span data-i18n="btnCreateList">Tạo list</span>
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="card border-0 shadow-sm rounded-4">
+    <div class="card-body">
+        <h5 class="card-title mb-3" data-i18n="barcodeListsTitle">Danh sách các list</h5>
+
+        <div class="table-responsive">
+            <table class="table align-middle">
+                <thead>
+                    <tr class="text-uppercase text-muted small">
+                        <th data-i18n="listNameLabel">Tên list</th>
+                        <th class="text-end" data-i18n="colItemCount">Số mã</th>
+                        <th class="text-end" data-i18n="colTotalScans">Tổng lượt quét</th>
+                        <th data-i18n="colCreatedAt">Ngày tạo</th>
+                        <th class="text-end" data-i18n="colAction">Hành động</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var l in Model.Lists)
+                    {
+                        <tr>
+                            <td class="fw-semibold">
+                                <a asp-controller="BarcodeCollection" asp-action="Detail" asp-route-id="@l.ListId">@l.Name</a>
+                            </td>
+                            <td class="text-end">@l.ItemCount</td>
+                            <td class="text-end">@l.TotalScans</td>
+                            <td class="text-muted small">@l.CreatedAt.ToString("dd/MM/yyyy HH:mm")</td>
+                            <td class="text-end">
+                                <a asp-controller="BarcodeCollection" asp-action="Detail" asp-route-id="@l.ListId" class="btn btn-sm btn-outline-secondary" title="Xem" data-i18n-title="viewDetailTooltip">
+                                    <span class="material-icons" style="font-size:16px;">visibility</span>
+                                </a>
+                                <form asp-controller="BarcodeCollection" asp-action="DeleteList" method="post" class="d-inline js-delete-list-form">
+                                    <input type="hidden" name="listId" value="@l.ListId" />
+                                    <input type="hidden" name="name" value="@l.Name" />
+                                    <button type="submit" class="btn btn-sm btn-outline-danger" title="Xoá list" data-i18n-title="btnDeleteList">
+                                        <span class="material-icons" style="font-size:16px;">delete_outline</span>
+                                    </button>
+                                </form>
+                            </td>
+                        </tr>
+                    }
+                    @if (Model.Lists.Count == 0)
+                    {
+                        <tr>
+                            <td colspan="5" class="text-center text-muted py-4" data-i18n="emptyBarcodeLists">Chưa có list nào — tạo list mới ở trên hoặc tạo từ app Android.</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<div id="pmc-flash"
+     data-success="@(ViewData["FlashSuccess"] as string)"
+     data-error="@(ViewData["FlashError"] as string)"
+     style="display:none"></div>
+
+@section Scripts {
+    <script>
+        (function () {
+            var flash = document.getElementById('pmc-flash');
+            if (flash.dataset.success) PmcUI.success(PmcWhI18n.renderFlash(flash.dataset.success));
+            if (flash.dataset.error) PmcUI.error(PmcWhI18n.renderFlash(flash.dataset.error));
+
+            document.querySelectorAll('.js-delete-list-form').forEach(function (form) {
+                form.addEventListener('submit', async function (e) {
+                    e.preventDefault();
+                    var name = form.querySelector('input[name="name"]').value;
+                    var ok = await PmcUI.confirmDelete(PmcWhI18n.t('confirmDeleteListMsg').replace('{name}', name));
+                    if (ok) {
+                        form.querySelector('button[type="submit"]').disabled = true;
+                        form.submit();
+                    }
+                });
+            });
+        })();
+    </script>
+}

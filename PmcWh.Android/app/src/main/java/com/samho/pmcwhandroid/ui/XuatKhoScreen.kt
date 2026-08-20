@@ -59,6 +59,7 @@ import com.samho.pmcwhandroid.scan.DataWedgeScanField
 import com.samho.pmcwhandroid.scan.ScanFeedback
 import com.samho.pmcwhandroid.scan.ScanFeedbackBanner
 import com.samho.pmcwhandroid.ui.components.MaterialDetailDialog
+import com.samho.pmcwhandroid.ui.components.rememberExitConfirm
 import com.samho.pmcwhandroid.ui.components.PendingBatchList
 import com.samho.pmcwhandroid.ui.components.PendingRow
 import com.samho.pmcwhandroid.ui.components.PendingRowStatus
@@ -75,9 +76,26 @@ private data class XuatPendingItem(
 ) : PendingRow
 
 private fun XuatPendingItem.parsedQty(): Double? = qtyText.replace(',', '.').toDoubleOrNull()
+
+/**
+ * Balance của liệu Staging LUÔN là 0 trong DB (chỉ được set = ArrivalQty lúc Nhập kho) — nên số
+ * lượng "có thể xuất" của 1 liệu Staging phải lấy từ ArrivalQty, không phải Balance. Xem giải
+ * thích/bug tương ứng đã sửa ở PmcWh.Api MaterialsController.Issue().
+ */
+private fun MaterialListItem.availableQtyForIssue(): Double =
+    if (status == "Staging") (arrivalQty ?: 0.0) else (balance ?: 0.0)
+
+/**
+ * "Xuất Kho Thẳng": liệu Staging (chưa lên kệ) chỉ được xuất HẾT 1 lần, không cho xuất 1 phần —
+ * xem giải thích ở PmcWh.Api MaterialsController.Issue(). InStock/PartiallyIssued thì xuất bao
+ * nhiêu cũng được (miễn không vượt tồn) như trước giờ.
+ */
 private fun XuatPendingItem.isQtyValid(): Boolean {
     val qty = parsedQty() ?: return false
-    return qty > 0 && qty <= (material.balance ?: 0.0)
+    val available = material.availableQtyForIssue()
+    if (qty <= 0 || qty > available) return false
+    if (material.status == "Staging" && qty < available) return false
+    return true
 }
 
 /**
@@ -89,8 +107,9 @@ private fun XuatPendingItem.isQtyValid(): Boolean {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun XuatKhoScreen(session: UserSession, onBack: () -> Unit) {
-    BackHandler(onBack = onBack)
     var pending by remember { mutableStateOf<List<XuatPendingItem>>(emptyList()) }
+    val (guardedBack, exitConfirmDialog) = rememberExitConfirm(hasPendingWork = pending.isNotEmpty(), onExit = onBack)
+    BackHandler(onBack = guardedBack)
     var recipients by remember { mutableStateOf<List<RecipientDto>>(emptyList()) }
     var isLoadingRecipients by remember { mutableStateOf(false) }
     var showRecipientPicker by remember { mutableStateOf(false) }
@@ -121,7 +140,9 @@ fun XuatKhoScreen(session: UserSession, onBack: () -> Unit) {
 
     fun addToPending(item: MaterialListItem): Boolean {
         if (pending.any { it.material.materialId == item.materialId }) return false
-        pending = pending + XuatPendingItem(key = System.nanoTime(), material = item)
+        // Staging (Xuất Kho Thẳng) chỉ được xuất hết 1 lần — điền sẵn luôn số lượng tồn cho đỡ gõ tay.
+        val prefillQty = if (item.status == "Staging") item.availableQtyForIssue().toString() else ""
+        pending = pending + XuatPendingItem(key = System.nanoTime(), material = item, qtyText = prefillQty)
         return true
     }
 
@@ -131,12 +152,16 @@ fun XuatKhoScreen(session: UserSession, onBack: () -> Unit) {
             try {
                 val resp = ApiClient.materialsApi.getByBarcode(code)
                 val item = resp.body()
-                val canIssue = item != null && (item.status == "InStock" || item.status == "PartiallyIssued") && (item.balance ?: 0.0) > 0
+                // Staging = mới in tem, chưa lên kệ — cho xuất thẳng luôn ("Xuất Kho Thẳng"), không
+                // bắt buộc phải Nhập kho trước. Xem PmcWh.Api MaterialsController.Issue().
+                val canIssue = item != null &&
+                    (item.status == "InStock" || item.status == "PartiallyIssued" || item.status == "Staging") &&
+                    item.availableQtyForIssue() > 0
                 lastFeedback = when {
                     !resp.isSuccessful || item == null ->
                         ScanFeedback.Failure(code, resp.errorMessageOrDefault("Không tìm thấy mã '$code'."))
                     !canIssue ->
-                        ScanFeedback.Failure(code, "Đang '${item.status}' (tồn ${item.balance ?: 0}), không thể xuất.")
+                        ScanFeedback.Failure(code, "Đang '${item.status}' (tồn ${item.availableQtyForIssue()}), không thể xuất.")
                     addToPending(item) -> ScanFeedback.Success(code, "Đã thêm vào danh sách chờ.")
                     else -> ScanFeedback.Success(code, "Đã có trong danh sách chờ.")
                 }
@@ -150,6 +175,7 @@ fun XuatKhoScreen(session: UserSession, onBack: () -> Unit) {
         val recipient = chosenRecipient ?: return
         isSaving = true
         val toSave = pending.filter { it.status != PendingRowStatus.SAVING }
+        var savedCount = 0
         for (row in toSave) {
             val qty = row.parsedQty() ?: continue
             pending = pending.map { if (it.key == row.key) it.copy(status = PendingRowStatus.SAVING) else it }
@@ -160,6 +186,7 @@ fun XuatKhoScreen(session: UserSession, onBack: () -> Unit) {
                 )
                 if (resp.isSuccessful) {
                     pending = pending.filterNot { it.key == row.key }
+                    savedCount++
                 } else {
                     val msg = resp.errorMessageOrDefault("Xuất kho thất bại.")
                     pending = pending.map { if (it.key == row.key) it.copy(status = PendingRowStatus.ERROR, error = msg) else it }
@@ -171,6 +198,13 @@ fun XuatKhoScreen(session: UserSession, onBack: () -> Unit) {
             }
         }
         isSaving = false
+        // PMC feedback: sau khi lưu xong màn hình phải "sạch" ngay để quét lô tiếp theo, không phải
+        // tự back ra vào lại mới thấy hết đồ cũ — xoá banner quét cũ (không còn liên quan) + báo rõ
+        // đã lưu xong bao nhiêu liệu (trước đây lưu xong mà không có gì báo, dễ tưởng bị đứng máy).
+        lastFeedback = null
+        if (savedCount > 0) {
+            snackbarHostState.showSnackbar("Đã xuất xong $savedCount liệu — quét tiếp được ngay.")
+        }
     }
 
     XuatKhoScreenContent(
@@ -180,7 +214,7 @@ fun XuatKhoScreen(session: UserSession, onBack: () -> Unit) {
         showCamera = showCamera,
         lastFeedback = lastFeedback,
         snackbarHostState = snackbarHostState,
-        onBack = onBack,
+        onBack = guardedBack,
         onOpenCamera = { showCamera = true },
         onCloseCamera = { showCamera = false },
         onScan = { code -> scanChannel.trySend(code) },
@@ -200,6 +234,8 @@ fun XuatKhoScreen(session: UserSession, onBack: () -> Unit) {
             onSelect = { r -> chosenRecipient = r; showRecipientPicker = false },
         )
     }
+
+    exitConfirmDialog()
 }
 
 /** Phần giao diện thuần (không gọi API) — tách riêng để @Preview render được với dữ liệu mẫu. */
@@ -303,12 +339,26 @@ private fun XuatKhoScreenContent(
                             listOfNotNull(row.material.dev, row.material.model).joinToString(" / "),
                             style = MaterialTheme.typography.bodySmall,
                         )
+                        row.material.matlDescription?.let {
+                            Text(it, style = MaterialTheme.typography.bodySmall)
+                        }
+                        row.material.colorCode?.let {
+                            Text("Color code: $it", style = MaterialTheme.typography.bodySmall)
+                        }
+                        if (row.material.status == "Staging") {
+                            Text(
+                                "Xuất Kho Thẳng — chưa lên kệ, chỉ xuất được hết toàn bộ số lượng",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.primary,
+                            )
+                        }
                         Spacer(Modifier.height(4.dp))
                         OutlinedTextField(
                             value = row.qtyText,
                             onValueChange = { onQtyChange(row.key, it) },
-                            label = { Text("Số lượng (tồn ${row.material.balance ?: 0})") },
+                            label = { Text("Số lượng (tồn ${row.material.availableQtyForIssue()})") },
                             singleLine = true,
+                            enabled = row.material.status != "Staging",
                             isError = row.qtyText.isNotBlank() && !row.isQtyValid(),
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                             modifier = Modifier.fillMaxWidth(),

@@ -126,7 +126,15 @@
                     <button id="wh-btnToggle" class="wh-toggle-btn" type="button" aria-label="Toggle menu" aria-expanded="true">
                         <span class="material-icons">menu</span>
                     </button>
-                    <h5 class="mb-0" data-i18n="@ViewData["TitleKey"]">@ViewData["Title"]</h5>
+                    @{ var titleKey = ViewData["TitleKey"] as string; }
+                    @if (string.IsNullOrEmpty(titleKey))
+                    {
+                        <h5 class="mb-0">@ViewData["Title"]</h5>
+                    }
+                    else
+                    {
+                        <h5 class="mb-0" data-i18n="@titleKey">@ViewData["Title"]</h5>
+                    }
                 </div>
                 <div class="d-flex align-items-center gap-2">
                 <div class="d-flex align-items-center gap-1">

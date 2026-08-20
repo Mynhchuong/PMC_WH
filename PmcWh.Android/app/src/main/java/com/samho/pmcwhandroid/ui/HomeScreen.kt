@@ -49,10 +49,12 @@ private data class HomeMenuItem(
 private val menuItems = listOf(
     HomeMenuItem("nhap_kho", "Nhập kho", "📥", implemented = true),
     HomeMenuItem("xuat_kho", "Xuất kho", "📤", implemented = true),
+    HomeMenuItem("nhan_lai", "Nhận lại", "↩️", implemented = true),
     HomeMenuItem("huy_lieu", "Hủy liệu", "🗑️", implemented = true),
     HomeMenuItem("tim_kiem", "Tìm kiếm", "🔍", implemented = true),
     HomeMenuItem("danh_sach_ke", "Danh sách kệ", "🏬", implemented = true),
     HomeMenuItem("log_hom_nay", "Log hôm nay", "🕒", implemented = true),
+    HomeMenuItem("thu_thap_barcode", "Thu thập Barcode", "📊", implemented = true),
 )
 
 @OptIn(ExperimentalMaterial3Api::class)

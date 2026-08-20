@@ -21,7 +21,9 @@ import com.samho.pmcwhandroid.ui.NhapKhoScreen
 import com.samho.pmcwhandroid.ui.DanhSachKeScreen
 import com.samho.pmcwhandroid.ui.HuyLieuScreen
 import com.samho.pmcwhandroid.ui.LogHomNayScreen
+import com.samho.pmcwhandroid.ui.NhanLaiScreen
 import com.samho.pmcwhandroid.ui.TimKiemScreen
+import com.samho.pmcwhandroid.ui.barcodecollection.ThuThapBarcodeScreen
 import com.samho.pmcwhandroid.ui.XuatKhoScreen
 import com.samho.pmcwhandroid.ui.theme.PmcWhAndroidTheme
 
@@ -62,6 +64,10 @@ class MainActivity : ComponentActivity() {
                                 session = currentSession,
                                 onBack = { route = null },
                             )
+                            "nhan_lai" -> NhanLaiScreen(
+                                session = currentSession,
+                                onBack = { route = null },
+                            )
                             "huy_lieu" -> HuyLieuScreen(
                                 session = currentSession,
                                 onBack = { route = null },
@@ -72,6 +78,10 @@ class MainActivity : ComponentActivity() {
                                 onBack = { route = null },
                             )
                             "log_hom_nay" -> LogHomNayScreen(onBack = { route = null })
+                            "thu_thap_barcode" -> ThuThapBarcodeScreen(
+                                session = currentSession,
+                                onBack = { route = null },
+                            )
                             else -> HomeScreen(
                                 session = currentSession,
                                 modifier = Modifier.padding(innerPadding),

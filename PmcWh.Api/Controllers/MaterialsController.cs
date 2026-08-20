@@ -509,7 +509,7 @@ public class MaterialsController : ControllerBase
         }
 
         var rows = (await _db.QueryAsync(
-            "SELECT Balance, Status, CurrentLocationId FROM PMC_Materials WHERE MaterialId = :id",
+            "SELECT Balance, Status, CurrentLocationId, ArrivalQty FROM PMC_Materials WHERE MaterialId = :id",
             new OracleParameter("id", id))).ToList();
 
         if (rows.Count == 0)
@@ -518,15 +518,32 @@ public class MaterialsController : ControllerBase
         }
 
         var status = rows[0]["STATUS"]?.ToString();
-        if (status != "InStock" && status != "PartiallyIssued")
+        var balance = Convert.ToDecimal(rows[0]["BALANCE"]);
+        // "Xuất Kho Thẳng": liệu mới in tem (Staging, CHƯA lên kệ) cũng xuất được thẳng cho WS —
+        // nhưng CHỈ khi xuất hết 1 lần (remaining <= 0 → IssuedOut). Không cho xuất 1 phần từ Staging,
+        // vì phần còn lại sẽ kẹt ở trạng thái PartiallyIssued mà KHÔNG có CurrentLocationId (chưa từng
+        // lên kệ) — vỡ giả định "PartiallyIssued luôn còn nằm trên 1 kệ nào đó" ở nghiệp vụ Nhận lại
+        // (Return) và Bản đồ kho. Nếu cần xuất 1 phần thì phải lên kệ trước (Nhập kho) rồi mới xuất.
+        //
+        // Balance của liệu Staging LUÔN là 0 trong DB (chỉ được set = ArrivalQty lúc Nhập kho — xem
+        // Inbound() ở trên) — nên số lượng "có thể xuất" của 1 liệu Staging phải lấy từ ArrivalQty,
+        // không phải Balance (dùng nhầm Balance sẽ luôn báo "vượt quá tồn hiện tại (0)", chặn hết mọi
+        // lần xuất thẳng — bug thật đã gặp khi đối chiếu với dữ liệu Staging thật trong DB).
+        var isDirectFromStaging = status == "Staging";
+        var arrivalQty = Convert.ToDecimal(rows[0]["ARRIVALQTY"]);
+        var availableQty = isDirectFromStaging ? arrivalQty : balance;
+        if (status != "InStock" && status != "PartiallyIssued" && !isDirectFromStaging)
         {
-            return Conflict(new { message = "Liệu này không ở trạng thái có thể xuất (phải đang InStock hoặc PartiallyIssued)." });
+            return Conflict(new { message = "Liệu này không ở trạng thái có thể xuất (phải đang InStock, PartiallyIssued, hoặc Staging để xuất thẳng)." });
+        }
+        if (isDirectFromStaging && req.Qty < availableQty)
+        {
+            return BadRequest(new { message = $"Liệu chưa lên kệ (Staging) chỉ có thể xuất thẳng HẾT toàn bộ số lượng ({availableQty}) — nếu cần xuất 1 phần, vui lòng lên kệ trước." });
         }
 
-        var balance = Convert.ToDecimal(rows[0]["BALANCE"]);
-        if (req.Qty > balance)
+        if (req.Qty > availableQty)
         {
-            return BadRequest(new { message = $"Số lượng xuất ({req.Qty}) vượt quá tồn hiện tại ({balance})." });
+            return BadRequest(new { message = $"Số lượng xuất ({req.Qty}) vượt quá tồn hiện tại ({availableQty})." });
         }
 
         var currentLocationId = rows[0]["CURRENTLOCATIONID"] != null ? Convert.ToInt32(rows[0]["CURRENTLOCATIONID"]) : (int?)null;
@@ -536,7 +553,7 @@ public class MaterialsController : ControllerBase
             return BadRequest(new { message = "Nơi nhận không hợp lệ hoặc không còn hoạt động." });
         }
 
-        var remaining = balance - req.Qty;
+        var remaining = availableQty - req.Qty;
         var newStatus = remaining <= 0 ? "IssuedOut" : "PartiallyIssued";
 
         var statements = new (string Sql, OracleParameter[] Parameters)[]
@@ -545,7 +562,7 @@ public class MaterialsController : ControllerBase
              "   SET Balance = :Remaining, Status = :NewStatus, LastIssuedAt = SYSTIMESTAMP, " +
              "       CurrentLocationId = CASE WHEN :NewStatus = 'IssuedOut' THEN NULL ELSE CurrentLocationId END, " +
              "       UpdatedBy = :UserId, UpdatedAt = SYSTIMESTAMP, VersionNo = VersionNo + 1 " +
-             " WHERE MaterialId = :MaterialId AND Status IN ('InStock', 'PartiallyIssued') AND Balance = :OldBalance",
+             " WHERE MaterialId = :MaterialId AND Status IN ('InStock', 'PartiallyIssued', 'Staging') AND Balance = :OldBalance",
              new[]
              {
                  new OracleParameter("Remaining", remaining),

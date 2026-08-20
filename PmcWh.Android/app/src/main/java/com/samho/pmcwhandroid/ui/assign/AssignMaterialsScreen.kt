@@ -45,6 +45,7 @@ import com.samho.pmcwhandroid.scan.DataWedgeScanField
 import com.samho.pmcwhandroid.scan.ScanFeedback
 import com.samho.pmcwhandroid.scan.ScanFeedbackBanner
 import com.samho.pmcwhandroid.ui.components.MaterialDetailDialog
+import com.samho.pmcwhandroid.ui.components.rememberExitConfirm
 import com.samho.pmcwhandroid.ui.components.PendingBatchList
 import com.samho.pmcwhandroid.ui.components.PendingRow
 import com.samho.pmcwhandroid.ui.components.PendingRowStatus
@@ -76,8 +77,9 @@ fun AssignMaterialsScreen(
     onClose: () -> Unit,
     onAllSavedAndClosed: () -> Unit,
 ) {
-    BackHandler(onBack = onClose)
     var pending by remember { mutableStateOf<List<AssignPendingRow>>(emptyList()) }
+    val (guardedClose, exitConfirmDialog) = rememberExitConfirm(hasPendingWork = pending.isNotEmpty(), onExit = onClose)
+    BackHandler(onBack = guardedClose)
     var isSaving by remember { mutableStateOf(false) }
     var showCamera by remember { mutableStateOf(false) }
     var lastFeedback by remember { mutableStateOf<ScanFeedback?>(null) }
@@ -144,7 +146,7 @@ fun AssignMaterialsScreen(
         showCamera = showCamera,
         lastFeedback = lastFeedback,
         snackbarHostState = snackbarHostState,
-        onClose = onClose,
+        onClose = guardedClose,
         onOpenCamera = { showCamera = true },
         onCloseCamera = { showCamera = false },
         onScan = { code -> scanChannel.trySend(code) },
@@ -152,6 +154,8 @@ fun AssignMaterialsScreen(
         onSave = { scope.launch { saveBatch() } },
         onDismissFeedback = { lastFeedback = null },
     )
+
+    exitConfirmDialog()
 }
 
 /** Phần giao diện thuần (không gọi API) — tách riêng để @Preview render được với dữ liệu mẫu. */
@@ -214,6 +218,10 @@ private fun AssignMaterialsScreenContent(
                     Text(row.item.barcode, style = MaterialTheme.typography.titleMedium)
                     Text(
                         listOfNotNull(row.item.dev, row.item.model).joinToString(" / "),
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                    Text(
+                        listOfNotNull(row.item.matlDescription, row.item.colorCode).joinToString(" · "),
                         style = MaterialTheme.typography.bodySmall,
                     )
                 }

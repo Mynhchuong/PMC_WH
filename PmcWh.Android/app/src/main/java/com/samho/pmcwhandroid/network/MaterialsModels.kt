@@ -67,6 +67,15 @@ data class DisposeRequest(
 )
 
 @Serializable
+data class ReturnRequest(
+    /** Chỉ bắt buộc khi liệu đang IssuedOut (đã rời kệ hẳn, cần chọn kệ mới). Nếu đang
+     *  PartiallyIssued (chưa từng rời kệ) thì để null, Api tự giữ nguyên vị trí kệ cũ. */
+    val locationId: Int? = null,
+    val qty: Double,
+    val userId: Int,
+)
+
+@Serializable
 data class WarehouseTierDto(
     val locationId: Int,
     val rackNo: Int,

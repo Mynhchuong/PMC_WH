@@ -34,6 +34,14 @@ interface MaterialsApi {
     @POST("api/Materials/{id}/issue")
     suspend fun issue(@Path("id") id: Int, @Body request: IssueRequest): Response<ResponseBody>
 
+    @GET("api/Materials/returnable")
+    suspend fun returnable(): List<MaterialListItem>
+
+    /** Tên "returnMaterial" (không phải "return") vì return là từ khoá Kotlin. Cùng lý do dùng
+     *  Response<ResponseBody> như inbound()/issue() ở trên — Ok() không có body. */
+    @POST("api/Materials/{id}/return")
+    suspend fun returnMaterial(@Path("id") id: Int, @Body request: ReturnRequest): Response<ResponseBody>
+
     @GET("api/Materials/disposable")
     suspend fun disposable(): List<MaterialListItem>
 

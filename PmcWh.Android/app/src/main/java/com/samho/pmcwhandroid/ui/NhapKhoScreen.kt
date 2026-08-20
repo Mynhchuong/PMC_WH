@@ -1,31 +1,21 @@
 package com.samho.pmcwhandroid.ui
 
 import androidx.activity.compose.BackHandler
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -46,6 +36,7 @@ import com.samho.pmcwhandroid.data.UserSession
 import com.samho.pmcwhandroid.network.ApiClient
 import com.samho.pmcwhandroid.network.StorageLocationDto
 import com.samho.pmcwhandroid.ui.assign.AssignMaterialsScreen
+import com.samho.pmcwhandroid.ui.components.LocationPickerDialog
 import com.samho.pmcwhandroid.ui.theme.PmcWhAndroidTheme
 import kotlinx.coroutines.launch
 
@@ -153,83 +144,6 @@ private fun NhapKhoScreenContent(
             }
         }
     }
-}
-
-/** Chọn kệ theo 2 bước: chọn số kệ (rack) trước, rồi chọn tầng (level) trong kệ đó. */
-@Composable
-private fun LocationPickerDialog(
-    locations: List<StorageLocationDto>,
-    isLoading: Boolean,
-    onDismiss: () -> Unit,
-    onSelect: (StorageLocationDto) -> Unit,
-) {
-    var query by remember { mutableStateOf("") }
-    var selectedRack by remember { mutableStateOf<Int?>(null) }
-
-    val racks = remember(locations) { locations.map { it.rackNo }.distinct().sorted() }
-    val filteredRacks = remember(racks, query) {
-        if (query.isBlank()) racks else racks.filter { it.toString().contains(query) }
-    }
-    val tiersInRack = remember(locations, selectedRack) {
-        val rack = selectedRack
-        if (rack == null) emptyList() else locations.filter { it.rackNo == rack }.sortedBy { it.levelNo }
-    }
-
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        confirmButton = { TextButton(onClick = onDismiss) { Text("Đóng") } },
-        dismissButton = if (selectedRack != null) {
-            { TextButton(onClick = { selectedRack = null }) { Text("‹ Chọn kệ khác") } }
-        } else {
-            null
-        },
-        title = { Text(if (selectedRack == null) "Chọn kệ" else "Chọn tầng — Kệ ${selectedRack}") },
-        text = {
-            Column {
-                if (selectedRack == null) {
-                    OutlinedTextField(
-                        value = query,
-                        onValueChange = { query = it },
-                        label = { Text("Tìm theo số kệ (vd: 40)") },
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth(),
-                    )
-                    Spacer(Modifier.height(8.dp))
-                }
-                Box(modifier = Modifier.fillMaxWidth().height(320.dp)) {
-                    if (isLoading) {
-                        CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
-                    } else if (selectedRack == null) {
-                        LazyColumn {
-                            items(filteredRacks, key = { it }) { rack ->
-                                ListItem(
-                                    headlineContent = { Text("Kệ $rack") },
-                                    supportingContent = { Text("${locations.count { it.rackNo == rack }} tầng") },
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .clickable { selectedRack = rack },
-                                )
-                                HorizontalDivider()
-                            }
-                        }
-                    } else {
-                        LazyColumn {
-                            items(tiersInRack, key = { it.locationId }) { loc ->
-                                ListItem(
-                                    headlineContent = { Text("Tầng ${loc.levelNo}") },
-                                    supportingContent = { Text(loc.code) },
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .clickable { onSelect(loc) },
-                                )
-                                HorizontalDivider()
-                            }
-                        }
-                    }
-                }
-            }
-        },
-    )
 }
 
 @Preview(showBackground = true, name = "Chưa chọn kệ")
