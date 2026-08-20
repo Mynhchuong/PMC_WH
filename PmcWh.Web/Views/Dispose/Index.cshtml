@@ -9,7 +9,7 @@
     <div class="card-body py-2">
         <div class="d-flex align-items-center gap-2 mb-2">
             <span class="d-inline-flex align-items-center justify-content-center rounded-3"
-                  style="width:34px;height:34px;background:linear-gradient(135deg, #495057 0%, #212529 100%); flex-shrink:0;">
+                  style="width:34px;height:34px;background:linear-gradient(135deg, #d63384 0%, #99245c 100%); flex-shrink:0;">
                 <span class="material-icons text-white" style="font-size:18px;">delete_forever</span>
             </span>
             <div>
@@ -45,15 +45,17 @@
     <div class="card-body">
         <h5 class="card-title mb-3"><span data-i18n="disposableTitle">Có thể hủy</span> (@Model.DisposableItems.Count)</h5>
 
-        <div class="table-responsive">
-            <table class="table align-middle">
+        <div class="table-responsive pmc-table-scroll">
+            <table id="materialsTable" class="table align-middle table-sm pmc-table-compact" style="table-layout: fixed;">
+                <colgroup>
+                    @{ await Html.RenderPartialAsync("_MaterialColGroup"); }
+                    <col style="width: 100px">
+                    <col style="width: 130px">
+                    <col style="width: 110px">
+                </colgroup>
                 <thead>
-                    <tr class="text-uppercase text-muted small">
-                        <th>Barcode</th>
-                        <th>Dev</th>
-                        <th>Model</th>
-                        <th>Colorway</th>
-                        <th>Size</th>
+                    <tr class="text-uppercase text-muted small" style="white-space: normal;">
+                        @{ await Html.RenderPartialAsync("_MaterialColHeaders"); }
                         <th class="text-end" data-i18n="colBalance">Tồn</th>
                         <th data-i18n="colStatus">Trạng thái</th>
                         <th class="text-end" data-i18n="colAction">Hành động</th>
@@ -63,11 +65,7 @@
                     @foreach (var m in Model.DisposableItems)
                     {
                         <tr class="js-disposable-row js-detail-row" data-material-id="@m.MaterialId" data-barcode="@m.Barcode" title="Double-click để xem chi tiết">
-                            <td class="fw-semibold">@m.Barcode</td>
-                            <td>@m.Dev</td>
-                            <td>@m.Model</td>
-                            <td>@m.Colorway</td>
-                            <td>@m.SizeSpec</td>
+                            @{ await Html.RenderPartialAsync("_MaterialColCells", m); }
                             <td class="text-end">@m.Balance @m.Unit</td>
                             <td>
                                 @{ var (badgeTextClass, badgeStyle) = MaterialStatusHelper.BadgeStyle(m.Status); }
@@ -85,7 +83,7 @@
                     @if (Model.DisposableItems.Count == 0)
                     {
                         <tr>
-                            <td colspan="8" class="text-center text-muted py-4" data-i18n="emptyDisposable">Không có liệu nào để hủy.</td>
+                            <td colspan="21" class="text-center text-muted py-4" data-i18n="emptyDisposable">Không có liệu nào để hủy.</td>
                         </tr>
                     }
                 </tbody>
@@ -105,6 +103,14 @@
             var flash = document.getElementById('pmc-flash');
             if (flash.dataset.success) PmcUI.success(PmcWhI18n.renderFlash(flash.dataset.success));
             if (flash.dataset.error) PmcUI.error(PmcWhI18n.renderFlash(flash.dataset.error));
+
+            // Bảng liệt kê liệu dùng chung cột với Materials/Index — cần init tooltip giống hệt cho
+            // các ô bị cắt chữ (Supplier, Mat'l Description, Remark...) mới hiện được khi hover.
+            document.querySelectorAll('#materialsTable [data-bs-toggle="tooltip"]').forEach(function (el) {
+                if (el.getAttribute('title')) {
+                    new bootstrap.Tooltip(el);
+                }
+            });
 
             document.querySelectorAll('.js-dispose-form').forEach(function (form) {
                 form.addEventListener('submit', async function (e) {
@@ -133,6 +139,59 @@
                 }
                 row.querySelector('.js-dispose-form').requestSubmit();
             });
+
+            // Draggable column resize — đồng bộ với Materials/Index, dùng chung 1 localStorage key
+            // nên độ rộng cột kéo ở trang nào cũng áp dụng cho các trang liệt kê liệu khác.
+            (function () {
+                var STORAGE_KEY = 'pmc_materials_col_widths_v1';
+                var table = document.getElementById('materialsTable');
+                if (!table) return;
+
+                function colFor(key) {
+                    return table.querySelector('col[data-col-key="' + key + '"]');
+                }
+
+                var saved = {};
+                try { saved = JSON.parse(localStorage.getItem(STORAGE_KEY)) || {}; } catch (e) { saved = {}; }
+                Object.keys(saved).forEach(function (key) {
+                    var col = colFor(key);
+                    if (col && saved[key] > 0) col.style.width = saved[key] + 'px';
+                });
+
+                function saveWidths() {
+                    var widths = {};
+                    table.querySelectorAll('col[data-col-key]').forEach(function (col) {
+                        widths[col.dataset.colKey] = col.getBoundingClientRect().width;
+                    });
+                    localStorage.setItem(STORAGE_KEY, JSON.stringify(widths));
+                }
+
+                table.querySelectorAll('.col-resizer').forEach(function (resizer) {
+                    resizer.addEventListener('mousedown', function (e) {
+                        e.preventDefault();
+                        var col = colFor(resizer.dataset.colKey);
+                        if (!col) return;
+                        var startX = e.clientX;
+                        var startWidth = col.getBoundingClientRect().width;
+                        resizer.classList.add('is-resizing');
+                        document.body.classList.add('pmc-col-resizing');
+
+                        function onMove(ev) {
+                            var newWidth = Math.max(40, startWidth + (ev.clientX - startX));
+                            col.style.width = newWidth + 'px';
+                        }
+                        function onUp() {
+                            document.removeEventListener('mousemove', onMove);
+                            document.removeEventListener('mouseup', onUp);
+                            resizer.classList.remove('is-resizing');
+                            document.body.classList.remove('pmc-col-resizing');
+                            saveWidths();
+                        }
+                        document.addEventListener('mousemove', onMove);
+                        document.addEventListener('mouseup', onUp);
+                    });
+                });
+            })();
         })();
     </script>
 }

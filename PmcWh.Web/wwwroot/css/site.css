@@ -186,9 +186,14 @@ body {
 }
 
 /* PMC yêu cầu popup Xem chi tiết gọn hơn, đỡ phải cuộn cả popup lên xuống — riêng khu vực field
-   (không đụng modal Sửa, vẫn cần chỗ rộng rãi hơn cho input) thu nhỏ padding tối đa. */
+   (không đụng modal Sửa, vẫn cần chỗ rộng rãi hơn cho input) thu nhỏ padding tối đa, chữ nhỏ lại,
+   và đổi nền trắng + viền vuông kiểu kẻ ô Excel cho giống bảng Cơ sở dữ liệu (thay vì thẻ bo tròn
+   nền xám mặc định của .pmc-detail-cell, vốn để dùng cho modal Sửa thông tin). */
 #pmc-popup-body .pmc-detail-cell {
-  padding: 2px 8px;
+  padding: 3px 8px;
+  background: #fff;
+  border-radius: 0;
+  font-size: 0.75rem;
 }
 
 /* Modal Sửa thông tin liệu dùng chung .pmc-detail-cell — nếu không có viền riêng, ô input/select

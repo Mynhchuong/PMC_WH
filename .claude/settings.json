@@ -269,12 +269,30 @@
       "Bash(kill 76281)",
       "Bash(curl -s -b /tmp/pmc_cookies.txt \"http://localhost:5139/Materials/Index\" -o /tmp/m2.html -w \"HTTP: %{http_code}\\\\n\")",
       "Bash(curl -s -b /tmp/pmc_cookies.txt \"http://localhost:5139/Warehouse/Map\" -o /tmp/w2.html -w \"HTTP: %{http_code}\\\\n\")",
-      "Bash(curl -s -b /tmp/pmc_cookies.txt \"http://localhost:5139/Warehouse/Map\" -o /tmp/w3.html -w \"HTTP: %{http_code}\\\\n\")"
+      "Bash(curl -s -b /tmp/pmc_cookies.txt \"http://localhost:5139/Warehouse/Map\" -o /tmp/w3.html -w \"HTTP: %{http_code}\\\\n\")",
+      "Bash(node check_tooltip2.js)",
+      "Bash(node check_tooltip3.js)",
+      "Bash(node check_hover.js)",
+      "Bash(node check_copy.js)",
+      "Bash(node check_detail_style.js)",
+      "Bash(node check_detail_dom.js)",
+      "Bash(node check_colors.js)",
+      "Bash(sips -g pixelWidth -g pixelHeight /Users/minhtruong/Documents/Project/PMC/PMC_WH/logo.png)",
+      "Bash(cp /Users/minhtruong/Documents/Project/PMC/PMC_WH/logo.png /Users/minhtruong/Documents/Project/PMC/PMC_WH/PmcWh.Web/wwwroot/img/pmc-warehouse-logo.png *)",
+      "Bash(node check_map_anon.js)",
+      "Bash(node check_kiosk.js)",
+      "Bash(node check_kiosk_detail.js)",
+      "Bash(node check_kiosk_detail2.js)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" http://localhost:5073/api/Health)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" http://localhost:5139/Account/Login)",
+      "Bash(git checkout *)",
+      "Bash(node check_split.js)"
     ],
     "additionalDirectories": [
       "/tmp",
       "/Users/minhtruong/Desktop",
-      "/Users/minhtruong/Documents/Project/PMC/PMC_WH/PmcWh.Android/app/src/main/res/drawable-nodpi"
+      "/Users/minhtruong/Documents/Project/PMC/PMC_WH/PmcWh.Android/app/src/main/res/drawable-nodpi",
+      "/Users/minhtruong/Documents/Project/PMC/PMC_WH"
     ]
   }
 }

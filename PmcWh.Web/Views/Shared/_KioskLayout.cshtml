@@ -1,0 +1,118 @@
+@using System.Security.Claims
+@{
+    // Layout riêng cho màn hình kiosk/TV (Bản đồ kho 3D) — không sidebar/topbar trắng như _Layout,
+    // full-bleed nền tối cho khớp giao diện .wh3d-* (xem Views/Warehouse/Map.cshtml). Trang này công
+    // khai (WarehouseController có [AllowAnonymous]) nên không giả định User đã đăng nhập.
+    var isAuthed = User.Identity?.IsAuthenticated == true;
+    var currentUserName = User.FindFirst(ClaimTypes.GivenName)?.Value ?? User.Identity?.Name ?? "";
+}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewData["Title"] - PMC WAREHOUSE</title>
+    <link rel="icon" type="image/png" href="~/img/pmc-warehouse-logo.png" />
+    <base href="@Url.Content("~/")" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
+    <link href="~/assets/css/nucleo-icons.css" rel="stylesheet" asp-append-version="true" />
+    <link href="~/assets/css/nucleo-svg.css" rel="stylesheet" asp-append-version="true" />
+    <link href="~/assets/css/material-dashboard.css" rel="stylesheet" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/PmcWh.Web.styles.css" asp-append-version="true" />
+
+    <style>
+        html, body {
+            height: 100%;
+            margin: 0;
+            background: #0c0e14;
+            font-family: 'Inter', sans-serif;
+        }
+
+        .kiosk-topbar {
+            position: fixed;
+            top: 0; left: 0; right: 0;
+            z-index: 20;
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            gap: 8px;
+            padding: 10px 14px;
+            pointer-events: none;
+        }
+        .kiosk-topbar > * { pointer-events: auto; }
+
+        .kiosk-topbar select {
+            background: rgba(15,18,24,0.85);
+            color: #e9edf5;
+            border: 1px solid #2a3040;
+            border-radius: 8px;
+            font-size: 12.5px;
+            padding: 4px 8px;
+            cursor: pointer;
+        }
+
+        .kiosk-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: rgba(15,18,24,0.85);
+            color: #e9edf5 !important;
+            border: 1px solid #2a3040;
+            border-radius: 8px;
+            font-size: 12.5px;
+            padding: 5px 10px;
+            text-decoration: none !important;
+            transition: border-color 0.15s ease, color 0.15s ease;
+        }
+        .kiosk-link:hover { border-color: #ff8a3d; color: #ff8a3d !important; }
+        .kiosk-link .material-icons { font-size: 15px; }
+
+        .kiosk-body {
+            padding: 50px 14px 14px;
+            min-height: 100vh;
+            box-sizing: border-box;
+        }
+    </style>
+
+    @await RenderSectionAsync("Styles", required: false)
+</head>
+<body>
+    <div class="kiosk-topbar">
+        @if (isAuthed)
+        {
+            <a class="kiosk-link" asp-controller="Materials" asp-action="Index">
+                <span class="material-icons">arrow_back</span> <span data-i18n="backToApp">Về trang chính</span>
+            </a>
+        }
+        else
+        {
+            <a class="kiosk-link" asp-controller="Account" asp-action="Login">
+                <span class="material-icons">login</span> <span data-i18n="loginTitle">Đăng nhập</span>
+            </a>
+        }
+        <select id="wh3d-lang-select">
+            <option value="vi">Tiếng Việt</option>
+            <option value="en">English</option>
+        </select>
+    </div>
+
+    <div class="kiosk-body">
+        @RenderBody()
+    </div>
+
+    <script src="~/lib/jquery/dist/jquery.min.js"></script>
+    <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+
+    <script src="~/js/warehouse-i18n.js" asp-append-version="true"></script>
+    <script src="~/js/site.js" asp-append-version="true"></script>
+    <script src="~/js/ui-helper.js" asp-append-version="true"></script>
+    <script src="~/js/material-detail.js" asp-append-version="true"></script>
+
+    @await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

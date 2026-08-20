@@ -72,6 +72,11 @@
 
     .menu-child-icon .material-icons { font-size: 1rem; }
 
+    /* Mỗi mục có màu icon riêng (SideMenuItem.ColorFrom/ColorTo, xem SideMenuBuilder.cs) để dễ
+       phân biệt nhóm chức năng — icon luôn giữ màu ngay cả khi mục đang active (nền tối). */
+    .menu-child-icon.has-color .material-icons { color: #fff; }
+    .nav-link.active .menu-child-icon.has-color { background: var(--pmc-menu-color, rgba(255,255,255,0.2)) !important; }
+
     .menu-caret {
         display: inline-block;
         width: 7px;
@@ -124,7 +129,7 @@
 <div class="sidenav-header">
     <div class="navbar-brand px-4 py-4 m-0 d-flex align-items-center" style="border-bottom: 1px solid rgba(0,0,0,0.03);">
         <div class="d-flex align-items-center justify-content-center bg-white shadow-sm rounded-3 me-2" style="width: 42px; height: 42px; border: 1px solid #f1f5f9; flex-shrink: 0;">
-            <img src="~/img/pmc-warehouse-logo.svg" alt="PMC Warehouse" style="width: 26px; height: 26px;" />
+            <img src="~/img/pmc-warehouse-logo.png" alt="PMC Warehouse" style="width: 26px; height: 26px;" />
         </div>
         <div class="d-flex flex-column" style="min-width: 0;">
             <span class="fw-bolder text-truncate" style="letter-spacing: -0.6px; line-height: 1.1; font-size: 0.86rem;">PMC WAREHOUSE</span>
@@ -164,10 +169,15 @@
                             var itemUrl = Url.Action(item.Action, item.Controller, item.RouteValues);
                             bool active = IsActivePath(item);
 
+                            var hasColor = !string.IsNullOrEmpty(item.ColorFrom);
+                            var iconStyle = hasColor
+                                ? $"background: linear-gradient(135deg, {item.ColorFrom} 0%, {item.ColorTo} 100%); --pmc-menu-color: linear-gradient(135deg, {item.ColorFrom} 0%, {item.ColorTo} 100%);"
+                                : "";
+
                             <li class="nav-item">
                                 <a class="nav-link text-dark rounded px-2 py-1 @(active ? "active fw-bold" : "")"
                                    href="@(itemUrl ?? "#")">
-                                    <span class="menu-child-icon">
+                                    <span class="menu-child-icon @(hasColor ? "has-color" : "")" style="@iconStyle">
                                         <span class="material-icons">@item.Icon</span>
                                     </span>
                                     <span class="nav-link-text" data-i18n="@item.TranslationKey">@item.Title</span>

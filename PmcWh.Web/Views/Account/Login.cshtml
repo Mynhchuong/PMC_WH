@@ -11,7 +11,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>@ViewData["Title"] - PMC WAREHOUSE</title>
-    <link rel="icon" type="image/svg+xml" href="~/img/pmc-warehouse-logo.svg" />
+    <link rel="icon" type="image/png" href="~/img/pmc-warehouse-logo.png" />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
     <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
@@ -46,10 +46,8 @@
         }
 
         .login-brand {
-            width: 56px;
-            height: 56px;
-            border-radius: 16px;
-            background: linear-gradient(135deg, #495057 0%, #212529 100%);
+            width: 64px;
+            height: 64px;
             display: flex;
             align-items: center;
             justify-content: center;
@@ -114,7 +112,7 @@
                 </select>
             </div>
             <div class="login-brand">
-                <img src="~/img/pmc-warehouse-logo-white.svg" alt="PMC Warehouse" style="width: 32px; height: 32px;" />
+                <img src="~/img/pmc-warehouse-logo.png" alt="PMC Warehouse" style="width: 64px; height: 64px;" />
             </div>
             <h4 class="text-center mb-1">PMC WAREHOUSE</h4>
             <p class="text-center text-muted mb-4" data-i18n="loginSubtitle">Đăng nhập để tiếp tục</p>
@@ -147,6 +145,16 @@
 
                 <button type="submit" class="btn pmc-btn-dark w-100 py-2 rounded-3" data-i18n="loginSubmit">Đăng nhập</button>
             </form>
+
+            <div class="d-flex align-items-center gap-2 my-3">
+                <hr class="flex-grow-1 my-0" />
+                <span class="text-muted small" data-i18n="orDivider">hoặc</span>
+                <hr class="flex-grow-1 my-0" />
+            </div>
+            <a asp-controller="Warehouse" asp-action="Map2" class="btn btn-outline-secondary w-100 py-2 rounded-3 d-inline-flex align-items-center justify-content-center gap-2">
+                <span class="material-icons" style="font-size:18px;">warehouse</span>
+                <span data-i18n="viewMapNoLogin">Xem Bản đồ kho 3D (không cần đăng nhập)</span>
+            </a>
         </div>
     </div>
 

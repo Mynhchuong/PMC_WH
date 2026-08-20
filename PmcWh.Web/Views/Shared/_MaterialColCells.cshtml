@@ -1,0 +1,25 @@
+@* Ô dữ liệu cột mô tả liệu dùng chung — đi kèm _MaterialColGroup.cshtml và _MaterialColHeaders.cshtml. *@
+@model PmcWh.Web.Models.MaterialListItem
+@{ var m = Model; }
+<td class="fw-semibold">@m.Barcode</td>
+<td class="text-truncate" style="max-width: 0;" data-bs-toggle="tooltip" data-bs-placement="top" title="@m.Dev">@m.Dev</td>
+<td class="text-truncate" style="max-width: 0;" data-bs-toggle="tooltip" data-bs-placement="top" title="@m.PoNo">@m.PoNo</td>
+<td class="text-truncate" style="max-width: 0;" data-bs-toggle="tooltip" data-bs-placement="top" title="@m.Supplier">@m.Supplier</td>
+<td class="text-truncate" style="max-width: 0;" data-bs-toggle="tooltip" data-bs-placement="top" title="@m.Model">@m.Model</td>
+<td class="text-truncate" style="max-width: 0;" data-bs-toggle="tooltip" data-bs-placement="top" title="@m.Season">@m.Season</td>
+<td class="text-truncate" style="max-width: 0;" data-bs-toggle="tooltip" data-bs-placement="top" title="@m.Stage">@m.Stage</td>
+<td class="text-truncate" style="max-width: 0;" data-bs-toggle="tooltip" data-bs-placement="top" title="@m.Colorway">@m.Colorway</td>
+<td class="text-truncate" style="max-width: 0;" data-bs-toggle="tooltip" data-bs-placement="top" title="@m.Component">@m.Component</td>
+<td>
+    <div style="overflow-x: auto; white-space: nowrap;" data-bs-toggle="tooltip" data-bs-placement="top" title="@m.MatlDescription">@m.MatlDescription</div>
+</td>
+<td class="text-truncate" style="max-width: 0;" data-bs-toggle="tooltip" data-bs-placement="top" title="@m.ColorCode">@m.ColorCode</td>
+<td class="text-truncate" style="max-width: 0;" data-bs-toggle="tooltip" data-bs-placement="top" title="@m.ColorName">@m.ColorName</td>
+<td class="text-truncate" style="max-width: 0;" data-bs-toggle="tooltip" data-bs-placement="top" title="@m.SizeSpec">@m.SizeSpec</td>
+<td class="text-end">@m.ArrivalQty</td>
+<td>@m.Unit</td>
+<td class="text-muted small">@(m.ArrivalDate?.ToString("dd/MM/yyyy") ?? "—")</td>
+<td>
+    <div style="overflow-x: auto; white-space: nowrap;" data-bs-toggle="tooltip" data-bs-placement="top" title="@m.Remark">@m.Remark</div>
+</td>
+<td class="text-truncate" style="max-width: 0;" data-bs-toggle="tooltip" data-bs-placement="top" title="@m.Pic">@m.Pic</td>

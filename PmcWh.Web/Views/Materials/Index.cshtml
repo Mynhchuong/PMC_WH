@@ -14,7 +14,7 @@
         <div class="d-flex align-items-center justify-content-between gap-2 mb-2 flex-wrap">
             <div class="d-flex align-items-center gap-2">
                 <span class="d-inline-flex align-items-center justify-content-center rounded-3"
-                      style="width:34px;height:34px;background:linear-gradient(135deg, #495057 0%, #212529 100%); flex-shrink:0;">
+                      style="width:34px;height:34px;background:linear-gradient(135deg, #0d6efd 0%, #0a58ca 100%); flex-shrink:0;">
                     <span class="material-icons text-white" style="font-size:18px;">table_chart</span>
                 </span>
                 <div>
@@ -130,37 +130,8 @@
         <div class="table-responsive pmc-table-scroll">
             <table id="materialsTable" class="table align-middle table-sm pmc-table-compact" style="table-layout: fixed;">
                 <colgroup>
-                    <col data-col-key="barcode" style="width: 110px">
-                    <col data-col-key="dev" style="width: 90px">
-                    <col data-col-key="po" style="width: 190px">
-                    <col data-col-key="poDate" style="width: 90px">
-                    <col data-col-key="etd" style="width: 90px">
-                    <col data-col-key="supplier" style="width: 90px">
-                    <col data-col-key="matlDescription" style="width: 170px">
-                    <col data-col-key="colorCode" style="width: 80px">
-                    <col data-col-key="colorway" style="width: 80px">
-                    <col data-col-key="sizeSpec" style="width: 70px">
-                    <col data-col-key="season" style="width: 80px">
-                    <col data-col-key="stage" style="width: 120px">
-                    <col data-col-key="component" style="width: 130px">
-                    <col data-col-key="colorName" style="width: 120px">
-                    <col data-col-key="focFlag" style="width: 60px">
-                    <col data-col-key="csCode" style="width: 70px">
-                    <col data-col-key="category" style="width: 90px">
-                    <col data-col-key="matlType" style="width: 90px">
-                    <col data-col-key="pic" style="width: 80px">
-                    <col data-col-key="mat" style="width: 80px">
-                    <col data-col-key="testing" style="width: 70px">
-                    <col data-col-key="testRequire" style="width: 90px">
-                    <col data-col-key="testQty" style="width: 80px">
-                    <col data-col-key="requestOn" style="width: 90px">
-                    <col data-col-key="remark" style="width: 150px">
-                    <col data-col-key="qty" style="width: 80px">
-                    <col data-col-key="originalPrice" style="width: 90px">
-                    <col data-col-key="paymentPrice" style="width: 90px">
-                    <col data-col-key="amount" style="width: 90px">
+                    @{ await Html.RenderPartialAsync("_MaterialColGroup"); }
                     <col data-col-key="balance" style="width: 80px">
-                    <col data-col-key="ata" style="width: 80px">
                     <col data-col-key="status" style="width: 150px">
                     <col data-col-key="shelf" style="width: 110px">
                     <col data-col-key="stockedInAt" style="width: 100px">
@@ -174,37 +145,8 @@
                 </colgroup>
                 <thead>
                     <tr class="text-uppercase text-muted small" style="white-space: normal;">
-                        <th class="pmc-resizable-th"><span>Barcode</span><span class="col-resizer" data-col-key="barcode"></span></th>
-                        <th class="pmc-resizable-th"><span>Dev</span><span class="col-resizer" data-col-key="dev"></span></th>
-                        <th class="pmc-resizable-th"><span>PO</span><span class="col-resizer" data-col-key="po"></span></th>
-                        <th class="pmc-resizable-th"><span data-i18n="colPoDate">PO Date</span><span class="col-resizer" data-col-key="poDate"></span></th>
-                        <th class="pmc-resizable-th"><span data-i18n="colEtd">ETD</span><span class="col-resizer" data-col-key="etd"></span></th>
-                        <th class="pmc-resizable-th"><span data-i18n="colSupplier">Supplier</span><span class="col-resizer" data-col-key="supplier"></span></th>
-                        <th class="pmc-resizable-th"><span data-i18n="colMatlDescription">Mat'l Description</span><span class="col-resizer" data-col-key="matlDescription"></span></th>
-                        <th class="pmc-resizable-th"><span data-i18n="colColorCode">Color Code</span><span class="col-resizer" data-col-key="colorCode"></span></th>
-                        <th class="pmc-resizable-th"><span data-i18n="colColorway">Colorway</span><span class="col-resizer" data-col-key="colorway"></span></th>
-                        <th class="pmc-resizable-th"><span data-i18n="colSize">Size</span><span class="col-resizer" data-col-key="sizeSpec"></span></th>
-                        <th class="pmc-resizable-th"><span data-i18n="colSeason">Season</span><span class="col-resizer" data-col-key="season"></span></th>
-                        <th class="pmc-resizable-th"><span data-i18n="colStage">Stage</span><span class="col-resizer" data-col-key="stage"></span></th>
-                        <th class="pmc-resizable-th"><span data-i18n="colComponent">Component</span><span class="col-resizer" data-col-key="component"></span></th>
-                        <th class="pmc-resizable-th"><span data-i18n="colColorName">Color Name</span><span class="col-resizer" data-col-key="colorName"></span></th>
-                        <th class="pmc-resizable-th"><span data-i18n="colFoc">FOC</span><span class="col-resizer" data-col-key="focFlag"></span></th>
-                        <th class="pmc-resizable-th"><span data-i18n="colCsCode">CS Code</span><span class="col-resizer" data-col-key="csCode"></span></th>
-                        <th class="pmc-resizable-th"><span data-i18n="colCategory">Category</span><span class="col-resizer" data-col-key="category"></span></th>
-                        <th class="pmc-resizable-th"><span data-i18n="colMatlType">Mat'l Type</span><span class="col-resizer" data-col-key="matlType"></span></th>
-                        <th class="pmc-resizable-th"><span data-i18n="colPic">PIC</span><span class="col-resizer" data-col-key="pic"></span></th>
-                        <th class="pmc-resizable-th"><span data-i18n="colMat">Mat</span><span class="col-resizer" data-col-key="mat"></span></th>
-                        <th class="pmc-resizable-th"><span data-i18n="colTesting">Testing</span><span class="col-resizer" data-col-key="testing"></span></th>
-                        <th class="pmc-resizable-th"><span data-i18n="colTestRequire">Test Require</span><span class="col-resizer" data-col-key="testRequire"></span></th>
-                        <th class="pmc-resizable-th"><span data-i18n="colTestQty">Test Qty</span><span class="col-resizer" data-col-key="testQty"></span></th>
-                        <th class="pmc-resizable-th"><span data-i18n="colRequestOn">Request On</span><span class="col-resizer" data-col-key="requestOn"></span></th>
-                        <th class="pmc-resizable-th"><span data-i18n="colRemark">Remark</span><span class="col-resizer" data-col-key="remark"></span></th>
-                        <th class="pmc-resizable-th"><span>Qty</span><span class="col-resizer" data-col-key="qty"></span></th>
-                        <th class="text-end pmc-resizable-th"><span data-i18n="colOriginalPrice">Original Price</span><span class="col-resizer" data-col-key="originalPrice"></span></th>
-                        <th class="text-end pmc-resizable-th"><span data-i18n="colPaymentPrice">Payment Price</span><span class="col-resizer" data-col-key="paymentPrice"></span></th>
-                        <th class="text-end pmc-resizable-th"><span data-i18n="colAmount">Amount</span><span class="col-resizer" data-col-key="amount"></span></th>
+                        @{ await Html.RenderPartialAsync("_MaterialColHeaders"); }
                         <th class="pmc-resizable-th"><span>Balance</span><span class="col-resizer" data-col-key="balance"></span></th>
-                        <th class="pmc-resizable-th"><span>ATA</span><span class="col-resizer" data-col-key="ata"></span></th>
                         <th class="pmc-resizable-th"><span data-i18n="colStatus">Trạng thái</span><span class="col-resizer" data-col-key="status"></span></th>
                         <th class="pmc-resizable-th"><span data-i18n="colCurrentShelf">Kệ hiện tại</span><span class="col-resizer" data-col-key="shelf"></span></th>
                         <th class="pmc-resizable-th"><span data-i18n="colStockedInAt">Ngày lên kệ</span><span class="col-resizer" data-col-key="stockedInAt"></span></th>
@@ -230,43 +172,10 @@
                                     ? "background-color:rgba(255,193,7,0.2); color:#b8860b;"
                                     : "background-color:rgba(25,135,84,0.14); color:#198754;";
                         <tr class="js-detail-row" data-material-id="@m.MaterialId" data-barcode="@m.Barcode" title="Double-click để xem chi tiết">
-                            <td class="fw-semibold">@m.Barcode</td>
-                            <td class="text-truncate" style="max-width: 0;" data-bs-toggle="tooltip" data-bs-placement="top" title="@m.Dev">@m.Dev</td>
-                            <td class="text-truncate" style="max-width: 0;" data-bs-toggle="tooltip" data-bs-placement="top" title="@m.PoNo">@m.PoNo</td>
-                            <td class="text-muted small">@(m.PoDate?.ToString("dd/MM/yyyy") ?? "—")</td>
-                            <td class="text-muted small">@(m.Etd?.ToString("dd/MM/yyyy") ?? "—")</td>
-                            <td class="text-truncate" style="max-width: 0;" data-bs-toggle="tooltip" data-bs-placement="top" title="@m.Supplier">@m.Supplier</td>
-                            <td>
-                                <div style="overflow-x: auto; white-space: nowrap;" data-bs-toggle="tooltip" data-bs-placement="top" title="@m.MatlDescription">@m.MatlDescription</div>
-                            </td>
-                            <td class="text-truncate" style="max-width: 0;" data-bs-toggle="tooltip" data-bs-placement="top" title="@m.ColorCode">@m.ColorCode</td>
-                            <td class="text-truncate" style="max-width: 0;" data-bs-toggle="tooltip" data-bs-placement="top" title="@m.Colorway">@m.Colorway</td>
-                            <td class="text-truncate" style="max-width: 0;" data-bs-toggle="tooltip" data-bs-placement="top" title="@m.SizeSpec">@m.SizeSpec</td>
-                            <td class="text-truncate" style="max-width: 0;" data-bs-toggle="tooltip" data-bs-placement="top" title="@m.Season">@m.Season</td>
-                            <td class="text-truncate" style="max-width: 0;" data-bs-toggle="tooltip" data-bs-placement="top" title="@m.Stage">@m.Stage</td>
-                            <td class="text-truncate" style="max-width: 0;" data-bs-toggle="tooltip" data-bs-placement="top" title="@m.Component">@m.Component</td>
-                            <td class="text-truncate" style="max-width: 0;" data-bs-toggle="tooltip" data-bs-placement="top" title="@m.ColorName">@m.ColorName</td>
-                            <td class="text-truncate" style="max-width: 0;" data-bs-toggle="tooltip" data-bs-placement="top" title="@m.FocFlag">@m.FocFlag</td>
-                            <td class="text-truncate" style="max-width: 0;">@(m.CsCode?.ToString() ?? "—")</td>
-                            <td class="text-truncate" style="max-width: 0;" data-bs-toggle="tooltip" data-bs-placement="top" title="@m.Category">@m.Category</td>
-                            <td class="text-truncate" style="max-width: 0;" data-bs-toggle="tooltip" data-bs-placement="top" title="@m.MatlType">@m.MatlType</td>
-                            <td class="text-truncate" style="max-width: 0;" data-bs-toggle="tooltip" data-bs-placement="top" title="@m.Pic">@m.Pic</td>
-                            <td class="text-truncate" style="max-width: 0;" data-bs-toggle="tooltip" data-bs-placement="top" title="@m.Mat">@m.Mat</td>
-                            <td class="text-truncate" style="max-width: 0;" data-i18n="@(m.Testing == 1 ? "yesOption" : m.Testing == 0 ? "noOption" : null)">@(m.Testing == 1 ? "Có" : m.Testing == 0 ? "Không" : "—")</td>
-                            <td class="text-truncate" style="max-width: 0;" data-bs-toggle="tooltip" data-bs-placement="top" title="@m.TestRequire">@m.TestRequire</td>
-                            <td class="text-truncate" style="max-width: 0;" data-bs-toggle="tooltip" data-bs-placement="top" title="@m.TestQty">@m.TestQty</td>
-                            <td class="text-muted small">@(m.RequestOn?.ToString("dd/MM/yyyy") ?? "—")</td>
-                            <td>
-                                <div style="overflow-x: auto; white-space: nowrap;" data-bs-toggle="tooltip" data-bs-placement="top" title="@m.Remark">@m.Remark</div>
-                            </td>
-                            <td class="text-end">@m.ArrivalQty @m.Unit</td>
-                            <td class="text-end text-muted small">@(m.OriginalPrice?.ToString("N2") ?? "—")</td>
-                            <td class="text-end text-muted small">@(m.PaymentPrice?.ToString("N2") ?? "—")</td>
-                            <td class="text-end text-muted small">@(m.Amount?.ToString("N2") ?? "—")</td>
+                            @{ await Html.RenderPartialAsync("_MaterialColCells", m); }
                             <td class="text-end">
                                 <span class="badge" style="@balanceStyle font-weight:700;">@m.Balance @m.Unit</span>
                             </td>
-                            <td class="text-muted small">@(m.ArrivalDate?.ToString("dd/MM/yyyy") ?? "—")</td>
                             <td>
                                 <div class="d-flex flex-column align-items-start gap-1">
                                     <span class="badge @badgeTextClass" style="@badgeStyle" data-i18n="@("status" + m.Status)">@MaterialStatusHelper.Label(m.Status)</span>
@@ -314,7 +223,7 @@
                     @if (Model.Items.Count == 0)
                     {
                         <tr>
-                            <td colspan="@(isAdmin ? 38 : 37)" class="text-center text-muted py-4" data-i18n="emptyMaterials">Không có dữ liệu phù hợp.</td>
+                            <td colspan="@(isAdmin ? 26 : 25)" class="text-center text-muted py-4" data-i18n="emptyMaterials">Không có dữ liệu phù hợp.</td>
                         </tr>
                     }
                 </tbody>
