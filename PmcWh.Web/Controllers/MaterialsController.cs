@@ -43,7 +43,7 @@ public class MaterialsController : Controller
     [HttpGet]
     public async Task<IActionResult> Index(
         string? field, string? q, string? field2, string? q2, string? field3, string? q3,
-        string? status, DateTime? fromDate, DateTime? toDate, bool? isOverdue, int page = 1, int pageSize = 20)
+        string? status, DateTime? fromDate, DateTime? toDate, bool? isOverdue, int page = 1, int pageSize = 10)
     {
         var client = _httpClientFactory.CreateClient("PmcApi");
         var query = $"api/Materials?page={page}&pageSize={pageSize}" +
@@ -188,26 +188,40 @@ public class MaterialsController : Controller
         return RedirectToLocal(form.ReturnUrl);
     }
 
-    /// <summary>Xoá mềm 1 liệu (IsArchived=1 bên Api) — ẩn khỏi web lẫn quét barcode trên app di
-    /// động, không chặn theo trạng thái liệu.</summary>
+    /// <summary>Xoá vĩnh viễn nhiều liệu cùng lúc (checkbox chọn nhiều ở Materials/Index, nút "Xóa đã
+    /// chọn") — gọi tuần tự từng cái qua API xoá thật DELETE api/Materials/{id} (không có endpoint
+    /// batch riêng bên Api), gộp lại 1 thông báo tổng kết thay vì spam nhiều toast, chỉ báo
+    /// warehouseChanged 1 lần ở cuối. Đây là cách xoá liệu DUY NHẤT trên trang này.</summary>
     [HttpPost]
     [Authorize(Roles = "Admin")]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> Delete(int materialId, string? returnUrl)
+    public async Task<IActionResult> BulkDelete(int[] materialIds, string? returnUrl)
     {
-        var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
+        if (materialIds == null || materialIds.Length == 0)
+        {
+            return RedirectToLocal(returnUrl);
+        }
+
         var client = _httpClientFactory.CreateClient("PmcApi");
 
-        var response = await client.PostAsJsonAsync($"api/Materials/{materialId}/archive", new { UserId = userId });
-
-        if (response.IsSuccessStatusCode)
+        var successCount = 0;
+        foreach (var materialId in materialIds)
         {
-            TempData["FlashSuccess"] = FlashHelper.Msg("deleteMaterialSuccess");
+            var response = await client.DeleteAsync($"api/Materials/{materialId}");
+            if (response.IsSuccessStatusCode) successCount++;
+        }
+
+        var failCount = materialIds.Length - successCount;
+        if (successCount > 0)
+        {
+            TempData["FlashSuccess"] = failCount > 0
+                ? FlashHelper.Msg("bulkMaterialDeletedPartial", successCount.ToString(), materialIds.Length.ToString())
+                : FlashHelper.Msg("bulkMaterialDeletedSuccess", successCount.ToString());
+            await _hub.Clients.All.SendAsync("warehouseChanged");
         }
         else
         {
-            var problem = await response.Content.ReadFromJsonAsync<ApiMessage>(ApiJsonOptions);
-            TempData["FlashError"] = problem?.Message ?? FlashHelper.Msg("deleteMaterialFailFallback");
+            TempData["FlashError"] = FlashHelper.Msg("bulkMaterialDeletedFail");
         }
 
         return RedirectToLocal(returnUrl);

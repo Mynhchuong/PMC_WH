@@ -14,6 +14,8 @@ public static class SearchFieldsCatalog
         ("po", "colPo", "PO"),
         ("supplier", "colSupplier", "Supplier"),
         ("model", "colModel", "Model"),
+        ("season", "colSeason", "Season"),
+        ("stage", "colStage", "Stage"),
         ("matldescription", "colMatlDescription", "Mat'l Description"),
         ("colorcode", "colColorCode", "Color Code"),
         ("colorway", "colColorway", "Colorway"),

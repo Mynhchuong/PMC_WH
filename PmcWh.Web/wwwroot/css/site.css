@@ -256,8 +256,19 @@ body {
    border-style: none; } cho MỌI checkbox trong site, khiến checkbox chưa tick gần như vô hình
    trên nền trắng. Trả lại viền riêng cho 2 checkbox này. */
 .js-overdue-check,
-#chkSelectAll {
+#chkSelectAll,
+.js-material-check,
+#chkSelectAllMaterials {
   border: 1px solid #adb5bd;
+}
+
+/* Xóa liệu hàng loạt (Materials/Index) — tô nền dòng đang được tick chọn để dễ thấy đã chọn
+   những dòng nào, không phải chỉ nhìn vào ô checkbox nhỏ. */
+#materialsTable tr.pmc-row-selected {
+  background-color: rgba(220, 53, 69, 0.08);
+}
+#materialsTable tr.pmc-row-selected:hover {
+  background-color: rgba(220, 53, 69, 0.13);
 }
 
 /* Resizable table columns (Materials/Index) — drag handle on the right edge of each <th>. */

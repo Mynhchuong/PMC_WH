@@ -43,13 +43,25 @@ public static class ExcelHelper
                     continue;
                 }
                 var cell = dataRow.Cell(col + 1);
-                row[headers[col]] = cell.IsEmpty() ? null : cell.GetString().Trim();
+                row[headers[col]] = cell.IsEmpty() ? null : GetCellText(cell);
             }
             rows.Add(row);
         }
 
         return rows;
     }
+
+    /// <summary>
+    /// Ô ngày tháng: GetString() trả về theo ĐÚNG định dạng hiển thị của ô trong file gốc (VD
+    /// "21-Aug-26" nếu numFmt là d-mmm-yy), rất hay lệch khỏi các định dạng ngày mà MapRow ở
+    /// MaterialsController chấp nhận (d/M/yyyy, yyyy-MM-dd) tuỳ file PMC gửi qua được format kiểu
+    /// gì — khiến cả cột bị rớt âm thầm (không lỗi, không skip, chỉ ra null) như từng gặp ở cột ATA.
+    /// Ép về "yyyy-MM-dd" cố định cho MỌI ô được Excel nhận diện là ngày, bất kể numFmt gốc.
+    /// </summary>
+    private static string GetCellText(IXLCell cell) =>
+        cell.DataType == XLDataType.DateTime
+            ? cell.GetDateTime().ToString("yyyy-MM-dd")
+            : cell.GetString().Trim();
 
     /// <summary>
     /// Chia list dòng thành từng lô 40 dòng (mặc định) để import an toàn.

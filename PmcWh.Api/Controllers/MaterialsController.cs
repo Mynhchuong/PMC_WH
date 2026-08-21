@@ -97,6 +97,8 @@ public class MaterialsController : ControllerBase
         "po" => "m.PoNo",
         "supplier" => "m.Supplier",
         "model" => "m.Model",
+        "season" => "m.Season",
+        "stage" => "m.Stage",
         "matldescription" => "m.MatlDescription",
         "colorcode" => "m.ColorCode",
         "category" => "m.Category",
@@ -328,21 +330,23 @@ public class MaterialsController : ControllerBase
     }
 
     /// <summary>
-    /// Xoá mềm 1 liệu (IsArchived=1) — không chặn theo Status, xoá được ở bất kỳ trạng thái nào.
-    /// Liệu bị xoá biến mất khỏi MỌI endpoint đọc dữ liệu (đều lọc IsArchived=0), kể cả tra cứu
-    /// barcode dùng cho quét trên app di động — dữ liệu vẫn còn trong DB, chỉ ẩn khỏi vận hành.
+    /// Xoá vĩnh viễn 1 liệu khỏi Oracle (DELETE FROM PMC_Materials) — theo yêu cầu PMC "xoá thì xoá
+    /// luôn, không cần giữ lại trên hệ thống", không phải xoá mềm. Không thể khôi phục sau khi xoá.
+    /// Xoá kèm lịch sử di chuyển (PMC_StockMovements) của liệu trước để không vướng ràng buộc khóa
+    /// ngoại — minAffectedRowsPerStatement=0 vì liệu chưa từng lên kệ/xuất sẽ không có dòng lịch sử
+    /// nào (0 dòng bị ảnh hưởng ở câu xoá StockMovements là hợp lệ, không phải lỗi).
     /// </summary>
-    [HttpPost("{id:int}/archive")]
-    public async Task<IActionResult> Archive(int id, [FromBody] ArchiveRequest req)
+    [HttpDelete("{id:int}")]
+    public async Task<IActionResult> Delete(int id)
     {
-        var affected = await _db.ExecuteAsync(
-            @"UPDATE PMC_Materials
-                 SET IsArchived = 1, UpdatedBy = :UserId, UpdatedAt = SYSTIMESTAMP
-               WHERE MaterialId = :MaterialId AND IsArchived = 0",
-            new OracleParameter("UserId", req.UserId),
-            new OracleParameter("MaterialId", id));
+        var statements = new (string Sql, OracleParameter[] Parameters)[]
+        {
+            ("DELETE FROM PMC_StockMovements WHERE MaterialId = :MaterialId", new[] { new OracleParameter("MaterialId", id) }),
+            ("DELETE FROM PMC_Materials WHERE MaterialId = :MaterialId", new[] { new OracleParameter("MaterialId", id) }),
+        };
 
-        if (affected == 0)
+        var totalAffected = await _db.ExecuteBatchAsync(statements, minAffectedRowsPerStatement: 0);
+        if (totalAffected == 0)
         {
             return NotFound(new { message = "Không tìm thấy liệu, hoặc liệu này đã bị xoá trước đó." });
         }

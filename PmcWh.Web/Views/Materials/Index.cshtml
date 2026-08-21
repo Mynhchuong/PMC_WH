@@ -127,9 +127,24 @@
 
 <div class="card border-0 shadow-sm rounded-4">
     <div class="card-body py-2">
+        @if (isAdmin)
+        {
+            <div class="d-flex align-items-center justify-content-end mb-2">
+                <button type="button" id="btnBulkDeleteMaterials" class="btn btn-sm btn-outline-danger d-inline-flex align-items-center gap-1" disabled>
+                    <span class="material-icons" style="font-size:16px;">delete_sweep</span>
+                    <span data-i18n="btnDeleteSelected">Xóa đã chọn</span>
+                    <span id="materialsBulkSelectedCount" class="badge bg-danger ms-1" style="display:none;"></span>
+                </button>
+            </div>
+            <form asp-controller="Materials" asp-action="BulkDelete" method="post" id="bulkDeleteMaterialsForm"></form>
+        }
         <div class="table-responsive pmc-table-scroll">
             <table id="materialsTable" class="table align-middle table-sm pmc-table-compact" style="table-layout: fixed;">
                 <colgroup>
+                    @if (isAdmin)
+                    {
+                        <col data-col-key="select" style="width: 36px">
+                    }
                     @{ await Html.RenderPartialAsync("_MaterialColGroup"); }
                     <col data-col-key="balance" style="width: 80px">
                     <col data-col-key="status" style="width: 150px">
@@ -145,6 +160,12 @@
                 </colgroup>
                 <thead>
                     <tr class="text-uppercase text-muted small" style="white-space: normal;">
+                        @if (isAdmin)
+                        {
+                            <th>
+                                <input type="checkbox" class="form-check-input" id="chkSelectAllMaterials" title="Chọn tất cả" data-i18n-title="selectAllLabel" />
+                            </th>
+                        }
                         @{ await Html.RenderPartialAsync("_MaterialColHeaders"); }
                         <th class="pmc-resizable-th"><span>Balance</span><span class="col-resizer" data-col-key="balance"></span></th>
                         <th class="pmc-resizable-th"><span data-i18n="colStatus">Trạng thái</span><span class="col-resizer" data-col-key="status"></span></th>
@@ -172,6 +193,12 @@
                                     ? "background-color:rgba(255,193,7,0.2); color:#b8860b;"
                                     : "background-color:rgba(25,135,84,0.14); color:#198754;";
                         <tr class="js-detail-row" data-material-id="@m.MaterialId" data-barcode="@m.Barcode" title="Double-click để xem chi tiết">
+                            @if (isAdmin)
+                            {
+                                <td onclick="event.stopPropagation();">
+                                    <input type="checkbox" class="form-check-input js-material-check" value="@m.MaterialId" />
+                                </td>
+                            }
                             @{ await Html.RenderPartialAsync("_MaterialColCells", m); }
                             <td class="text-end">
                                 <span class="badge" style="@balanceStyle font-weight:700;">@m.Balance @m.Unit</span>
@@ -223,7 +250,7 @@
                     @if (Model.Items.Count == 0)
                     {
                         <tr>
-                            <td colspan="@(isAdmin ? 26 : 25)" class="text-center text-muted py-4" data-i18n="emptyMaterials">Không có dữ liệu phù hợp.</td>
+                            <td colspan="@(isAdmin ? 27 : 25)" class="text-center text-muted py-4" data-i18n="emptyMaterials">Không có dữ liệu phù hợp.</td>
                         </tr>
                     }
                 </tbody>
@@ -313,19 +340,12 @@
                         </div>
                     </div>
                 </form>
-                <form asp-controller="Materials" asp-action="Delete" method="post" id="deleteForm">
-                    <input type="hidden" name="materialId" id="delete_MaterialId" />
-                    <input type="hidden" name="returnUrl" id="delete_ReturnUrl" />
-                </form>
                 <form asp-controller="Materials" asp-action="Dispose" method="post" id="disposeForm">
                     <input type="hidden" name="materialId" id="dispose_MaterialId" />
                     <input type="hidden" name="barcode" id="dispose_Barcode" />
                     <input type="hidden" name="returnUrl" id="dispose_ReturnUrl" />
                 </form>
-                <div class="modal-footer border-0 d-flex justify-content-between">
-                    <button type="submit" form="deleteForm" class="btn btn-outline-danger d-inline-flex align-items-center gap-1">
-                        <span class="material-icons" style="font-size:18px;">delete</span> <span data-i18n="btnDelete">Xóa</span>
-                    </button>
+                <div class="modal-footer border-0 d-flex justify-content-end">
                     <div class="d-flex gap-2">
                         <button type="button" class="btn btn-light" data-bs-dismiss="modal" data-i18n="btnCancel">Hủy</button>
                         <button type="submit" form="editForm" class="btn pmc-btn-dark d-inline-flex align-items-center gap-1">
@@ -389,13 +409,10 @@
                 var editModal = new bootstrap.Modal(editModalEl);
                 var editForm = document.getElementById('editForm');
 
-                var deleteForm = document.getElementById('deleteForm');
-
                 document.querySelectorAll('.js-edit-btn').forEach(function (btn) {
                     btn.addEventListener('click', async function (e) {
                         e.stopPropagation();
                         var id = btn.dataset.id;
-                        var row = btn.closest('tr');
                         try {
                             var detail = await PmcUI.withLoading(() =>
                                 fetch('Materials/' + id + '/EditData').then(function (r) {
@@ -405,9 +422,6 @@
                             );
                             document.getElementById('edit_MaterialId').value = id;
                             document.getElementById('edit_ReturnUrl').value = window.location.pathname + window.location.search;
-                            document.getElementById('delete_MaterialId').value = id;
-                            document.getElementById('delete_ReturnUrl').value = window.location.pathname + window.location.search;
-                            if (deleteForm) deleteForm.dataset.barcode = row ? (row.dataset.barcode || '') : '';
                             // API trả JSON camelCase (dev, poNo, ...) — map sang id PascalCase (edit_Dev, edit_PoNo, ...).
                             ['arrivalQty', 'dev', 'poNo', 'supplier', 'model', 'season', 'stage', 'colorway', 'component',
                              'matlDescription', 'colorCode', 'colorName', 'sizeSpec', 'unit', 'focFlag',
@@ -433,18 +447,6 @@
                     if (saveBtn) saveBtn.disabled = true;
                 });
 
-                if (deleteForm) {
-                    deleteForm.addEventListener('submit', async function (e) {
-                        e.preventDefault();
-                        var barcode = deleteForm.dataset.barcode || '';
-                        var ok = await PmcUI.confirmDelete(PmcWhI18n.t('confirmDeleteMaterialMsg').replace('{barcode}', barcode));
-                        if (ok) {
-                            document.querySelector('button[form="deleteForm"]').disabled = true;
-                            deleteForm.submit();
-                        }
-                    });
-                }
-
                 document.querySelectorAll('.js-view-btn').forEach(function (btn) {
                     btn.addEventListener('click', function (e) {
                         e.stopPropagation();
@@ -452,7 +454,7 @@
                     });
                 });
 
-                // Nút "Huỷ" ngay trên dòng — khác Xoá (ẩn khỏi hệ thống): chuyển Status='Disposed',
+                // Nút "Huỷ" ngay trên dòng — khác Xoá (xoá vĩnh viễn khỏi CSDL): chuyển Status='Disposed',
                 // Balance về 0, vẫn còn trong danh sách 30 ngày ở màn Hủy liệu. Dùng chung 1 <form>
                 // ẩn (disposeForm) cho mọi dòng, không cần mở modal như nút Sửa.
                 var disposeForm = document.getElementById('disposeForm');
@@ -472,6 +474,69 @@
                     });
                 }
             }
+
+            // Checkbox chọn nhiều dòng + nút "Xóa đã chọn" — CÁCH XOÁ LIỆU DUY NHẤT trên trang này
+            // (nút Xoá trong modal Sửa đã bỏ). Xoá vĩnh viễn khỏi CSDL, không thể hoàn tác.
+            (function () {
+                var selectAll = document.getElementById('chkSelectAllMaterials');
+                var rowChecks = Array.prototype.slice.call(document.querySelectorAll('.js-material-check'));
+                var bulkBtn = document.getElementById('btnBulkDeleteMaterials');
+                var bulkCountBadge = document.getElementById('materialsBulkSelectedCount');
+                var bulkForm = document.getElementById('bulkDeleteMaterialsForm');
+                if (!bulkBtn || !bulkForm) return;
+
+                function updateBulkUi() {
+                    var checked = rowChecks.filter(function (c) { return c.checked; });
+                    rowChecks.forEach(function (c) {
+                        var row = c.closest('tr');
+                        if (row) row.classList.toggle('pmc-row-selected', c.checked);
+                    });
+                    bulkBtn.disabled = checked.length === 0;
+                    if (checked.length > 0) {
+                        bulkCountBadge.textContent = PmcWhI18n.t('selectedCountLabel').replace('{0}', checked.length);
+                        bulkCountBadge.style.display = '';
+                    } else {
+                        bulkCountBadge.style.display = 'none';
+                    }
+                    if (selectAll) {
+                        selectAll.checked = rowChecks.length > 0 && checked.length === rowChecks.length;
+                        selectAll.indeterminate = checked.length > 0 && checked.length < rowChecks.length;
+                    }
+                }
+
+                if (selectAll) {
+                    selectAll.addEventListener('change', function () {
+                        rowChecks.forEach(function (c) { c.checked = selectAll.checked; });
+                        updateBulkUi();
+                    });
+                }
+                rowChecks.forEach(function (c) { c.addEventListener('change', updateBulkUi); });
+                updateBulkUi();
+
+                bulkBtn.addEventListener('click', async function () {
+                    var checked = rowChecks.filter(function (c) { return c.checked; });
+                    if (checked.length === 0) return;
+                    var ok = await PmcUI.confirmDelete(PmcWhI18n.t('confirmBulkMaterialDeleteMsg').replace('{0}', checked.length));
+                    if (!ok) return;
+                    // Chỉ xoá input materialIds cũ (nếu bấm lại lần 2) — KHÔNG dùng innerHTML=''
+                    // vì sẽ xoá luôn hidden input antiforgery token do asp-action tự chèn sẵn.
+                    bulkForm.querySelectorAll('input[name="materialIds"], input[name="returnUrl"]').forEach(function (el) { el.remove(); });
+                    checked.forEach(function (c) {
+                        var input = document.createElement('input');
+                        input.type = 'hidden';
+                        input.name = 'materialIds';
+                        input.value = c.value;
+                        bulkForm.appendChild(input);
+                    });
+                    var returnUrlInput = document.createElement('input');
+                    returnUrlInput.type = 'hidden';
+                    returnUrlInput.name = 'returnUrl';
+                    returnUrlInput.value = window.location.pathname + window.location.search;
+                    bulkForm.appendChild(returnUrlInput);
+                    bulkBtn.disabled = true;
+                    bulkForm.submit();
+                });
+            })();
 
             // Draggable column resize (Materials/Index) — widths persist per-browser via localStorage.
             (function () {
