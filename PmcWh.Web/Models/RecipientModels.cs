@@ -13,6 +13,7 @@ public class RecipientListViewModel
 {
     public List<RecipientDto> Items { get; set; } = new();
     public CreateRecipientViewModel NewRecipient { get; set; } = new();
+    public PaginationViewModel Pagination { get; set; } = new();
 }
 
 public class CreateRecipientViewModel

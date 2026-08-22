@@ -33,23 +33,30 @@
 
         <form asp-controller="Overdue" asp-action="BulkDispose" method="post" id="bulkDisposeForm"></form>
 
-        <div class="table-responsive">
-            <table class="table align-middle">
+        <div class="table-responsive pmc-table-scroll">
+            <table id="materialsTable" class="table align-middle table-sm pmc-table-compact" style="table-layout: fixed;">
+                <colgroup>
+                    <col data-col-key="select" style="width: 36px">
+                    @{ await Html.RenderPartialAsync("_MaterialColGroup"); }
+                    <col data-col-key="recipient" style="width: 120px">
+                    <col data-col-key="balance" style="width: 90px">
+                    <col data-col-key="status" style="width: 130px">
+                    <col data-col-key="shelf" style="width: 100px">
+                    <col data-col-key="daysOut" style="width: 90px">
+                    <col data-col-key="action" style="width: 110px">
+                </colgroup>
                 <thead>
                     <tr class="text-uppercase text-muted small">
-                        <th style="width:36px;">
+                        <th>
                             <input type="checkbox" class="form-check-input" id="chkSelectAll" title="Chọn tất cả" data-i18n-title="selectAllLabel" />
                         </th>
-                        <th>Barcode</th>
-                        <th>Dev</th>
-                        <th>PO</th>
-                        <th data-i18n="colMatlDescription">Mat'l Description</th>
-                        <th data-i18n="recipientLabel">Nơi nhận</th>
-                        <th class="text-end" data-i18n="colRemaining">Còn lại</th>
-                        <th data-i18n="colStatus">Trạng thái</th>
-                        <th data-i18n="colCurrentShelf">Kệ hiện tại</th>
-                        <th class="text-end" data-i18n="colDaysOut">Số ngày</th>
-                        <th class="text-end" data-i18n="colAction">Hành động</th>
+                        @{ await Html.RenderPartialAsync("_MaterialColHeaders"); }
+                        <th class="pmc-resizable-th"><span data-i18n="recipientLabel">Nơi nhận</span><span class="col-resizer" data-col-key="recipient"></span></th>
+                        <th class="pmc-resizable-th text-end"><span data-i18n="colRemaining">Còn lại</span><span class="col-resizer" data-col-key="balance"></span></th>
+                        <th class="pmc-resizable-th"><span data-i18n="colStatus">Trạng thái</span><span class="col-resizer" data-col-key="status"></span></th>
+                        <th class="pmc-resizable-th"><span data-i18n="colCurrentShelf">Kệ hiện tại</span><span class="col-resizer" data-col-key="shelf"></span></th>
+                        <th class="pmc-resizable-th text-end"><span data-i18n="colDaysOut">Số ngày</span><span class="col-resizer" data-col-key="daysOut"></span></th>
+                        <th class="pmc-resizable-th text-end"><span data-i18n="colAction">Hành động</span><span class="col-resizer" data-col-key="action"></span></th>
                     </tr>
                 </thead>
                 <tbody>
@@ -59,10 +66,7 @@
                             <td onclick="event.stopPropagation();">
                                 <input type="checkbox" class="form-check-input js-overdue-check" value="@m.MaterialId" />
                             </td>
-                            <td class="fw-semibold">@m.Barcode</td>
-                            <td>@m.Dev</td>
-                            <td>@m.PoNo</td>
-                            <td>@m.MatlDescription</td>
+                            @{ await Html.RenderPartialAsync("_MaterialColCells", m); }
                             <td>@(m.RecipientName ?? "—")</td>
                             <td class="text-end">@m.Balance @m.Unit</td>
                             <td>
@@ -83,11 +87,15 @@
                     @if (Model.Items.Count == 0)
                     {
                         <tr>
-                            <td colspan="11" class="text-center text-muted py-4" data-i18n="emptyOverdue">Không có liệu nào quá 90 ngày.</td>
+                            <td colspan="25" class="text-center text-muted py-4" data-i18n="emptyOverdue">Không có liệu nào quá 90 ngày.</td>
                         </tr>
                     }
                 </tbody>
             </table>
+        </div>
+
+        <div class="mt-3">
+            @await Html.PartialAsync("_Pagination", Model.Pagination)
         </div>
     </div>
 </div>
@@ -103,6 +111,14 @@
             var flash = document.getElementById('pmc-flash');
             if (flash.dataset.success) PmcUI.success(PmcWhI18n.renderFlash(flash.dataset.success));
             if (flash.dataset.error) PmcUI.error(PmcWhI18n.renderFlash(flash.dataset.error));
+
+            // Bảng dùng chung cột với Materials/Index — cần init tooltip giống hệt cho các ô bị
+            // cắt chữ (Mat'l Description, Remark...) mới hiện được khi hover.
+            document.querySelectorAll('#materialsTable [data-bs-toggle="tooltip"]').forEach(function (el) {
+                if (el.getAttribute('title')) {
+                    new bootstrap.Tooltip(el);
+                }
+            });
 
             document.querySelectorAll('.js-overdue-form').forEach(function (form) {
                 form.addEventListener('submit', async function (e) {
@@ -167,6 +183,59 @@
                     bulkForm.submit();
                 });
             }
+
+            // Draggable column resize — đồng bộ với Materials/Index (dùng chung 1 localStorage key
+            // nên độ rộng cột kéo ở trang nào cũng áp dụng cho các trang liệt kê liệu khác).
+            (function () {
+                var STORAGE_KEY = 'pmc_materials_col_widths_v1';
+                var table = document.getElementById('materialsTable');
+                if (!table) return;
+
+                function colFor(key) {
+                    return table.querySelector('col[data-col-key="' + key + '"]');
+                }
+
+                var saved = {};
+                try { saved = JSON.parse(localStorage.getItem(STORAGE_KEY)) || {}; } catch (e) { saved = {}; }
+                Object.keys(saved).forEach(function (key) {
+                    var col = colFor(key);
+                    if (col && saved[key] > 0) col.style.width = saved[key] + 'px';
+                });
+
+                function saveWidths() {
+                    var widths = {};
+                    table.querySelectorAll('col[data-col-key]').forEach(function (col) {
+                        widths[col.dataset.colKey] = col.getBoundingClientRect().width;
+                    });
+                    localStorage.setItem(STORAGE_KEY, JSON.stringify(widths));
+                }
+
+                table.querySelectorAll('.col-resizer').forEach(function (resizer) {
+                    resizer.addEventListener('mousedown', function (e) {
+                        e.preventDefault();
+                        var col = colFor(resizer.dataset.colKey);
+                        if (!col) return;
+                        var startX = e.clientX;
+                        var startWidth = col.getBoundingClientRect().width;
+                        resizer.classList.add('is-resizing');
+                        document.body.classList.add('pmc-col-resizing');
+
+                        function onMove(ev) {
+                            var newWidth = Math.max(40, startWidth + (ev.clientX - startX));
+                            col.style.width = newWidth + 'px';
+                        }
+                        function onUp() {
+                            document.removeEventListener('mousemove', onMove);
+                            document.removeEventListener('mouseup', onUp);
+                            resizer.classList.remove('is-resizing');
+                            document.body.classList.remove('pmc-col-resizing');
+                            saveWidths();
+                        }
+                        document.addEventListener('mousemove', onMove);
+                        document.addEventListener('mouseup', onUp);
+                    });
+                });
+            })();
         })();
     </script>
 }

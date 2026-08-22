@@ -17,7 +17,7 @@ public class ReportsController : Controller
     }
 
     public async Task<IActionResult> Issues(
-        DateTime? fromDate, DateTime? toDate, int? recipientId, bool overdueOnly = false, int page = 1, int pageSize = 20)
+        DateTime? fromDate, DateTime? toDate, int? recipientId, bool overdueOnly = false, int page = 1, int pageSize = 10)
     {
         var client = _httpClientFactory.CreateClient("PmcApi");
 

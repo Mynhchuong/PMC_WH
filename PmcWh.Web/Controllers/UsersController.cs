@@ -19,7 +19,7 @@ public class UsersController : Controller
         _httpClientFactory = httpClientFactory;
     }
 
-    public async Task<IActionResult> Index(int page = 1, int pageSize = 20)
+    public async Task<IActionResult> Index(int page = 1, int pageSize = 10)
     {
         var client = _httpClientFactory.CreateClient("PmcApi");
         var paged = await client.GetFromJsonAsync<PagedResultDto<UserDto>>($"api/Users?page={page}&pageSize={pageSize}", ApiJsonOptions);
@@ -46,7 +46,7 @@ public class UsersController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> Create(CreateUserViewModel newUser, int page = 1, int pageSize = 20)
+    public async Task<IActionResult> Create(CreateUserViewModel newUser, int page = 1, int pageSize = 10)
     {
         if (!ModelState.IsValid)
         {
@@ -69,7 +69,7 @@ public class UsersController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> ResetPassword(int userId, string username, int page = 1, int pageSize = 20)
+    public async Task<IActionResult> ResetPassword(int userId, string username, int page = 1, int pageSize = 10)
     {
         var client = _httpClientFactory.CreateClient("PmcApi");
         var response = await client.PostAsync($"api/Users/{userId}/reset-password", null);

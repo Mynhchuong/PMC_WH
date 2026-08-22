@@ -226,10 +226,19 @@ const PmcUI = (function () {
         }
     }
 
+    // Escape chuỗi trước khi nhét vào innerHTML (VD danh sách barcode/lý do lỗi trong popup) —
+    // tránh nội dung chứa ký tự đặc biệt (<, >, &...) phá layout hoặc chạy nhầm thành HTML/script.
+    function escapeHtml(s) {
+        var div = document.createElement("div");
+        div.textContent = s == null ? "" : String(s);
+        return div.innerHTML;
+    }
+
     return {
         toast, success, error, warning, info,
         confirm, confirmDelete, popup,
         showLoading, hideLoading, withLoading,
+        escapeHtml,
     };
 })();
 

@@ -97,6 +97,8 @@ public class MaterialsController : Controller
         if (TempData["ImportSkippedJson"] is string skippedJson)
         {
             model.ImportSkipped = JsonSerializer.Deserialize<List<MaterialImportSkipItem>>(skippedJson);
+            model.ImportInsertedCount = TempData["ImportInsertedCount"] as int?;
+            model.ImportTotalCount = TempData["ImportTotalCount"] as int?;
         }
 
         return View(model);
@@ -123,7 +125,10 @@ public class MaterialsController : Controller
             return NotFound();
         }
 
-        return Ok(new { materialId = item.MaterialId });
+        // Trả nguyên item (không chỉ materialId) — các trang Xuất hàng/Hủy liệu cần Balance/Unit/Status
+        // để mở popup thao tác trực tiếp khi quét trúng 1 liệu KHÔNG nằm trên trang hiện tại (đã phân
+        // trang, danh sách đầy đủ không còn nằm hết trong DOM như trước).
+        return Json(item, ApiJsonOptions);
     }
 
     [HttpGet("Materials/{id:int}/Detail")]
@@ -504,6 +509,8 @@ public class MaterialsController : Controller
         if (skipped.Count > 0)
         {
             TempData["ImportSkippedJson"] = JsonSerializer.Serialize(skipped);
+            TempData["ImportInsertedCount"] = insertedCount;
+            TempData["ImportTotalCount"] = parsedRows.Count;
         }
 
         return RedirectToAction(nameof(Index));

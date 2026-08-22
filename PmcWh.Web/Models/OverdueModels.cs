@@ -1,24 +1,18 @@
 namespace PmcWh.Web.Models;
 
-public class OverdueIssuedItem
+/// <summary>
+/// Kế thừa MaterialListItem để Overdue/Index dùng lại được đúng partial hiện cột
+/// (_MaterialColGroup/_MaterialColHeaders/_MaterialColCells) giống Materials/Index và
+/// Inbound/Index — nhất quán cột thông tin giữa các màn danh sách liệu.
+/// </summary>
+public class OverdueIssuedItem : MaterialListItem
 {
-    public int MaterialId { get; set; }
-    public string Barcode { get; set; } = string.Empty;
-    public string? Dev { get; set; }
-    public string? PoNo { get; set; }
-    public string? MatlDescription { get; set; }
-    public string? ColorCode { get; set; }
-    public decimal? ArrivalQty { get; set; }
-    public decimal? Balance { get; set; }
-    public string? Unit { get; set; }
-    public string Status { get; set; } = string.Empty;
-    public string? LocationCode { get; set; }
     public string? RecipientName { get; set; }
-    public DateTime? LastIssuedAt { get; set; }
     public int DaysOut { get; set; }
 }
 
 public class OverdueViewModel
 {
     public List<OverdueIssuedItem> Items { get; set; } = new();
+    public PaginationViewModel Pagination { get; set; } = new();
 }

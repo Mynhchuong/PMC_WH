@@ -357,32 +357,48 @@ public class MaterialsController : ControllerBase
     /// <summary>
     /// Danh sách liệu đang xuất quá 90 ngày chưa nhận lại (IsOverdue=1, cả xuất 1 phần lẫn xuất hết) —
     /// PMC đi kiểm tra thực tế: còn liệu thì để đó, hết liệu thì hủy (dùng luôn action Dispose).
+    /// SELECT đủ cột mô tả liệu giống hệt danh sách chính (Get) — page Web dùng lại đúng partial
+    /// hiện cột (_MaterialColCells) cho nhất quán giữa các màn danh sách liệu.
     /// </summary>
     [HttpGet("overdue-issued")]
-    public async Task<ActionResult<List<OverdueIssuedItem>>> OverdueIssued()
+    public async Task<ActionResult<PagedResult<OverdueIssuedItem>>> OverdueIssued(int page = 1, int pageSize = 10)
     {
-        var rows = await _db.QueryAsync(
-            @"SELECT m.MaterialId, m.Barcode, m.Dev, m.PoNo, m.MatlDescription, m.ColorCode,
-                     m.ArrivalQty, m.Balance, m.Unit, m.Status, l.Code AS LocationCode, m.LastIssuedAt,
-                     TRUNC(SYSDATE) - TRUNC(m.LastIssuedAt) AS DaysOut,
-                     (SELECT r.Name
-                        FROM PMC_StockMovements mv
-                        JOIN PMC_Recipients r ON r.RecipientId = mv.RecipientId
-                       WHERE mv.MaterialId = m.MaterialId
-                         AND mv.MovementType = 'IssueToWorkshop'
-                         AND mv.MovementId = (
-                               SELECT MAX(mv2.MovementId)
-                                 FROM PMC_StockMovements mv2
-                                WHERE mv2.MaterialId = m.MaterialId AND mv2.MovementType = 'IssueToWorkshop'
-                             )
-                     ) AS RecipientName
-                FROM PMC_Materials m
-                LEFT JOIN PMC_StorageLocations l ON l.LocationId = m.CurrentLocationId
-               WHERE m.IsOverdue = 1 AND m.IsArchived = 0
-                 AND m.Status IN ('IssuedOut', 'PartiallyIssued')
-               ORDER BY m.LastIssuedAt NULLS FIRST");
+        var innerSql = @"
+            SELECT m.MaterialId, m.Barcode, m.CsCode, m.Dev, m.PoNo, m.Supplier, m.Model, m.Season, m.Stage,
+                   m.Colorway, m.Component, m.MatlDescription, m.ColorCode, m.ColorName, m.SizeSpec,
+                   m.ArrivalQty, m.Balance, m.Unit, m.FocFlag, m.Remark, m.Testing, m.TestRequire, m.TestQty,
+                   m.Category, m.RequestOn, m.MatlType, m.Pic, m.Mat,
+                   m.PoDate, m.Etd, m.OriginalPrice, m.PaymentPrice, m.Amount,
+                   m.Status, l.Code AS LocationCode, m.IsOverdue, m.ArrivalDate, m.CreatedAt,
+                   m.StockedInAt, m.LastIssuedAt, m.DisposedAt, m.UpdatedAt,
+                   TRUNC(SYSDATE) - TRUNC(m.LastIssuedAt) AS DaysOut,
+                   (SELECT r.Name
+                      FROM PMC_StockMovements mv
+                      JOIN PMC_Recipients r ON r.RecipientId = mv.RecipientId
+                     WHERE mv.MaterialId = m.MaterialId
+                       AND mv.MovementType = 'IssueToWorkshop'
+                       AND mv.MovementId = (
+                             SELECT MAX(mv2.MovementId)
+                               FROM PMC_StockMovements mv2
+                              WHERE mv2.MaterialId = m.MaterialId AND mv2.MovementType = 'IssueToWorkshop'
+                           )
+                   ) AS RecipientName
+              FROM PMC_Materials m
+              LEFT JOIN PMC_StorageLocations l ON l.LocationId = m.CurrentLocationId
+             WHERE m.IsOverdue = 1 AND m.IsArchived = 0
+               AND m.Status IN ('IssuedOut', 'PartiallyIssued')
+             ORDER BY m.LastIssuedAt NULLS FIRST";
 
-        return Ok(rows.Select(MapOverdueIssuedItem).ToList());
+        var paged = await _db.QueryPagedAsync(innerSql, page, pageSize);
+        var items = paged.Items.Select(MapOverdueIssuedItemFull).ToList();
+
+        return Ok(new PagedResult<OverdueIssuedItem>
+        {
+            Items = items,
+            Page = paged.Page,
+            PageSize = paged.PageSize,
+            TotalCount = paged.TotalCount,
+        });
     }
 
     /// <summary>
@@ -478,13 +494,13 @@ public class MaterialsController : ControllerBase
     /// điều kiện kết hợp (field/q, field2/q2, field3/q3) như Get/Export — xem BuildSearchFilter().
     /// </summary>
     [HttpGet("issuable")]
-    public async Task<ActionResult<List<MaterialListItem>>> Issuable(
-        string? field, string? q, string? field2, string? q2, string? field3, string? q3)
+    public async Task<ActionResult<PagedResult<MaterialListItem>>> Issuable(
+        string? field, string? q, string? field2, string? q2, string? field3, string? q3, int page = 1, int pageSize = 10)
     {
         var (searchSql, searchParams) = BuildSearchFilter(field, q, field2, q2, field3, q3);
 
-        var rows = await _db.QueryAsync(
-            $@"SELECT m.MaterialId, m.Barcode, m.Dev, m.PoNo, m.Supplier, m.Model, m.Colorway, m.SizeSpec, m.MatlDescription, m.ColorCode,
+        var innerSql = $@"
+            SELECT m.MaterialId, m.Barcode, m.Dev, m.PoNo, m.Supplier, m.Model, m.Colorway, m.SizeSpec, m.MatlDescription, m.ColorCode,
                      m.Season, m.Stage,
                      m.ArrivalQty, m.Balance, m.Unit, m.Status, l.Code AS LocationCode, m.IsOverdue, m.ArrivalDate, m.CreatedAt
                 FROM PMC_Materials m
@@ -493,10 +509,17 @@ public class MaterialsController : ControllerBase
                  AND m.Status IN ('InStock', 'PartiallyIssued')
                  AND m.Balance > 0
                  {searchSql}
-               ORDER BY m.LastIssuedAt NULLS FIRST, m.CreatedAt",
-            searchParams);
+               ORDER BY m.LastIssuedAt NULLS FIRST, m.CreatedAt";
 
-        return Ok(rows.Select(MapMaterialListItem).ToList());
+        var paged = await _db.QueryPagedAsync(innerSql, page, pageSize, searchParams);
+
+        return Ok(new PagedResult<MaterialListItem>
+        {
+            Items = paged.Items.Select(MapMaterialListItem).ToList(),
+            Page = paged.Page,
+            PageSize = paged.PageSize,
+            TotalCount = paged.TotalCount,
+        });
     }
 
     /// <summary>
@@ -604,13 +627,13 @@ public class MaterialsController : ControllerBase
     /// 3 điều kiện kết hợp như Get/Export — xem BuildSearchFilter().
     /// </summary>
     [HttpGet("returnable")]
-    public async Task<ActionResult<List<MaterialListItem>>> Returnable(
-        string? field, string? q, string? field2, string? q2, string? field3, string? q3)
+    public async Task<ActionResult<PagedResult<MaterialListItem>>> Returnable(
+        string? field, string? q, string? field2, string? q2, string? field3, string? q3, int page = 1, int pageSize = 10)
     {
         var (searchSql, searchParams) = BuildSearchFilter(field, q, field2, q2, field3, q3);
 
-        var rows = await _db.QueryAsync(
-            $@"SELECT m.MaterialId, m.Barcode, m.Dev, m.PoNo, m.Supplier, m.Model, m.Colorway, m.SizeSpec, m.MatlDescription, m.ColorCode,
+        var innerSql = $@"
+            SELECT m.MaterialId, m.Barcode, m.Dev, m.PoNo, m.Supplier, m.Model, m.Colorway, m.SizeSpec, m.MatlDescription, m.ColorCode,
                      m.Season, m.Stage,
                      m.ArrivalQty, m.Balance, m.Unit, m.Status, l.Code AS LocationCode, m.IsOverdue, m.ArrivalDate, m.CreatedAt
                 FROM PMC_Materials m
@@ -618,10 +641,17 @@ public class MaterialsController : ControllerBase
                WHERE m.IsArchived = 0
                  AND m.Status IN ('IssuedOut', 'PartiallyIssued')
                  {searchSql}
-               ORDER BY m.LastIssuedAt NULLS FIRST, m.CreatedAt",
-            searchParams);
+               ORDER BY m.LastIssuedAt NULLS FIRST, m.CreatedAt";
 
-        return Ok(rows.Select(MapMaterialListItem).ToList());
+        var paged = await _db.QueryPagedAsync(innerSql, page, pageSize, searchParams);
+
+        return Ok(new PagedResult<MaterialListItem>
+        {
+            Items = paged.Items.Select(MapMaterialListItem).ToList(),
+            Page = paged.Page,
+            PageSize = paged.PageSize,
+            TotalCount = paged.TotalCount,
+        });
     }
 
     /// <summary>
@@ -725,13 +755,13 @@ public class MaterialsController : ControllerBase
     /// hợp như Get/Export — xem BuildSearchFilter().
     /// </summary>
     [HttpGet("disposable")]
-    public async Task<ActionResult<List<MaterialListItem>>> Disposable(
-        string? field, string? q, string? field2, string? q2, string? field3, string? q3)
+    public async Task<ActionResult<PagedResult<MaterialListItem>>> Disposable(
+        string? field, string? q, string? field2, string? q2, string? field3, string? q3, int page = 1, int pageSize = 10)
     {
         var (searchSql, searchParams) = BuildSearchFilter(field, q, field2, q2, field3, q3);
 
-        var rows = await _db.QueryAsync(
-            $@"SELECT m.MaterialId, m.Barcode, m.Dev, m.PoNo, m.Supplier, m.Model, m.Colorway, m.SizeSpec, m.MatlDescription, m.ColorCode,
+        var innerSql = $@"
+            SELECT m.MaterialId, m.Barcode, m.Dev, m.PoNo, m.Supplier, m.Model, m.Colorway, m.SizeSpec, m.MatlDescription, m.ColorCode,
                      m.Season, m.Stage,
                      m.ArrivalQty, m.Balance, m.Unit, m.Status, l.Code AS LocationCode, m.IsOverdue, m.ArrivalDate, m.CreatedAt
                 FROM PMC_Materials m
@@ -739,10 +769,17 @@ public class MaterialsController : ControllerBase
                WHERE m.IsArchived = 0
                  AND m.Status <> 'Disposed'
                  {searchSql}
-               ORDER BY m.CreatedAt DESC",
-            searchParams);
+               ORDER BY m.CreatedAt DESC";
 
-        return Ok(rows.Select(MapMaterialListItem).ToList());
+        var paged = await _db.QueryPagedAsync(innerSql, page, pageSize, searchParams);
+
+        return Ok(new PagedResult<MaterialListItem>
+        {
+            Items = paged.Items.Select(MapMaterialListItem).ToList(),
+            Page = paged.Page,
+            PageSize = paged.PageSize,
+            TotalCount = paged.TotalCount,
+        });
     }
 
     /// <summary>
@@ -836,6 +873,12 @@ public class MaterialsController : ControllerBase
                 result.Skipped.Add(new MaterialImportSkip(barcode, "A.Q'TY (ArrivalQty) trống/không hợp lệ"));
                 continue;
             }
+            var lengthViolation = FindFieldLengthViolation(row);
+            if (lengthViolation != null)
+            {
+                result.Skipped.Add(new MaterialImportSkip(barcode, lengthViolation));
+                continue;
+            }
             if (!seenBarcodes.Add(barcode))
             {
                 result.Skipped.Add(new MaterialImportSkip(barcode, "Trùng barcode trong file import"));
@@ -899,6 +942,53 @@ public class MaterialsController : ControllerBase
             "SELECT 1 FROM PMC_Recipients WHERE RecipientId = :RecipientId AND IsActive = 1",
             new OracleParameter("RecipientId", recipientId));
         return rows.Any();
+    }
+
+    /// <summary>
+    /// Giới hạn ký tự các cột NVARCHAR2/VARCHAR2 của PMC_Materials (đúng theo Oracle, xem
+    /// USER_TAB_COLUMNS.CHAR_LENGTH) — validate trước khi insert thay vì để Oracle tự chặn.
+    /// Vì ExecuteBatchAsync gộp cả batch vào 1 transaction, 1 dòng vượt giới hạn gây ORA-12899 sẽ
+    /// làm ROLLBACK LUÔN cả batch (tới 40 dòng), kéo theo mọi dòng hợp lệ khác cũng không insert
+    /// được — validate sớm để chỉ đúng dòng lỗi bị skip, các dòng còn lại trong batch vẫn import
+    /// bình thường (từng gặp thật: 1 dòng cột SIZE dài 62 ký tự làm rớt nguyên 40 dòng).
+    /// </summary>
+    private static readonly (string Column, int MaxLength, Func<MaterialImportRow, string?> Get)[] FieldLengthLimits =
+    {
+        ("BARCODE", 30, r => r.Barcode),
+        ("DEV", 50, r => r.Dev),
+        ("PO", 40, r => r.PoNo),
+        ("SUPPLIER", 100, r => r.Supplier),
+        ("MODEL", 100, r => r.Model),
+        ("SEASON", 10, r => r.Season),
+        ("STAGE", 100, r => r.Stage),
+        ("COLORWAY", 100, r => r.Colorway),
+        ("COMPONENT", 200, r => r.Component),
+        ("MAT'L DESCRIPTION", 200, r => r.MatlDescription),
+        ("COLOR CODE", 150, r => r.ColorCode),
+        ("COLOR NAME", 100, r => r.ColorName),
+        ("SIZE", 50, r => r.SizeSpec),
+        ("UNIT", 10, r => r.Unit),
+        ("FOC/NON FOC", 10, r => r.FocFlag),
+        ("REMARK", 500, r => r.Remark),
+        ("TEST REQUIRE", 100, r => r.TestRequire),
+        ("TEST Q'TY", 30, r => r.TestQty),
+        ("CATEGORY", 50, r => r.Category),
+        ("MAT'L TYPE", 100, r => r.MatlType),
+        ("PIC", 100, r => r.Pic),
+        ("MAT", 100, r => r.Mat),
+    };
+
+    private static string? FindFieldLengthViolation(MaterialImportRow row)
+    {
+        foreach (var (column, maxLength, get) in FieldLengthLimits)
+        {
+            var value = get(row);
+            if (value != null && value.Length > maxLength)
+            {
+                return $"Cột {column} dài {value.Length} ký tự, vượt quá giới hạn {maxLength} ký tự";
+            }
+        }
+        return null;
     }
 
     private async Task<HashSet<string>> GetExistingBarcodesAsync(List<string> barcodes)
@@ -974,21 +1064,56 @@ public class MaterialsController : ControllerBase
         return item;
     }
 
-    private static OverdueIssuedItem MapOverdueIssuedItem(Dictionary<string, object?> row) => new()
+    /// <summary>
+    /// Giống hệt MapMaterialListItemFull nhưng trả OverdueIssuedItem (kế thừa MaterialListItem)
+    /// kèm 2 cột riêng của màn Issues Overdue (RecipientName, DaysOut) — không tái dùng trực tiếp
+    /// MapMaterialListItemFull được vì hàm đó trả kiểu MaterialListItem, không phải subclass.
+    /// </summary>
+    private static OverdueIssuedItem MapOverdueIssuedItemFull(Dictionary<string, object?> row) => new()
     {
         MaterialId = Convert.ToInt32(row["MATERIALID"]),
         Barcode = row["BARCODE"]?.ToString() ?? string.Empty,
         Dev = row["DEV"]?.ToString(),
         PoNo = row["PONO"]?.ToString(),
+        Supplier = row["SUPPLIER"]?.ToString(),
+        Model = row["MODEL"]?.ToString(),
+        Colorway = row["COLORWAY"]?.ToString(),
+        SizeSpec = row["SIZESPEC"]?.ToString(),
         MatlDescription = row["MATLDESCRIPTION"]?.ToString(),
         ColorCode = row["COLORCODE"]?.ToString(),
+        Season = row["SEASON"]?.ToString(),
+        Stage = row["STAGE"]?.ToString(),
         ArrivalQty = row["ARRIVALQTY"] != null ? Convert.ToDecimal(row["ARRIVALQTY"]) : null,
         Balance = row["BALANCE"] != null ? Convert.ToDecimal(row["BALANCE"]) : null,
         Unit = row["UNIT"]?.ToString(),
         Status = row["STATUS"]?.ToString() ?? string.Empty,
         LocationCode = row["LOCATIONCODE"]?.ToString(),
-        RecipientName = row["RECIPIENTNAME"]?.ToString(),
+        IsOverdue = row["ISOVERDUE"] != null && Convert.ToInt32(row["ISOVERDUE"]) == 1,
+        ArrivalDate = row["ARRIVALDATE"] != null ? Convert.ToDateTime(row["ARRIVALDATE"]) : null,
+        CreatedAt = Convert.ToDateTime(row["CREATEDAT"]),
+        CsCode = row["CSCODE"] != null ? Convert.ToInt32(row["CSCODE"]) : null,
+        Component = row["COMPONENT"]?.ToString(),
+        ColorName = row["COLORNAME"]?.ToString(),
+        FocFlag = row["FOCFLAG"]?.ToString(),
+        Remark = row["REMARK"]?.ToString(),
+        Testing = row["TESTING"] != null ? Convert.ToInt32(row["TESTING"]) : null,
+        TestRequire = row["TESTREQUIRE"]?.ToString(),
+        TestQty = row["TESTQTY"]?.ToString(),
+        Category = row["CATEGORY"]?.ToString(),
+        RequestOn = row["REQUESTON"] != null ? Convert.ToDateTime(row["REQUESTON"]) : null,
+        MatlType = row["MATLTYPE"]?.ToString(),
+        Pic = row["PIC"]?.ToString(),
+        Mat = row["MAT"]?.ToString(),
+        PoDate = row["PODATE"] != null ? Convert.ToDateTime(row["PODATE"]) : null,
+        Etd = row["ETD"] != null ? Convert.ToDateTime(row["ETD"]) : null,
+        OriginalPrice = row["ORIGINALPRICE"] != null ? Convert.ToDecimal(row["ORIGINALPRICE"]) : null,
+        PaymentPrice = row["PAYMENTPRICE"] != null ? Convert.ToDecimal(row["PAYMENTPRICE"]) : null,
+        Amount = row["AMOUNT"] != null ? Convert.ToDecimal(row["AMOUNT"]) : null,
+        StockedInAt = row["STOCKEDINAT"] != null ? Convert.ToDateTime(row["STOCKEDINAT"]) : null,
         LastIssuedAt = row["LASTISSUEDAT"] != null ? Convert.ToDateTime(row["LASTISSUEDAT"]) : null,
+        DisposedAt = row["DISPOSEDAT"] != null ? Convert.ToDateTime(row["DISPOSEDAT"]) : null,
+        UpdatedAt = row["UPDATEDAT"] != null ? Convert.ToDateTime(row["UPDATEDAT"]) : null,
+        RecipientName = row["RECIPIENTNAME"]?.ToString(),
         DaysOut = row["DAYSOUT"] != null ? Convert.ToInt32(row["DAYSOUT"]) : 0,
     };
 

@@ -19,13 +19,26 @@ public class RecipientsController : Controller
         _httpClientFactory = httpClientFactory;
     }
 
-    public async Task<IActionResult> Index(int page = 1, int pageSize = 50)
+    public async Task<IActionResult> Index(int page = 1, int pageSize = 10)
     {
         var client = _httpClientFactory.CreateClient("PmcApi");
         var paged = await client.GetFromJsonAsync<PagedResultDto<RecipientDto>>(
             $"api/Recipients?includeInactive=true&page={page}&pageSize={pageSize}", ApiJsonOptions);
 
-        var model = new RecipientListViewModel { Items = paged?.Items ?? new List<RecipientDto>() };
+        var model = new RecipientListViewModel
+        {
+            Items = paged?.Items ?? new List<RecipientDto>(),
+            Pagination = new PaginationViewModel
+            {
+                Page = page,
+                PageSize = pageSize,
+                TotalCount = paged?.TotalCount ?? 0,
+                TotalPages = paged?.TotalPages ?? 0,
+                Controller = "Recipients",
+                Action = "Index",
+                RouteValues = new Dictionary<string, string?>(),
+            },
+        };
 
         if (TempData["FlashSuccess"] is string success) ViewData["FlashSuccess"] = success;
         if (TempData["FlashError"] is string error) ViewData["FlashError"] = error;

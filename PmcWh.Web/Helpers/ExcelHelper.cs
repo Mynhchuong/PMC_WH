@@ -1,3 +1,4 @@
+using System.Globalization;
 using ClosedXML.Excel;
 
 namespace PmcWh.Web.Helpers;
@@ -57,11 +58,24 @@ public static class ExcelHelper
     /// MaterialsController chấp nhận (d/M/yyyy, yyyy-MM-dd) tuỳ file PMC gửi qua được format kiểu
     /// gì — khiến cả cột bị rớt âm thầm (không lỗi, không skip, chỉ ra null) như từng gặp ở cột ATA.
     /// Ép về "yyyy-MM-dd" cố định cho MỌI ô được Excel nhận diện là ngày, bất kể numFmt gốc.
+    ///
+    /// Ô số: GetString() format số theo CurrentCulture của máy chủ đang chạy — máy nào để vùng
+    /// (region) là Việt Nam thì .NET tự lấy dấu phẩy "," làm dấu thập phân (VD "1,7999999999999998"
+    /// cho giá 1.8, do sai số dấu phẩy động của Excel) thay vì dấu chấm. Mọi hàm ParseDecimal ở tầng
+    /// gọi (MaterialsController) lại parse bằng CultureInfo.InvariantCulture (dấu chấm) — lệch dấu
+    /// thập phân khiến "1,7999999999999998" bị hiểu thành số nguyên 17999999999999998 (dấu phẩy bị
+    /// coi là dấu phân cách hàng nghìn), có khi vượt luôn giới hạn cột NUMBER bên Oracle (ORA-01438),
+    /// có khi âm thầm sai số gấp 10/100/1000 lần mà không báo lỗi gì. Lấy giá trị số qua GetValue
+    /// (không qua chuỗi đã format theo văn hoá hệ thống) rồi tự ToString bằng InvariantCulture để
+    /// luôn ra dấu chấm, bất kể server chạy ở vùng/hệ điều hành nào.
     /// </summary>
     private static string GetCellText(IXLCell cell) =>
-        cell.DataType == XLDataType.DateTime
-            ? cell.GetDateTime().ToString("yyyy-MM-dd")
-            : cell.GetString().Trim();
+        cell.DataType switch
+        {
+            XLDataType.DateTime => cell.GetDateTime().ToString("yyyy-MM-dd"),
+            XLDataType.Number => cell.GetValue<decimal>().ToString(CultureInfo.InvariantCulture),
+            _ => cell.GetString().Trim(),
+        };
 
     /// <summary>
     /// Chia list dòng thành từng lô 40 dòng (mặc định) để import an toàn.

@@ -99,30 +99,11 @@
 
 @if (Model.ImportSkipped is { Count: > 0 })
 {
-    <div class="card border-0 shadow-sm rounded-4 mb-3">
-        <div class="card-body">
-            <h6 class="card-title mb-3"><span data-i18n="importSkippedTitle">Dòng bị bỏ qua ở lần import gần nhất</span> (@Model.ImportSkipped.Count)</h6>
-            <div class="table-responsive">
-                <table class="table align-middle table-sm mb-0">
-                    <thead>
-                        <tr class="text-uppercase text-muted small">
-                            <th>Barcode</th>
-                            <th data-i18n="colReason">Lý do</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @foreach (var s in Model.ImportSkipped)
-                        {
-                            <tr>
-                                <td class="fw-semibold">@s.Barcode</td>
-                                <td>@s.Reason</td>
-                            </tr>
-                        }
-                    </tbody>
-                </table>
-            </div>
-        </div>
-    </div>
+    <script type="application/json" id="pmc-import-skipped-data">@Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.ImportSkipped))</script>
+    <div id="pmc-import-result"
+         data-inserted="@Model.ImportInsertedCount"
+         data-total="@Model.ImportTotalCount"
+         style="display:none"></div>
 }
 
 <div class="card border-0 shadow-sm rounded-4">
@@ -372,6 +353,32 @@
             if (flash.dataset.success) PmcUI.success(PmcWhI18n.renderFlash(flash.dataset.success));
             if (flash.dataset.warning) PmcUI.warning(PmcWhI18n.renderFlash(flash.dataset.warning));
             if (flash.dataset.error) PmcUI.error(PmcWhI18n.renderFlash(flash.dataset.error));
+
+            // Import xong có dòng bị bỏ qua/lỗi -> hiện popup rõ ràng ngay (thay vì bảng nằm lẫn
+            // trong trang, dễ bị bỏ sót): bao nhiêu dòng thêm được, bao nhiêu dòng lỗi, lỗi dòng nào,
+            // lỗi gì — xem PmcWh.Web MaterialsController.Index (POST) / _MaterialColCells liên quan.
+            var importResultEl = document.getElementById('pmc-import-result');
+            var importSkippedDataEl = document.getElementById('pmc-import-skipped-data');
+            if (importResultEl && importSkippedDataEl) {
+                var skipped = JSON.parse(importSkippedDataEl.textContent);
+                var inserted = importResultEl.dataset.inserted || '0';
+                var total = importResultEl.dataset.total || '0';
+                var rowsHtml = skipped.map(function (s) {
+                    return '<tr><td class="fw-semibold">' + PmcUI.escapeHtml(s.Barcode) + '</td><td>' + PmcUI.escapeHtml(s.Reason) + '</td></tr>';
+                }).join('');
+                var body =
+                    '<div class="d-flex gap-2 mb-3">' +
+                        '<span class="badge bg-success-subtle text-success-emphasis">' + PmcWhI18n.t('importPopupInserted').replace('{0}', inserted) + '</span>' +
+                        '<span class="badge bg-danger-subtle text-danger-emphasis">' + PmcWhI18n.t('importPopupSkipped').replace('{0}', skipped.length).replace('{1}', total) + '</span>' +
+                    '</div>' +
+                    '<div class="table-responsive" style="max-height:340px;overflow-y:auto;">' +
+                        '<table class="table table-sm align-middle mb-0">' +
+                            '<thead><tr class="text-uppercase text-muted small"><th>Barcode</th><th data-i18n="colReason">' + PmcWhI18n.t('colReason') + '</th></tr></thead>' +
+                            '<tbody>' + rowsHtml + '</tbody>' +
+                        '</table>' +
+                    '</div>';
+                PmcUI.popup(PmcWhI18n.t('importPopupTitle'), body);
+            }
 
             // Đang lọc lúc bấm Xuất Excel -> hỏi rõ xuất theo bộ lọc đang xem hay xuất toàn bộ,
             // tránh trường hợp tưởng "Xuất Excel" luôn là xuất hết nhưng thật ra chỉ ra data đã lọc

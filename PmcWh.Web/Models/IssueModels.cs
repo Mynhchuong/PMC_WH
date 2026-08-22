@@ -4,4 +4,5 @@ public class IssueViewModel : SearchFilterFields
 {
     public List<MaterialListItem> IssuableItems { get; set; } = new();
     public List<RecipientDto> Recipients { get; set; } = new();
+    public PaginationViewModel Pagination { get; set; } = new();
 }

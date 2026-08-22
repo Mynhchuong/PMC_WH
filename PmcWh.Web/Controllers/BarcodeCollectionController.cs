@@ -22,13 +22,33 @@ public class BarcodeCollectionController : Controller
         _httpClientFactory = httpClientFactory;
     }
 
-    public async Task<IActionResult> Index()
+    /// <summary>Phân trang ngay ở tầng Web (không đổi endpoint Api) — Api trả nguyên list cho app
+    /// Android dùng luôn, nên KHÔNG đổi shape response Api để tránh vỡ app di động; chỉ cắt trang
+    /// khi render lên web, giống BarcodeCollection/Detail.</summary>
+    public async Task<IActionResult> Index(int page = 1, int pageSize = 10)
     {
         var client = _httpClientFactory.CreateClient("PmcApi");
-        var lists = await client.GetFromJsonAsync<List<BarcodeListDto>>("api/BarcodeCollection/lists", ApiJsonOptions)
+        var allLists = await client.GetFromJsonAsync<List<BarcodeListDto>>("api/BarcodeCollection/lists", ApiJsonOptions)
                     ?? new List<BarcodeListDto>();
 
-        var model = new BarcodeCollectionIndexViewModel { Lists = lists };
+        if (page < 1) page = 1;
+        var totalPages = pageSize > 0 ? (int)Math.Ceiling(allLists.Count / (double)pageSize) : 1;
+        var pagedLists = pageSize > 0 ? allLists.Skip((page - 1) * pageSize).Take(pageSize).ToList() : allLists;
+
+        var model = new BarcodeCollectionIndexViewModel
+        {
+            Lists = pagedLists,
+            Pagination = new PaginationViewModel
+            {
+                Page = page,
+                PageSize = pageSize,
+                TotalCount = allLists.Count,
+                TotalPages = totalPages,
+                Controller = "BarcodeCollection",
+                Action = "Index",
+                RouteValues = new Dictionary<string, string?>(),
+            },
+        };
 
         if (TempData["FlashSuccess"] is string success) ViewData["FlashSuccess"] = success;
         if (TempData["FlashError"] is string error) ViewData["FlashError"] = error;
@@ -75,7 +95,10 @@ public class BarcodeCollectionController : Controller
         return RedirectToAction(nameof(Index));
     }
 
-    public async Task<IActionResult> Detail(int id)
+    /// <summary>Phân trang ngay ở tầng Web (không đổi endpoint Api) — Api trả nguyên list cho app
+    /// Android dùng luôn (Android không phân trang màn này), nên KHÔNG đổi shape response Api để
+    /// tránh vỡ app di động; chỉ cắt trang khi render lên web.</summary>
+    public async Task<IActionResult> Detail(int id, int page = 1, int pageSize = 10)
     {
         var client = _httpClientFactory.CreateClient("PmcApi");
         var lists = await client.GetFromJsonAsync<List<BarcodeListDto>>("api/BarcodeCollection/lists", ApiJsonOptions) ?? new();
@@ -85,10 +108,31 @@ public class BarcodeCollectionController : Controller
             return NotFound();
         }
 
-        var items = await client.GetFromJsonAsync<List<BarcodeListItemDto>>($"api/BarcodeCollection/lists/{id}/items", ApiJsonOptions)
+        var allItems = await client.GetFromJsonAsync<List<BarcodeListItemDto>>($"api/BarcodeCollection/lists/{id}/items", ApiJsonOptions)
                     ?? new List<BarcodeListItemDto>();
 
-        var model = new BarcodeCollectionDetailViewModel { ListId = id, ListName = list.Name, Items = items };
+        if (page < 1) page = 1;
+        var totalPages = pageSize > 0 ? (int)Math.Ceiling(allItems.Count / (double)pageSize) : 1;
+        var pagedItems = pageSize > 0 ? allItems.Skip((page - 1) * pageSize).Take(pageSize).ToList() : allItems;
+
+        var model = new BarcodeCollectionDetailViewModel
+        {
+            ListId = id,
+            ListName = list.Name,
+            Items = pagedItems,
+            TotalItemCount = allItems.Count,
+            TotalScans = allItems.Sum(i => i.ScanCount),
+            Pagination = new PaginationViewModel
+            {
+                Page = page,
+                PageSize = pageSize,
+                TotalCount = allItems.Count,
+                TotalPages = totalPages,
+                Controller = "BarcodeCollection",
+                Action = "Detail",
+                RouteValues = new Dictionary<string, string?> { ["id"] = id.ToString() },
+            },
+        };
 
         if (TempData["FlashSuccess"] is string success) ViewData["FlashSuccess"] = success;
         if (TempData["FlashError"] is string error) ViewData["FlashError"] = error;

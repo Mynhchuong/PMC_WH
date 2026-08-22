@@ -24,12 +24,26 @@ public class OverdueController : Controller
         _hub = hub;
     }
 
-    public async Task<IActionResult> Index()
+    public async Task<IActionResult> Index(int page = 1, int pageSize = 10)
     {
         var client = _httpClientFactory.CreateClient("PmcApi");
-        var items = await client.GetFromJsonAsync<List<OverdueIssuedItem>>("api/Materials/overdue-issued", ApiJsonOptions);
+        var paged = await client.GetFromJsonAsync<PagedResultDto<OverdueIssuedItem>>(
+            $"api/Materials/overdue-issued?page={page}&pageSize={pageSize}", ApiJsonOptions);
 
-        var model = new OverdueViewModel { Items = items ?? new List<OverdueIssuedItem>() };
+        var model = new OverdueViewModel
+        {
+            Items = paged?.Items ?? new List<OverdueIssuedItem>(),
+            Pagination = new PaginationViewModel
+            {
+                Page = page,
+                PageSize = pageSize,
+                TotalCount = paged?.TotalCount ?? 0,
+                TotalPages = paged?.TotalPages ?? 0,
+                Controller = "Overdue",
+                Action = "Index",
+                RouteValues = new Dictionary<string, string?>(),
+            },
+        };
 
         if (TempData["FlashSuccess"] is string success) ViewData["FlashSuccess"] = success;
         if (TempData["FlashError"] is string error) ViewData["FlashError"] = error;

@@ -23,6 +23,7 @@ public class BarcodeCollectionIndexViewModel
 {
     public List<BarcodeListDto> Lists { get; set; } = new();
     public CreateBarcodeListViewModel NewList { get; set; } = new();
+    public PaginationViewModel Pagination { get; set; } = new();
 }
 
 public class CreateBarcodeListViewModel
@@ -37,4 +38,7 @@ public class BarcodeCollectionDetailViewModel
     public int ListId { get; set; }
     public string ListName { get; set; } = string.Empty;
     public List<BarcodeListItemDto> Items { get; set; } = new();
+    public int TotalItemCount { get; set; }
+    public int TotalScans { get; set; }
+    public PaginationViewModel Pagination { get; set; } = new();
 }

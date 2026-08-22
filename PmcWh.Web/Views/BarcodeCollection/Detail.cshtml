@@ -1,7 +1,6 @@
 @model PmcWh.Web.Models.BarcodeCollectionDetailViewModel
 @{
     ViewData["Title"] = Model.ListName;
-    var totalScans = Model.Items.Sum(i => i.ScanCount);
 }
 
 <div class="card border-0 shadow-sm rounded-4 mb-3">
@@ -15,8 +14,8 @@
                 <div>
                     <h5 class="card-title mb-0">@Model.ListName</h5>
                     <p class="text-muted small mb-0">
-                        <span data-i18n="colItemCount">Số mã</span>: @Model.Items.Count ·
-                        <span data-i18n="colTotalScans">Tổng lượt quét</span>: @totalScans
+                        <span data-i18n="colItemCount">Số mã</span>: @Model.TotalItemCount ·
+                        <span data-i18n="colTotalScans">Tổng lượt quét</span>: @Model.TotalScans
                     </p>
                 </div>
             </div>
@@ -34,7 +33,7 @@
 
 <div class="card border-0 shadow-sm rounded-4">
     <div class="card-body">
-        <div class="table-responsive">
+        <div class="table-responsive pmc-table-scroll">
             <table class="table align-middle pmc-excel-grid table-sm">
                 <thead>
                     <tr class="text-uppercase text-muted small">
@@ -76,6 +75,10 @@
                     }
                 </tbody>
             </table>
+        </div>
+
+        <div class="mt-3">
+            @await Html.PartialAsync("_Pagination", Model.Pagination)
         </div>
     </div>
 </div>

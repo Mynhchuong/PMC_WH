@@ -24,21 +24,41 @@ public class DisposeController : Controller
         _hub = hub;
     }
 
-    public async Task<IActionResult> Index(string? field, string? q, string? field2, string? q2, string? field3, string? q3)
+    public async Task<IActionResult> Index(
+        string? field, string? q, string? field2, string? q2, string? field3, string? q3, int page = 1, int pageSize = 10)
     {
         var client = _httpClientFactory.CreateClient("PmcApi");
         var searchQuery = SearchFilterHelper.ToQueryString(field, q, field2, q2, field3, q3);
-        var items = await client.GetFromJsonAsync<List<MaterialListItem>>($"api/Materials/disposable?{searchQuery}", ApiJsonOptions);
+        var paged = await client.GetFromJsonAsync<PagedResultDto<MaterialListItem>>(
+            $"api/Materials/disposable?page={page}&pageSize={pageSize}&{searchQuery}", ApiJsonOptions);
 
         var model = new DisposeViewModel
         {
-            DisposableItems = items ?? new List<MaterialListItem>(),
+            DisposableItems = paged?.Items ?? new List<MaterialListItem>(),
             Field = field,
             Q = q,
             Field2 = field2,
             Q2 = q2,
             Field3 = field3,
             Q3 = q3,
+            Pagination = new PaginationViewModel
+            {
+                Page = page,
+                PageSize = pageSize,
+                TotalCount = paged?.TotalCount ?? 0,
+                TotalPages = paged?.TotalPages ?? 0,
+                Controller = "Dispose",
+                Action = "Index",
+                RouteValues = new Dictionary<string, string?>
+                {
+                    ["field"] = field,
+                    ["q"] = q,
+                    ["field2"] = field2,
+                    ["q2"] = q2,
+                    ["field3"] = field3,
+                    ["q3"] = q3,
+                },
+            },
         };
 
         if (TempData["FlashSuccess"] is string success) ViewData["FlashSuccess"] = success;

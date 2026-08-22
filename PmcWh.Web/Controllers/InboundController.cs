@@ -22,14 +22,20 @@ public class InboundController : Controller
         _hub = hub;
     }
 
-    public async Task<IActionResult> Index(string? field, string? q, string? field2, string? q2, string? field3, string? q3)
+    /// <summary>Gộp chung Mới nhập (Staging) + Nhận lại (Returnable) thành 1 danh sách rồi phân
+    /// trang ở tầng Web (Api trả nguyên 2 danh sách đầy đủ, không đổi shape response Api để tránh
+    /// vỡ endpoint /returnable mà app Android có thể còn dùng) — giống cách BarcodeCollection/Detail
+    /// đã làm, để bảng "Cần lên kệ" có chung 1 thanh cuộn + chọn số dòng/trang như mọi màn khác.</summary>
+    public async Task<IActionResult> Index(
+        string? field, string? q, string? field2, string? q2, string? field3, string? q3, int page = 1, int pageSize = 10)
     {
         var client = _httpClientFactory.CreateClient("PmcApi");
         var searchQuery = SearchFilterHelper.ToQueryString(field, q, field2, q2, field3, q3);
 
         var stagingTask = client.GetFromJsonAsync<PagedResultDto<MaterialListItem>>(
-            $"api/Materials?status=Staging&page=1&pageSize=500&{searchQuery}", ApiJsonOptions);
-        var returnableTask = client.GetFromJsonAsync<List<MaterialListItem>>($"api/Materials/returnable?{searchQuery}", ApiJsonOptions);
+            $"api/Materials?status=Staging&page=1&pageSize=1000&{searchQuery}", ApiJsonOptions);
+        var returnableTask = client.GetFromJsonAsync<PagedResultDto<MaterialListItem>>(
+            $"api/Materials/returnable?page=1&pageSize=1000&{searchQuery}", ApiJsonOptions);
         var locationsTask = client.GetFromJsonAsync<List<StorageLocationDto>>("api/StorageLocations", ApiJsonOptions);
 
         await Task.WhenAll(stagingTask, returnableTask, locationsTask);
@@ -38,12 +44,21 @@ public class InboundController : Controller
         var stagingItems = ((await stagingTask)?.Items ?? new List<MaterialListItem>())
             .OrderBy(m => m.ArrivalDate ?? DateTime.MaxValue)
             .ThenBy(m => m.CreatedAt)
-            .ToList();
+            .Select(m => new InboundQueueItem { Material = m, Kind = "New", Outstanding = m.ArrivalQty ?? 0 });
+
+        var returnableItems = ((await returnableTask)?.Items ?? new List<MaterialListItem>())
+            .Select(m => new InboundQueueItem { Material = m, Kind = "Return", Outstanding = (m.ArrivalQty ?? 0) - (m.Balance ?? 0) });
+
+        var allItems = stagingItems.Concat(returnableItems).ToList();
+        if (page < 1) page = 1;
+        var totalPages = pageSize > 0 ? (int)Math.Ceiling(allItems.Count / (double)pageSize) : 1;
+        var pagedItems = pageSize > 0 ? allItems.Skip((page - 1) * pageSize).Take(pageSize).ToList() : allItems;
 
         var model = new InboundViewModel
         {
-            StagingItems = stagingItems,
-            ReturnableItems = await returnableTask ?? new List<MaterialListItem>(),
+            QueueItems = pagedItems,
+            NewCount = stagingItems.Count(),
+            ReturnCount = returnableItems.Count(),
             Locations = await locationsTask ?? new List<StorageLocationDto>(),
             Field = field,
             Q = q,
@@ -51,6 +66,24 @@ public class InboundController : Controller
             Q2 = q2,
             Field3 = field3,
             Q3 = q3,
+            Pagination = new PaginationViewModel
+            {
+                Page = page,
+                PageSize = pageSize,
+                TotalCount = allItems.Count,
+                TotalPages = totalPages,
+                Controller = "Inbound",
+                Action = "Index",
+                RouteValues = new Dictionary<string, string?>
+                {
+                    ["field"] = field,
+                    ["q"] = q,
+                    ["field2"] = field2,
+                    ["q2"] = q2,
+                    ["field3"] = field3,
+                    ["q3"] = q3,
+                },
+            },
         };
 
         if (TempData["FlashSuccess"] is string success) ViewData["FlashSuccess"] = success;

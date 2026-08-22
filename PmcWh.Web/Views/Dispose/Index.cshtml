@@ -43,7 +43,7 @@
 
 <div class="card border-0 shadow-sm rounded-4">
     <div class="card-body">
-        <h5 class="card-title mb-3"><span data-i18n="disposableTitle">Có thể hủy</span> (@Model.DisposableItems.Count)</h5>
+        <h5 class="card-title mb-3"><span data-i18n="disposableTitle">Có thể hủy</span> (@Model.Pagination.TotalCount)</h5>
 
         <div class="table-responsive pmc-table-scroll">
             <table id="materialsTable" class="table align-middle table-sm pmc-table-compact" style="table-layout: fixed;">
@@ -89,8 +89,17 @@
                 </tbody>
             </table>
         </div>
+
+        <div class="mt-3">
+            @await Html.PartialAsync("_Pagination", Model.Pagination)
+        </div>
     </div>
 </div>
+
+<form asp-controller="Dispose" asp-action="Scan" method="post" id="disposeScanFallbackForm" class="d-none">
+    <input type="hidden" name="materialId" id="disposeScanFallbackMaterialId" />
+    <input type="hidden" name="barcode" id="disposeScanFallbackBarcode" />
+</form>
 
 <div id="pmc-flash"
      data-success="@(ViewData["FlashSuccess"] as string)"
@@ -125,7 +134,7 @@
             });
 
             var scanInput = document.getElementById('scanInput');
-            scanInput.addEventListener('keydown', function (e) {
+            scanInput.addEventListener('keydown', async function (e) {
                 if (e.key !== 'Enter') return;
                 e.preventDefault();
                 var code = scanInput.value.trim();
@@ -133,11 +142,32 @@
                 if (!code) return;
 
                 var row = document.querySelector('.js-disposable-row[data-barcode="' + CSS.escape(code) + '"]');
-                if (!row) {
-                    PmcUI.error(PmcWhI18n.t('notFoundDisposable').replace('{code}', code));
+                if (row) {
+                    row.querySelector('.js-dispose-form').requestSubmit();
                     return;
                 }
-                row.querySelector('.js-dispose-form').requestSubmit();
+
+                // Danh sách đã phân trang — liệu quét trúng có thể đang nằm ở trang khác, không có
+                // sẵn trong DOM. Tra trực tiếp qua Api thay vì chỉ tìm trong trang hiện tại.
+                try {
+                    var res = await PmcUI.withLoading(() => fetch('/Materials/ByBarcode/' + encodeURIComponent(code)));
+                    if (!res.ok) {
+                        PmcUI.error(PmcWhI18n.t('notFoundDisposable').replace('{code}', code));
+                        return;
+                    }
+                    var item = await res.json();
+                    if (item.status === 'Disposed') {
+                        PmcUI.error(PmcWhI18n.t('notFoundDisposable').replace('{code}', code));
+                        return;
+                    }
+                    var ok = await PmcUI.confirmDelete(PmcWhI18n.t('confirmDisposeMsg').replace('{barcode}', item.barcode));
+                    if (!ok) return;
+                    document.getElementById('disposeScanFallbackMaterialId').value = item.materialId;
+                    document.getElementById('disposeScanFallbackBarcode').value = item.barcode;
+                    document.getElementById('disposeScanFallbackForm').requestSubmit();
+                } catch (err) {
+                    PmcUI.error(PmcWhI18n.t('networkError'));
+                }
             });
 
             // Draggable column resize — đồng bộ với Materials/Index, dùng chung 1 localStorage key
