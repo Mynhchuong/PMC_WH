@@ -17,6 +17,13 @@ public class MaterialListItem
     public string? Unit { get; set; }
     public string Status { get; set; } = string.Empty;
     public string? LocationCode { get; set; }
+
+    // Kệ TRƯỚC KHI xuất hết khỏi kho (Status IssuedOut → CurrentLocationId đã bị set NULL). Lấy từ
+    // movement gần nhất có LocationId. CHỈ được điền ở GetByBarcode (màn Nhận lại cần để gợi ý "lên
+    // kệ cũ"); các endpoint khác giữ null.
+    public int? PreviousLocationId { get; set; }
+    public string? PreviousLocationCode { get; set; }
+
     public bool IsOverdue { get; set; }
     public DateTime? ArrivalDate { get; set; }
     public DateTime CreatedAt { get; set; }

@@ -29,6 +29,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -45,6 +46,7 @@ import com.samho.pmcwhandroid.scan.DataWedgeScanField
 import com.samho.pmcwhandroid.scan.ScanFeedback
 import com.samho.pmcwhandroid.scan.ScanFeedbackBanner
 import com.samho.pmcwhandroid.ui.components.MaterialDetailDialog
+import com.samho.pmcwhandroid.ui.components.listJsonSaver
 import com.samho.pmcwhandroid.ui.components.rememberExitConfirm
 import com.samho.pmcwhandroid.ui.components.PendingBatchList
 import com.samho.pmcwhandroid.ui.components.PendingRow
@@ -52,7 +54,9 @@ import com.samho.pmcwhandroid.ui.components.PendingRowStatus
 import com.samho.pmcwhandroid.ui.theme.PmcWhAndroidTheme
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.launch
+import kotlinx.serialization.Serializable
 
+@Serializable
 private data class AssignPendingRow(
     override val key: Long,
     val item: MaterialListItem,
@@ -77,7 +81,10 @@ fun AssignMaterialsScreen(
     onClose: () -> Unit,
     onAllSavedAndClosed: () -> Unit,
 ) {
-    var pending by remember { mutableStateOf<List<AssignPendingRow>>(emptyList()) }
+    // rememberSaveable: giữ lô đang quét dở qua process-death (Android giết app nền).
+    var pending by rememberSaveable(stateSaver = listJsonSaver(AssignPendingRow.serializer())) {
+        mutableStateOf<List<AssignPendingRow>>(emptyList())
+    }
     val (guardedClose, exitConfirmDialog) = rememberExitConfirm(hasPendingWork = pending.isNotEmpty(), onExit = onClose)
     BackHandler(onBack = guardedClose)
     var isSaving by remember { mutableStateOf(false) }
@@ -199,6 +206,8 @@ private fun AssignMaterialsScreenContent(
         Column(modifier = Modifier.fillMaxSize().padding(padding)) {
             DataWedgeScanField(
                 onScan = onScan,
+                // Tắt khi đang mở popup chi tiết liệu.
+                enabled = viewingDetail == null,
                 modifier = Modifier.fillMaxWidth().padding(12.dp),
             )
             ScanFeedbackBanner(feedback = lastFeedback, onDismiss = onDismissFeedback)

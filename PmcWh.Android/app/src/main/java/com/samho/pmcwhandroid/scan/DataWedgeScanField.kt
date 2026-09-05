@@ -45,9 +45,14 @@ private tailrec fun Context.findActivity(): Activity? = when (this) {
  * trong khi gõ tay chậm hơn nhiều nên không lẫn. Vẫn giữ thêm việc bắt ký tự xuống dòng/tab (commit
  * ngay, không cần chờ) phòng trường hợp máy khác có cấu hình DataWedge gửi kèm ký tự kết thúc.
  *
- * [enabled] nên tắt khi có dialog khác đang mở trên màn hình (picker, xác nhận...) để tránh phím
- * gõ vào rơi lung tung không rõ đích. [refocusSignal] đổi giá trị (vd. đóng 1 dialog) để ép field
- * xin lại focus ngay cả khi [enabled] không đổi.
+ * [enabled] nên tắt khi có dialog khác đang mở trên màn hình (picker, xác nhận, xem chi tiết...) để
+ * tránh phím gõ vào rơi lung tung không rõ đích. [refocusSignal] đổi giá trị (vd. đóng 1 dialog) để
+ * ép field xin lại focus ngay cả khi [enabled] không đổi.
+ *
+ * [minCommitLength]: idle-commit chỉ kích hoạt khi đã có ít nhất bấy nhiêu ký tự — chặn trường hợp
+ * gõ tay chậm bị cắt vụn thành từng ký tự lẻ ("Q", "A", "T"...) mỗi lần ngừng tay > [idleCommitMs].
+ * Barcode trong hệ thống này luôn dài (QATEST001, số PO...), còn muốn nhập tay chuỗi ngắn thì gõ
+ * xong bấm Enter (đường commit qua ImeAction.Done không bị ràng buộc [minCommitLength]).
  */
 @Composable
 fun DataWedgeScanField(
@@ -57,6 +62,7 @@ fun DataWedgeScanField(
     label: String = "Quét mã hoặc nhập tay",
     refocusSignal: Any? = null,
     idleCommitMs: Long = 300L,
+    minCommitLength: Int = 3,
 ) {
     var text by remember { mutableStateOf("") }
     val focusRequester = remember { FocusRequester() }
@@ -100,7 +106,7 @@ fun DataWedgeScanField(
     // LaunchedEffect(text) tự huỷ + chạy lại mỗi khi "text" đổi — nên delay() ở đây chỉ thật sự
     // hoàn tất khi KHÔNG có ký tự mới nào tới trong suốt idleCommitMs, tức là 1 lần quét đã xong.
     LaunchedEffect(text) {
-        if (text.isNotEmpty()) {
+        if (text.length >= minCommitLength) {
             delay(idleCommitMs)
             emit(text)
             text = ""

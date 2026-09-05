@@ -410,9 +410,19 @@ public class MaterialsController : ControllerBase
         var rows = (await _db.QueryAsync(
             @"SELECT m.MaterialId, m.Barcode, m.Dev, m.PoNo, m.Supplier, m.Model, m.Colorway, m.SizeSpec, m.MatlDescription, m.ColorCode,
                      m.Season, m.Stage,
-                     m.ArrivalQty, m.Balance, m.Unit, m.Status, l.Code AS LocationCode, m.IsOverdue, m.ArrivalDate, m.CreatedAt
+                     m.ArrivalQty, m.Balance, m.Unit, m.Status, l.Code AS LocationCode, m.IsOverdue, m.ArrivalDate, m.CreatedAt,
+                     pl.PrevLocationId AS PreviousLocationId, pll.Code AS PreviousLocationCode
                 FROM PMC_Materials m
                 LEFT JOIN PMC_StorageLocations l ON l.LocationId = m.CurrentLocationId
+                LEFT JOIN (
+                    SELECT MaterialId, LocationId AS PrevLocationId FROM (
+                        SELECT sm.MaterialId, sm.LocationId,
+                               ROW_NUMBER() OVER (PARTITION BY sm.MaterialId ORDER BY sm.OccurredAt DESC, sm.MovementId DESC) AS rn
+                          FROM PMC_StockMovements sm
+                         WHERE sm.LocationId IS NOT NULL
+                    ) WHERE rn = 1
+                ) pl ON pl.MaterialId = m.MaterialId
+                LEFT JOIN PMC_StorageLocations pll ON pll.LocationId = pl.PrevLocationId
                WHERE m.IsArchived = 0 AND UPPER(m.Barcode) = UPPER(:barcode)",
             new OracleParameter("barcode", barcode))).ToList();
 
@@ -691,25 +701,28 @@ public class MaterialsController : ControllerBase
 
         var newStatus = newBalance >= arrivalQty ? "InStock" : "PartiallyIssued";
 
-        // PartiallyIssued: liệu chưa từng rời kệ (CurrentLocationId vẫn còn) — giữ nguyên, bỏ qua LocationId gửi lên.
-        // IssuedOut: liệu đã bị xóa khỏi kệ lúc xuất hết — bắt buộc chọn kệ mới để lên lại.
+        // Chốt kệ để lên lại:
+        //  - Có gửi LocationId  -> dùng kệ đó (IssuedOut bắt buộc; PartiallyIssued gửi khi muốn DỜI
+        //    sang kệ khác — PMC feedback).
+        //  - Không gửi + PartiallyIssued (chưa từng rời kệ) -> giữ nguyên kệ hiện tại.
+        //  - Không gửi + IssuedOut (đã rời kệ hẳn) -> bắt buộc phải chọn kệ.
         var existingLocationId = rows[0]["CURRENTLOCATIONID"] != null ? Convert.ToInt32(rows[0]["CURRENTLOCATIONID"]) : (int?)null;
         int resolvedLocationId;
-        if (status == "PartiallyIssued" && existingLocationId.HasValue)
+        if (req.LocationId.HasValue)
         {
-            resolvedLocationId = existingLocationId.Value;
-        }
-        else
-        {
-            if (!req.LocationId.HasValue)
-            {
-                return BadRequest(new { message = "Liệu đã xuất hết khỏi kệ — vui lòng chọn kệ để lên lại." });
-            }
             if (!await LocationExistsAsync(req.LocationId.Value))
             {
                 return BadRequest(new { message = "Vị trí kệ không hợp lệ hoặc không còn hoạt động." });
             }
             resolvedLocationId = req.LocationId.Value;
+        }
+        else if (status == "PartiallyIssued" && existingLocationId.HasValue)
+        {
+            resolvedLocationId = existingLocationId.Value;
+        }
+        else
+        {
+            return BadRequest(new { message = "Liệu đã xuất hết khỏi kệ — vui lòng chọn kệ để lên lại." });
         }
 
         var statements = new (string Sql, OracleParameter[] Parameters)[]
@@ -1023,6 +1036,12 @@ public class MaterialsController : ControllerBase
         Unit = row["UNIT"]?.ToString(),
         Status = row["STATUS"]?.ToString() ?? string.Empty,
         LocationCode = row["LOCATIONCODE"]?.ToString(),
+        // Null-safe: chỉ SQL của GetByBarcode SELECT 2 cột này; các endpoint khác dùng chung
+        // MapMaterialListItem sẽ KHÔNG có key -> TryGetValue để khỏi ném KeyNotFoundException.
+        PreviousLocationId = row.TryGetValue("PREVIOUSLOCATIONID", out var prevLocId) && prevLocId != null
+            ? Convert.ToInt32(prevLocId) : null,
+        PreviousLocationCode = row.TryGetValue("PREVIOUSLOCATIONCODE", out var prevLocCode)
+            ? prevLocCode?.ToString() : null,
         IsOverdue = row["ISOVERDUE"] != null && Convert.ToInt32(row["ISOVERDUE"]) == 1,
         ArrivalDate = row["ARRIVALDATE"] != null ? Convert.ToDateTime(row["ARRIVALDATE"]) : null,
         CreatedAt = Convert.ToDateTime(row["CREATEDAT"]),

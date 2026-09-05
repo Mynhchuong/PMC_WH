@@ -10,6 +10,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import com.samho.pmcwhandroid.data.SessionManager
@@ -40,8 +41,10 @@ class MainActivity : ComponentActivity() {
             PmcWhAndroidTheme {
                 var session by remember { mutableStateOf<UserSession?>(sessionManager.getSession()) }
                 // Điều hướng đơn giản bằng route dạng chuỗi (khớp HomeMenuItem.id) — chưa cần
-                // Navigation Compose vì độ sâu màn hình còn ít, "home" = null.
-                var route by remember { mutableStateOf<String?>(null) }
+                // Navigation Compose vì độ sâu màn hình còn ít, "home" = null. rememberSaveable để
+                // quay lại đúng màn sau khi hệ thống giết app ở nền (mỗi màn tự khôi phục lô đang
+                // quét dở qua rememberSaveable riêng của nó).
+                var route by rememberSaveable { mutableStateOf<String?>(null) }
 
                 Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
                     val currentSession = session

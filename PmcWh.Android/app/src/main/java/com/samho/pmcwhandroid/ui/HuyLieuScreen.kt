@@ -31,6 +31,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -46,6 +47,7 @@ import com.samho.pmcwhandroid.scan.DataWedgeScanField
 import com.samho.pmcwhandroid.scan.ScanFeedback
 import com.samho.pmcwhandroid.scan.ScanFeedbackBanner
 import com.samho.pmcwhandroid.ui.components.InfoRow
+import com.samho.pmcwhandroid.ui.components.listJsonSaver
 import com.samho.pmcwhandroid.ui.components.rememberExitConfirm
 import com.samho.pmcwhandroid.ui.components.PendingBatchList
 import com.samho.pmcwhandroid.ui.components.PendingRow
@@ -53,7 +55,9 @@ import com.samho.pmcwhandroid.ui.components.PendingRowStatus
 import com.samho.pmcwhandroid.ui.theme.PmcWhAndroidTheme
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.launch
+import kotlinx.serialization.Serializable
 
+@Serializable
 private data class DisposePendingRow(
     override val key: Long,
     val item: MaterialListItem,
@@ -62,11 +66,15 @@ private data class DisposePendingRow(
 ) : PendingRow
 
 /**
- * Quét theo lô: mỗi mã quét được so khớp với danh sách liệu có thể hủy (tải lại trước khi so khớp —
- * danh sách trên máy có thể đã cũ) rồi thêm vào danh sách chờ, KHÔNG hủy ngay. "Lưu" xác nhận 1 lần
- * cho cả lô rồi mới gọi dispose() lần lượt từng liệu. Cố ý KHÔNG hiện danh sách để bấm chọn thủ công
- * — chỉ quét mới thêm được vào danh sách chờ, tránh công nhân bấm nhầm liệu (đặc biệt nguy hiểm ở
- * màn này vì hủy liệu không thể hoàn tác).
+ * Quét theo lô: mỗi mã quét được tra thẳng qua getByBarcode() (giống Xuất kho / Nhận lại / Nhập
+ * kho) rồi thêm vào danh sách chờ, KHÔNG hủy ngay. "Lưu" xác nhận 1 lần cho cả lô rồi mới gọi
+ * dispose() lần lượt từng liệu. Cố ý KHÔNG hiện danh sách để bấm chọn thủ công — chỉ quét mới thêm
+ * được vào danh sách chờ, tránh công nhân bấm nhầm liệu (đặc biệt nguy hiểm ở màn này vì hủy liệu
+ * không thể hoàn tác).
+ *
+ * (Trước đây màn này lọc mã trên client từ danh sách api/Materials/disposable — endpoint đó trả về
+ * dạng PHÂN TRANG {items:[...]} chứ không phải mảng, lại mặc định pageSize=10, nên MaterialsApi khai
+ * báo sai kiểu -> parse lỗi -> danh sách rỗng -> mọi mã đều "không tìm thấy". Nay bỏ hẳn.)
  *
  * Hủy ở BẤT KỲ trạng thái nào (Staging/InStock/PartiallyIssued/IssuedOut...) — không giới hạn theo
  * quá hạn 90 ngày, vì công nhân hủy liệu khi không còn dùng nữa, bất kể trạng thái hiện tại là gì.
@@ -76,8 +84,10 @@ private data class DisposePendingRow(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HuyLieuScreen(session: UserSession, onBack: () -> Unit) {
-    var disposableItems by remember { mutableStateOf<List<MaterialListItem>>(emptyList()) }
-    var pendingDispose by remember { mutableStateOf<List<DisposePendingRow>>(emptyList()) }
+    // rememberSaveable: giữ lô chờ hủy qua process-death (Android giết app nền).
+    var pendingDispose by rememberSaveable(stateSaver = listJsonSaver(DisposePendingRow.serializer())) {
+        mutableStateOf<List<DisposePendingRow>>(emptyList())
+    }
     val (guardedBack, exitConfirmDialog) = rememberExitConfirm(hasPendingWork = pendingDispose.isNotEmpty(), onExit = onBack)
     BackHandler(onBack = guardedBack)
     var showConfirm by remember { mutableStateOf(false) }
@@ -86,19 +96,8 @@ fun HuyLieuScreen(session: UserSession, onBack: () -> Unit) {
     var lastFeedback by remember { mutableStateOf<ScanFeedback?>(null) }
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
-    // Gom cả 2 nguồn quét (DataWedge + camera) qua 1 channel, xử lý tuần tự từng mã một — tránh
-    // mất dữ liệu nếu 2 nguồn bắn mã gần như cùng lúc rồi cùng đọc/ghi "disposableItems" cũ.
+    // Gom cả 2 nguồn quét (DataWedge + camera) qua 1 channel, xử lý tuần tự từng mã một.
     val scanChannel = remember { Channel<String>(Channel.UNLIMITED) }
-
-    suspend fun loadDisposable() {
-        try {
-            disposableItems = ApiClient.materialsApi.disposable()
-        } catch (e: Exception) {
-            snackbarHostState.showSnackbar("Không tải được danh sách: ${e.message}")
-        }
-    }
-
-    LaunchedEffect(Unit) { loadDisposable() }
 
     fun addToPending(item: MaterialListItem): Boolean {
         if (pendingDispose.any { it.item.materialId == item.materialId }) return false
@@ -108,12 +107,19 @@ fun HuyLieuScreen(session: UserSession, onBack: () -> Unit) {
 
     LaunchedEffect(Unit) {
         for (code in scanChannel) {
-            loadDisposable()
-            val match = disposableItems.firstOrNull { it.barcode.equals(code, ignoreCase = true) }
-            lastFeedback = when {
-                match == null -> ScanFeedback.Failure(code, "Không tìm thấy mã này, hoặc liệu đã bị hủy trước đó.")
-                addToPending(match) -> ScanFeedback.Success(code, "Đã thêm vào danh sách chờ hủy.")
-                else -> ScanFeedback.Success(code, "Đã có trong danh sách chờ.")
+            try {
+                val resp = ApiClient.materialsApi.getByBarcode(code)
+                val item = resp.body()
+                lastFeedback = when {
+                    !resp.isSuccessful || item == null ->
+                        ScanFeedback.Failure(code, resp.errorMessageOrDefault("Không tìm thấy mã '$code'."))
+                    item.status == "Disposed" ->
+                        ScanFeedback.Failure(code, "Liệu này đã bị hủy trước đó.")
+                    addToPending(item) -> ScanFeedback.Success(code, "Đã thêm vào danh sách chờ hủy.")
+                    else -> ScanFeedback.Success(code, "Đã có trong danh sách chờ.")
+                }
+            } catch (e: Exception) {
+                lastFeedback = ScanFeedback.Failure(code, "Lỗi mạng: ${e.message}")
             }
         }
     }
@@ -141,7 +147,6 @@ fun HuyLieuScreen(session: UserSession, onBack: () -> Unit) {
         }
         isSaving = false
         showConfirm = false
-        loadDisposable()
         // Màn hình phải "sạch" ngay sau khi lưu để hủy tiếp lô khác — xem giải thích ở XuatKhoScreen.
         lastFeedback = null
         if (savedCount > 0) {
@@ -213,7 +218,8 @@ private fun HuyLieuScreenContent(
         Column(modifier = Modifier.fillMaxSize().padding(padding)) {
             DataWedgeScanField(
                 onScan = onScan,
-                enabled = !showConfirm,
+                // Tắt khi đang mở hộp xác nhận hủy hoặc popup chi tiết liệu.
+                enabled = !showConfirm && viewingDetail == null,
                 modifier = Modifier.fillMaxWidth().padding(12.dp),
             )
 

@@ -53,6 +53,7 @@ import com.samho.pmcwhandroid.scan.ScanFeedback
 import com.samho.pmcwhandroid.scan.ScanFeedbackBanner
 import com.samho.pmcwhandroid.ui.components.MaterialDetailDialog
 import com.samho.pmcwhandroid.ui.theme.PmcWhAndroidTheme
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.launch
 
@@ -76,6 +77,7 @@ fun BarcodeListDetailScreen(list: BarcodeListDto, onBack: () -> Unit) {
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
     val scanChannel = remember { Channel<String>(Channel.UNLIMITED) }
+    var reloadJob by remember { mutableStateOf<Job?>(null) }
 
     // Barcode Collection chỉ lưu chuỗi Barcode, không có MaterialId — bấm vào 1 dòng thì tra cứu
     // qua by-barcode() để hiện popup chi tiết liệu, y hệt kiểu xem đang có ở Xuất kho/Nhận lại/Hủy
@@ -111,6 +113,13 @@ fun BarcodeListDetailScreen(list: BarcodeListDto, onBack: () -> Unit) {
         }
     }
 
+    // Nhiều nguồn cùng yêu cầu tải lại (quét xong 1 mã / xoá 1 mã) — huỷ lần tải trước để "lần cuối
+    // thắng", tránh response cũ về sau đè lên danh sách mới.
+    fun reloadItems() {
+        reloadJob?.cancel()
+        reloadJob = scope.launch { loadItems() }
+    }
+
     LaunchedEffect(Unit) { loadItems() }
 
     LaunchedEffect(Unit) {
@@ -125,7 +134,7 @@ fun BarcodeListDetailScreen(list: BarcodeListDto, onBack: () -> Unit) {
                         ScanFeedback.Failure(code, "Đã quét trùng — số lần quét: ${result.scanCount}")
                     else -> ScanFeedback.Success(code, "Đã thêm mã mới.")
                 }
-                loadItems()
+                reloadItems()
             } catch (e: Exception) {
                 lastFeedback = ScanFeedback.Failure(code, "Lỗi mạng: ${e.message}")
             }
@@ -163,6 +172,8 @@ fun BarcodeListDetailScreen(list: BarcodeListDto, onBack: () -> Unit) {
         Column(modifier = Modifier.fillMaxSize().padding(padding)) {
             DataWedgeScanField(
                 onScan = { code -> scanChannel.trySend(code) },
+                // Tắt khi đang mở popup chi tiết liệu.
+                enabled = viewingDetail == null,
                 modifier = Modifier.fillMaxWidth().padding(12.dp),
             )
             ScanFeedbackBanner(feedback = lastFeedback, onDismiss = { lastFeedback = null })
@@ -199,7 +210,7 @@ fun BarcodeListDetailScreen(list: BarcodeListDto, onBack: () -> Unit) {
                                             scope.launch {
                                                 try {
                                                     ApiClient.barcodeCollectionApi.deleteItem(list.listId, item.itemId)
-                                                    loadItems()
+                                                    reloadItems()
                                                 } catch (e: Exception) {
                                                     snackbarHostState.showSnackbar("Lỗi mạng: ${e.message}")
                                                 }

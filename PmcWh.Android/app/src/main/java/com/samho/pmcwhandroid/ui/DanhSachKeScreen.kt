@@ -36,6 +36,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -47,6 +48,7 @@ import com.samho.pmcwhandroid.network.LocationMaterialDto
 import com.samho.pmcwhandroid.network.StorageLocationDto
 import com.samho.pmcwhandroid.network.WarehouseTierDto
 import com.samho.pmcwhandroid.ui.assign.AssignMaterialsScreen
+import com.samho.pmcwhandroid.ui.components.nullableJsonSaver
 import com.samho.pmcwhandroid.ui.theme.PmcWhAndroidTheme
 import kotlinx.coroutines.launch
 
@@ -58,7 +60,11 @@ fun DanhSachKeScreen(session: UserSession, onBack: () -> Unit) {
     var isLoading by remember { mutableStateOf(true) }
     var query by remember { mutableStateOf("") }
     var selectedTier by remember { mutableStateOf<WarehouseTierDto?>(null) }
-    var assigningTier by remember { mutableStateOf<WarehouseTierDto?>(null) }
+    // rememberSaveable: khôi phục đúng tầng kệ đang gán liệu sau process-death (lô quét dở của
+    // AssignMaterialsScreen tự khôi phục qua rememberSaveable riêng của nó).
+    var assigningTier by rememberSaveable(stateSaver = nullableJsonSaver(WarehouseTierDto.serializer())) {
+        mutableStateOf<WarehouseTierDto?>(null)
+    }
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
 

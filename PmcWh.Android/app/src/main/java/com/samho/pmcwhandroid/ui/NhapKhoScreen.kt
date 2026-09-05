@@ -27,6 +27,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -37,6 +38,7 @@ import com.samho.pmcwhandroid.network.ApiClient
 import com.samho.pmcwhandroid.network.StorageLocationDto
 import com.samho.pmcwhandroid.ui.assign.AssignMaterialsScreen
 import com.samho.pmcwhandroid.ui.components.LocationPickerDialog
+import com.samho.pmcwhandroid.ui.components.nullableJsonSaver
 import com.samho.pmcwhandroid.ui.theme.PmcWhAndroidTheme
 import kotlinx.coroutines.launch
 
@@ -49,7 +51,11 @@ import kotlinx.coroutines.launch
 @Composable
 fun NhapKhoScreen(session: UserSession, onBack: () -> Unit) {
     BackHandler(onBack = onBack)
-    var currentLocation by remember { mutableStateOf<StorageLocationDto?>(null) }
+    // rememberSaveable: khôi phục đúng kệ đang gán liệu sau process-death (lô quét dở của
+    // AssignMaterialsScreen cũng tự khôi phục qua rememberSaveable riêng của nó).
+    var currentLocation by rememberSaveable(stateSaver = nullableJsonSaver(StorageLocationDto.serializer())) {
+        mutableStateOf<StorageLocationDto?>(null)
+    }
     var locations by remember { mutableStateOf<List<StorageLocationDto>>(emptyList()) }
     var isLoadingLocations by remember { mutableStateOf(false) }
     var showLocationPicker by remember { mutableStateOf(false) }

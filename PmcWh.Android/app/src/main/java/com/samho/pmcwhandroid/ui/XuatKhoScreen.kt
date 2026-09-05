@@ -29,6 +29,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
@@ -42,6 +43,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -59,6 +61,8 @@ import com.samho.pmcwhandroid.scan.DataWedgeScanField
 import com.samho.pmcwhandroid.scan.ScanFeedback
 import com.samho.pmcwhandroid.scan.ScanFeedbackBanner
 import com.samho.pmcwhandroid.ui.components.MaterialDetailDialog
+import com.samho.pmcwhandroid.ui.components.listJsonSaver
+import com.samho.pmcwhandroid.ui.components.nullableJsonSaver
 import com.samho.pmcwhandroid.ui.components.rememberExitConfirm
 import com.samho.pmcwhandroid.ui.components.PendingBatchList
 import com.samho.pmcwhandroid.ui.components.PendingRow
@@ -66,7 +70,9 @@ import com.samho.pmcwhandroid.ui.components.PendingRowStatus
 import com.samho.pmcwhandroid.ui.theme.PmcWhAndroidTheme
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.launch
+import kotlinx.serialization.Serializable
 
+@Serializable
 private data class XuatPendingItem(
     override val key: Long,
     val material: MaterialListItem,
@@ -107,13 +113,20 @@ private fun XuatPendingItem.isQtyValid(): Boolean {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun XuatKhoScreen(session: UserSession, onBack: () -> Unit) {
-    var pending by remember { mutableStateOf<List<XuatPendingItem>>(emptyList()) }
+    // rememberSaveable: giữ lô đang quét dở + người nhận đã chọn qua process-death (Android giết app nền).
+    var pending by rememberSaveable(stateSaver = listJsonSaver(XuatPendingItem.serializer())) {
+        mutableStateOf<List<XuatPendingItem>>(emptyList())
+    }
     val (guardedBack, exitConfirmDialog) = rememberExitConfirm(hasPendingWork = pending.isNotEmpty(), onExit = onBack)
     BackHandler(onBack = guardedBack)
     var recipients by remember { mutableStateOf<List<RecipientDto>>(emptyList()) }
     var isLoadingRecipients by remember { mutableStateOf(false) }
     var showRecipientPicker by remember { mutableStateOf(false) }
-    var chosenRecipient by remember { mutableStateOf<RecipientDto?>(null) }
+    var chosenRecipient by rememberSaveable(stateSaver = nullableJsonSaver(RecipientDto.serializer())) {
+        mutableStateOf<RecipientDto?>(null)
+    }
+    // Đổi người nhận sẽ xoá sạch lô đang chờ — hỏi xác nhận nếu đang có việc dở (giống nút thoát).
+    var showChangeRecipientConfirm by remember { mutableStateOf(false) }
     var isSaving by remember { mutableStateOf(false) }
     var showCamera by remember { mutableStateOf(false) }
     var lastFeedback by remember { mutableStateOf<ScanFeedback?>(null) }
@@ -219,7 +232,9 @@ fun XuatKhoScreen(session: UserSession, onBack: () -> Unit) {
         onCloseCamera = { showCamera = false },
         onScan = { code -> scanChannel.trySend(code) },
         onChooseRecipient = { openRecipientPicker() },
-        onChangeRecipient = { chosenRecipient = null; pending = emptyList() },
+        onChangeRecipient = {
+            if (pending.isEmpty()) chosenRecipient = null else showChangeRecipientConfirm = true
+        },
         onQtyChange = { key, text -> pending = pending.map { if (it.key == key) it.copy(qtyText = text) else it } },
         onRemovePending = { key -> pending = pending.filterNot { it.key == key } },
         onSave = { scope.launch { saveBatch() } },
@@ -232,6 +247,24 @@ fun XuatKhoScreen(session: UserSession, onBack: () -> Unit) {
             isLoading = isLoadingRecipients,
             onDismiss = { showRecipientPicker = false },
             onSelect = { r -> chosenRecipient = r; showRecipientPicker = false },
+        )
+    }
+
+    if (showChangeRecipientConfirm) {
+        AlertDialog(
+            onDismissRequest = { showChangeRecipientConfirm = false },
+            title = { Text("Đổi người nhận?") },
+            text = { Text("Danh sách ${pending.size} liệu đang chờ lưu sẽ mất hết nếu đổi người nhận bây giờ.") },
+            confirmButton = {
+                Button(onClick = {
+                    showChangeRecipientConfirm = false
+                    chosenRecipient = null
+                    pending = emptyList()
+                }) { Text("Đổi") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showChangeRecipientConfirm = false }) { Text("Ở lại") }
+            },
         )
     }
 
@@ -318,6 +351,8 @@ private fun XuatKhoScreenContent(
 
                 DataWedgeScanField(
                     onScan = onScan,
+                    // Tắt khi đang mở popup chi tiết liệu — không thì phím từ súng quét rơi vào field ẩn.
+                    enabled = viewingDetail == null,
                     modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp),
                 )
                 ScanFeedbackBanner(feedback = lastFeedback, onDismiss = onDismissFeedback)
@@ -353,16 +388,33 @@ private fun XuatKhoScreenContent(
                             )
                         }
                         Spacer(Modifier.height(4.dp))
-                        OutlinedTextField(
-                            value = row.qtyText,
-                            onValueChange = { onQtyChange(row.key, it) },
-                            label = { Text("Số lượng (tồn ${row.material.availableQtyForIssue()})") },
-                            singleLine = true,
-                            enabled = row.material.status != "Staging",
-                            isError = row.qtyText.isNotBlank() && !row.isQtyValid(),
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                        Row(
                             modifier = Modifier.fillMaxWidth(),
-                        )
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            OutlinedTextField(
+                                value = row.qtyText,
+                                onValueChange = { onQtyChange(row.key, it) },
+                                label = { Text("Số lượng (tồn ${row.material.availableQtyForIssue()})") },
+                                singleLine = true,
+                                enabled = row.material.status != "Staging",
+                                isError = row.qtyText.isNotBlank() && !row.isQtyValid(),
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                                modifier = Modifier.weight(1f),
+                            )
+                            // PMC feedback: đỡ phải gõ tay — bấm "Xuất hết" tự điền toàn bộ tồn vào ô số lượng.
+                            // Liệu Staging đã bị khoá ở mức đủ hết sẵn nên không cần nút này.
+                            if (row.material.status != "Staging") {
+                                OutlinedButton(
+                                    onClick = {
+                                        onQtyChange(row.key, row.material.availableQtyForIssue().toString())
+                                    },
+                                ) {
+                                    Text("Xuất hết")
+                                }
+                            }
+                        }
                     }
                     Button(
                         onClick = onSave,

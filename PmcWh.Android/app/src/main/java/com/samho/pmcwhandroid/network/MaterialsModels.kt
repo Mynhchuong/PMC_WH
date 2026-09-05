@@ -21,6 +21,9 @@ data class MaterialListItem(
     val unit: String? = null,
     val status: String = "",
     val locationCode: String? = null,
+    // Kệ trước khi xuất hết khỏi kho (chỉ có ở getByBarcode) — màn Nhận lại dùng để gợi ý "lên kệ cũ".
+    val previousLocationId: Int? = null,
+    val previousLocationCode: String? = null,
     val isOverdue: Boolean = false,
 )
 
