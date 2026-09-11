@@ -324,7 +324,7 @@
                 // Danh sách đã phân trang — liệu quét trúng có thể đang nằm ở trang khác, không có
                 // sẵn trong DOM. Tra trực tiếp qua Api thay vì chỉ tìm trong trang hiện tại.
                 try {
-                    var res = await PmcUI.withLoading(() => fetch('/Materials/ByBarcode/' + encodeURIComponent(code)));
+                    var res = await PmcUI.withLoading(() => fetch('Materials/ByBarcode/' + encodeURIComponent(code)));
                     if (!res.ok) {
                         PmcUI.error(PmcWhI18n.t('notFoundInList').replace('{code}', code));
                         return;

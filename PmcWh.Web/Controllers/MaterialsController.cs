@@ -97,6 +97,7 @@ public class MaterialsController : Controller
         if (TempData["ImportSkippedJson"] is string skippedJson)
         {
             model.ImportSkipped = JsonSerializer.Deserialize<List<MaterialImportSkipItem>>(skippedJson);
+            model.ImportSkippedCount = TempData["ImportSkippedCount"] as int? ?? model.ImportSkipped?.Count;
             model.ImportInsertedCount = TempData["ImportInsertedCount"] as int?;
             model.ImportTotalCount = TempData["ImportTotalCount"] as int?;
         }
@@ -508,7 +509,11 @@ public class MaterialsController : Controller
 
         if (skipped.Count > 0)
         {
-            TempData["ImportSkippedJson"] = JsonSerializer.Serialize(skipped);
+            // Chỉ mang chi tiết tối đa 500 dòng lỗi qua popup (số thật vẫn hiển thị qua ImportSkippedCount)
+            // — file toàn dòng lỗi có thể lên vài nghìn, không cần liệt kê hết trong 1 popup.
+            const int maxSkippedDetail = 500;
+            TempData["ImportSkippedJson"] = JsonSerializer.Serialize(skipped.Take(maxSkippedDetail));
+            TempData["ImportSkippedCount"] = skipped.Count;
             TempData["ImportInsertedCount"] = insertedCount;
             TempData["ImportTotalCount"] = parsedRows.Count;
         }

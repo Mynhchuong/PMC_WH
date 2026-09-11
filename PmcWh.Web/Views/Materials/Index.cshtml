@@ -103,6 +103,7 @@
     <div id="pmc-import-result"
          data-inserted="@Model.ImportInsertedCount"
          data-total="@Model.ImportTotalCount"
+         data-skipped-count="@(Model.ImportSkippedCount ?? Model.ImportSkipped!.Count)"
          style="display:none"></div>
 }
 
@@ -363,20 +364,24 @@
                 var skipped = JSON.parse(importSkippedDataEl.textContent);
                 var inserted = importResultEl.dataset.inserted || '0';
                 var total = importResultEl.dataset.total || '0';
+                var skippedCount = parseInt(importResultEl.dataset.skippedCount, 10) || skipped.length;
                 var rowsHtml = skipped.map(function (s) {
                     return '<tr><td class="fw-semibold">' + PmcUI.escapeHtml(s.Barcode) + '</td><td>' + PmcUI.escapeHtml(s.Reason) + '</td></tr>';
                 }).join('');
+                var truncatedNote = skipped.length < skippedCount
+                    ? '<div class="text-muted small mt-2">' + PmcWhI18n.t('importPopupTruncated').replace('{0}', skipped.length).replace('{1}', skippedCount) + '</div>'
+                    : '';
                 var body =
                     '<div class="d-flex gap-2 mb-3">' +
                         '<span class="badge bg-success-subtle text-success-emphasis">' + PmcWhI18n.t('importPopupInserted').replace('{0}', inserted) + '</span>' +
-                        '<span class="badge bg-danger-subtle text-danger-emphasis">' + PmcWhI18n.t('importPopupSkipped').replace('{0}', skipped.length).replace('{1}', total) + '</span>' +
+                        '<span class="badge bg-danger-subtle text-danger-emphasis">' + PmcWhI18n.t('importPopupSkipped').replace('{0}', skippedCount).replace('{1}', total) + '</span>' +
                     '</div>' +
                     '<div class="table-responsive" style="max-height:340px;overflow-y:auto;">' +
                         '<table class="table table-sm align-middle mb-0">' +
                             '<thead><tr class="text-uppercase text-muted small"><th>Barcode</th><th data-i18n="colReason">' + PmcWhI18n.t('colReason') + '</th></tr></thead>' +
                             '<tbody>' + rowsHtml + '</tbody>' +
                         '</table>' +
-                    '</div>';
+                    '</div>' + truncatedNote;
                 PmcUI.popup(PmcWhI18n.t('importPopupTitle'), body);
             }
 

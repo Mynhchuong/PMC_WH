@@ -16,6 +16,20 @@ if (builder.Environment.IsDevelopment())
     mvcBuilder.AddRazorRuntimeCompilation();
 }
 
+// TempData (flash message + kết quả import) lưu server-side qua Session, KHÔNG dùng cookie mặc định.
+// Import file nhiều dòng lỗi -> JSON danh sách dòng lỗi nhét vào cookie TempData làm header request
+// vượt giới hạn của IIS/http.sys => trình duyệt nhận "HTTP 400 - request headers too long" ở lần
+// request kế tiếp. Session chỉ gửi 1 cookie id nhỏ, payload nằm trong RAM server.
+builder.Services.AddDistributedMemoryCache();
+builder.Services.AddSession(options =>
+{
+    options.Cookie.Name = ".PmcWh.Session";
+    options.Cookie.HttpOnly = true;
+    options.Cookie.IsEssential = true;
+    options.IdleTimeout = TimeSpan.FromMinutes(30);
+});
+mvcBuilder.AddSessionStateTempDataProvider();
+
 // Ghi key vào 1 folder cố định trong app thay vì user profile mặc định — App Pool Identity trên
 // IIS thường không có user profile load sẵn, thiếu dòng này thì SignInAsync() lúc Login sẽ ném
 // exception (không mã hoá/ký được cookie). Cùng pattern với HR_web (đã chạy ổn trên server này).
@@ -51,6 +65,8 @@ if (!app.Environment.IsDevelopment())
 
 // Không dùng HTTPS redirect — IIS server nội bộ chưa có SSL cert, chỉ chạy HTTP.
 app.UseRouting();
+
+app.UseSession();
 
 app.UseAuthentication();
 app.UseAuthorization();

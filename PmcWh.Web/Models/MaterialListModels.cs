@@ -58,6 +58,7 @@ public class MaterialListViewModel : SearchFilterFields
     public bool? IsOverdue { get; set; }
     public PaginationViewModel Pagination { get; set; } = new();
     public List<MaterialImportSkipItem>? ImportSkipped { get; set; }
+    public int? ImportSkippedCount { get; set; }
     public int? ImportInsertedCount { get; set; }
     public int? ImportTotalCount { get; set; }
 }

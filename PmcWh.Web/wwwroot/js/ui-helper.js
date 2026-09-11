@@ -20,7 +20,7 @@
  *              PmcUI.hideLoading();
  *
  *              // hoặc gọn hơn — tự show/hide quanh 1 async function:
- *              const data = await PmcUI.withLoading(() => fetch("/api/...").then(r => r.json()));
+ *              const data = await PmcUI.withLoading(() => fetch("Materials/...").then(r => r.json()));
  */
 const PmcUI = (function () {
     const TOAST_META = {
