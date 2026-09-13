@@ -121,6 +121,10 @@
                             </td>
                             <td class="text-muted small">@u.CreatedAt.ToString("dd/MM/yyyy HH:mm")</td>
                             <td class="text-end">
+                                <button type="button" class="btn btn-sm btn-outline-secondary js-change-password-btn"
+                                        data-id="@u.UserId" data-username="@u.Username" title="Đổi mật khẩu" data-i18n-title="btnChangePassword">
+                                    <span class="material-icons" style="font-size:16px;">password</span>
+                                </button>
                                 <form asp-controller="Users" asp-action="ResetPassword" method="post" class="d-inline js-reset-password-form">
                                     <input type="hidden" name="userId" value="@u.UserId" />
                                     <input type="hidden" name="username" value="@u.Username" />
@@ -128,6 +132,15 @@
                                     <input type="hidden" name="pageSize" value="@Model.Pagination.PageSize" />
                                     <button type="submit" class="btn btn-sm btn-outline-warning d-inline-flex align-items-center gap-1">
                                         <span class="material-icons" style="font-size:16px;">restart_alt</span> <span data-i18n="btnResetPassword">Reset mật khẩu</span>
+                                    </button>
+                                </form>
+                                <form asp-controller="Users" asp-action="ToggleActive" method="post" class="d-inline js-toggle-user-form">
+                                    <input type="hidden" name="userId" value="@u.UserId" />
+                                    <input type="hidden" name="username" value="@u.Username" />
+                                    <input type="hidden" name="page" value="@Model.Pagination.Page" />
+                                    <input type="hidden" name="pageSize" value="@Model.Pagination.PageSize" />
+                                    <button type="submit" class="btn btn-sm @(u.IsActive ? "btn-outline-secondary" : "btn-outline-success")" data-i18n="@(u.IsActive ? "btnDisable" : "btnEnable")">
+                                        @(u.IsActive ? "Tắt" : "Bật lại")
                                     </button>
                                 </form>
                             </td>
@@ -139,6 +152,35 @@
 
         <div class="mt-3">
             @await Html.PartialAsync("_Pagination", Model.Pagination)
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="changePasswordModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 rounded-4 shadow">
+            <div class="modal-header border-0">
+                <h5 class="modal-title" data-i18n="changePasswordModalTitle">Đổi mật khẩu</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form asp-controller="Users" asp-action="ChangePassword" method="post">
+                <input type="hidden" name="userId" id="chgPwd_UserId" />
+                <input type="hidden" name="username" id="chgPwd_Username" />
+                <input type="hidden" name="page" value="@Model.Pagination.Page" />
+                <input type="hidden" name="pageSize" value="@Model.Pagination.PageSize" />
+                <div class="modal-body">
+                    <p class="text-muted small mb-2" id="chgPwd_ForLabel"></p>
+                    <label class="form-label small fw-semibold text-secondary mb-1" data-i18n="newPasswordLabel">Mật khẩu mới</label>
+                    <div class="input-group">
+                        <span class="input-group-text bg-white"><span class="material-icons" style="font-size:18px;">lock</span></span>
+                        <input type="password" name="newPassword" class="form-control" minlength="6" required placeholder="••••••" />
+                    </div>
+                </div>
+                <div class="modal-footer border-0">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal" data-i18n="btnCancel">Hủy</button>
+                    <button type="submit" class="btn pmc-btn-dark" data-i18n="btnSave">Lưu</button>
+                </div>
+            </form>
         </div>
     </div>
 </div>
@@ -160,6 +202,29 @@
                     if (ok) form.submit();
                 });
             });
+
+            document.querySelectorAll('.js-toggle-user-form').forEach(function (form) {
+                form.addEventListener('submit', async function (e) {
+                    e.preventDefault();
+                    var username = form.querySelector('input[name="username"]').value;
+                    var ok = await PmcUI.confirm(PmcWhI18n.t('confirmToggleUserMsg').replace('{0}', username), { title: PmcWhI18n.t('btnDisable'), variant: 'warning' });
+                    if (ok) form.submit();
+                });
+            });
+
+            var changePasswordModalEl = document.getElementById('changePasswordModal');
+            if (changePasswordModalEl) {
+                var changePasswordModal = new bootstrap.Modal(changePasswordModalEl);
+                document.querySelectorAll('.js-change-password-btn').forEach(function (btn) {
+                    btn.addEventListener('click', function () {
+                        document.getElementById('chgPwd_UserId').value = btn.dataset.id;
+                        document.getElementById('chgPwd_Username').value = btn.dataset.username;
+                        document.getElementById('chgPwd_ForLabel').textContent = btn.dataset.username;
+                        changePasswordModalEl.querySelector('input[name="newPassword"]').value = '';
+                        changePasswordModal.show();
+                    });
+                });
+            }
         })();
     </script>
 }

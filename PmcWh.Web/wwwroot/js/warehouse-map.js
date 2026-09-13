@@ -151,7 +151,11 @@
 
       var pad = new THREE.Mesh(new THREE.BoxGeometry(RACK_W, LEVEL_H * 0.92, RACK_D), hitMat);
       pad.position.set(0, y + LEVEL_H / 2, 0);
-      pad.userData = { rack: no, level: lvl + 1, code: tier ? tier.code : (no + '.' + (lvl + 1)), qrCount: qrCount, locationId: tier ? tier.locationId : null };
+      pad.userData = {
+        rack: no, level: lvl + 1, code: tier ? tier.code : (no + '.' + (lvl + 1)), qrCount: qrCount, locationId: tier ? tier.locationId : null,
+        // PMC tự khai báo (trang Quản lý kệ) — có thể trống nếu chưa nhập.
+        manager: tier ? tier.managerName : null, purposeVi: tier ? tier.purposeVi : null, purposeEn: tier ? tier.purposeEn : null,
+      };
       g.add(pad); interactive.push(pad);
       (padByRackLevel[no] = padByRackLevel[no] || {})[lvl + 1] = pad;
 
@@ -186,6 +190,19 @@
   for (i = 0; i < 10; i++) specs.push([32 + i, c3[i], Z3, -1]);
   specs.push([42, c3[10], Z3, -1]); specs.push([43, c3[10], Z3 + RACK_D, 1]);
   specs.forEach(function (s) { buildRack(s[0], s[1] + shiftX, s[2] + shiftZ, s[3]); });
+
+  // Kệ mới PMC thêm ở trang Quản lý kệ với số kệ CHƯA có trong layout thật ở trên (43 kệ, vị trí
+  // vẽ tay khớp nhà kho thật) — không biết đặt ở đâu trong nhà kho thật nên xếp tạm 1 hàng riêng
+  // phía sau dãy 3, cách biệt hẳn để không lẫn với layout thật. Thêm TẦNG cho kệ đã có (1..43) thì
+  // không rơi vào đây — buildRack() ở trên đã tự vẽ thêm tầng theo dữ liệu thật rồi.
+  var knownRackNo = {};
+  specs.forEach(function (s) { knownRackNo[s[0]] = true; });
+  var overflowRacks = Object.keys(LEVELS).map(Number).filter(function (no) { return !knownRackNo[no]; }).sort(function (a, b) { return a - b; });
+  if (overflowRacks.length) {
+    var ocX = rowCenters(overflowRacks.length, -1);
+    var Z4 = Z3 + RACK_D + 220;
+    overflowRacks.forEach(function (no, idx) { buildRack(no, ocX[idx] + shiftX, Z4 + shiftZ, 1); });
+  }
 
   var laneMat = new THREE.MeshStandardMaterial({ color: 0xf4c430, roughness: 0.8 });
   // Đầu đông (phải) dừng đúng ở L/2+85 (vừa khít trong vạch đỏ ranh giới, không thò dư ra ngoài).
@@ -869,6 +886,12 @@
 
   var raycaster = new THREE.Raycaster(), mouse = new THREE.Vector2(), tooltip = document.getElementById('wh3d-tooltip');
   function pickAt(cx, cy) { var r = canvas.getBoundingClientRect(); mouse.x = ((cx - r.left) / r.width) * 2 - 1; mouse.y = -((cy - r.top) / r.height) * 2 + 1; raycaster.setFromCamera(mouse, camera); var h = raycaster.intersectObjects(interactive, false); return h.length ? h[0].object : null; }
+  // Công dụng theo ngôn ngữ đang chọn — thiếu bên đang chọn thì fallback sang bên còn lại (PMC có
+  // thể chỉ nhập 1 trong 2 ô lúc thêm kệ).
+  function purposeFor(t) {
+    var vi = t.purposeVi, en = t.purposeEn;
+    return (I18N.getLang && I18N.getLang() === 'en') ? (en || vi || '') : (vi || en || '');
+  }
   function hover(e) {
     var o = pickAt(e.clientX, e.clientY);
     if (!o) { tooltip.classList.remove('show'); return; }
@@ -877,18 +900,35 @@
     var status = t.qrCount > 0
       ? '<span class="wh3d-tt-status" style="background:rgba(47,191,122,0.18);color:#2fbf7a">' + I18N.t('statusHasStock') + '</span>'
       : '<span class="wh3d-tt-status" style="background:rgba(148,163,184,0.18);color:#9aa3b5">' + I18N.t('statusEmpty') + '</span>';
+    var purpose = purposeFor(t);
     tooltip.innerHTML = '<div class="wh3d-tt-code">' + I18N.t('rackWord') + t.rack + I18N.t('levelWord') + t.level + '</div>' +
-      (t.qrCount > 0 ? '<div class="wh3d-tt-row"><span>' + I18N.t('qrCountLabel') + '</span><span>' + t.qrCount + '</span></div>' : '') + status;
+      (t.qrCount > 0 ? '<div class="wh3d-tt-row"><span>' + I18N.t('qrCountLabel') + '</span><span>' + t.qrCount + '</span></div>' : '') +
+      (t.manager ? '<div class="wh3d-tt-row"><span>' + I18N.t('tierManagerLabel') + '</span><span>' + PmcUI.escapeHtml(t.manager) + '</span></div>' : '') +
+      (purpose ? '<div class="wh3d-tt-row"><span>' + I18N.t('tierPurposeLabel') + '</span><span>' + PmcUI.escapeHtml(purpose) + '</span></div>' : '') +
+      status;
     tooltip.classList.add('show');
   }
 
   // ----- Drawer: danh sách mã QR thật (fetch có phân trang) -----
-  var drawer = document.getElementById('wh3d-drawer'), dCode = document.getElementById('wh3d-drawer-code'), dLoc = document.getElementById('wh3d-drawer-loc'), dBody = document.getElementById('wh3d-drawer-body');
+  var drawer = document.getElementById('wh3d-drawer'), dCode = document.getElementById('wh3d-drawer-code'), dLoc = document.getElementById('wh3d-drawer-loc'), dBody = document.getElementById('wh3d-drawer-body'), dMeta = document.getElementById('wh3d-drawer-meta');
   var searchBox = document.querySelector('.wh3d-search');
-  var curLoc = null, curHl = null, curRack = null, curLevel = null;
+  var curLoc = null, curHl = null, curRack = null, curLevel = null, curManager = null, curPurposeVi = null, curPurposeEn = null;
+  // Quản lý + công dụng do PMC tự khai báo (trang Quản lý kệ) — hiện luôn trong drawer, kể cả kệ
+  // trống, vì PMC muốn biết "kệ này của ai / dùng chứa gì" bất kể có hàng hay không.
+  function renderMeta() {
+    if (!dMeta) return;
+    var purpose = purposeFor({ purposeVi: curPurposeVi, purposeEn: curPurposeEn });
+    var rows = '';
+    if (curManager) rows += '<div class="wh3d-tt-row"><span>' + I18N.t('tierManagerLabel') + '</span><span>' + PmcUI.escapeHtml(curManager) + '</span></div>';
+    if (purpose) rows += '<div class="wh3d-tt-row"><span>' + I18N.t('tierPurposeLabel') + '</span><span>' + PmcUI.escapeHtml(purpose) + '</span></div>';
+    dMeta.innerHTML = rows;
+    dMeta.style.display = rows ? '' : 'none';
+  }
   function openTierByPad(pad, hlBarcode, startPage) {
     var u = pad.userData; curLoc = u.locationId; curHl = hlBarcode || null; curRack = u.rack; curLevel = u.level;
+    curManager = u.manager || null; curPurposeVi = u.purposeVi || null; curPurposeEn = u.purposeEn || null;
     dCode.textContent = I18N.t('rackWord') + u.rack + I18N.t('levelWord') + u.level;
+    renderMeta();
     // Đóng tooltip hover + ẩn thanh tìm kiếm khi mở drawer — 2 cái này che/đè lên nhau khi camera
     // bay sát vào 1 kệ (tooltip đứng yên ở vị trí hover cuối, drawer 300px bên phải cắt ngang nó).
     tooltip.classList.remove('show');
@@ -992,6 +1032,7 @@
     if (btnSpin) btnSpin.textContent = autoSpin ? I18N.t('spinBtnStop') : I18N.t('spinBtnStart');
     if (drawer.classList.contains('open') && curRack != null) {
       dCode.textContent = I18N.t('rackWord') + curRack + I18N.t('levelWord') + curLevel;
+      renderMeta();
       if (curLoc) loadPage(1);
     }
   });
@@ -1002,14 +1043,16 @@
     tiers.forEach(function (t) {
       var obj = tierObjs[t.rackNo + '.' + t.levelNo]; if (!obj) return;
       obj.pad.userData.qrCount = t.qrCount; obj.pad.userData.locationId = t.locationId;
+      obj.pad.userData.manager = t.managerName || null; obj.pad.userData.purposeVi = t.purposeVi || null; obj.pad.userData.purposeEn = t.purposeEn || null;
+      if (curLoc === t.locationId) { curManager = obj.pad.userData.manager; curPurposeVi = obj.pad.userData.purposeVi; curPurposeEn = obj.pad.userData.purposeEn; }
       var has = obj.crates.length > 0;
       if (t.qrCount > 0 && !has) addCrateMeshes(obj);
       else if (t.qrCount === 0 && has) removeCrateMeshes(obj);
       if (t.qrCount > 0) { occ++; qr += t.qrCount; }
     });
     setTxt('wh3d-stat-total', tiers.length); setTxt('wh3d-stat-occ', occ); setTxt('wh3d-stat-qr', qr);
-    // nếu đang mở panel 1 tầng, tải lại danh sách mã QR của tầng đó cho khớp
-    if (drawer.classList.contains('open') && curLoc) loadPage(1);
+    // nếu đang mở panel 1 tầng, tải lại danh sách mã QR + thông tin quản lý/công dụng cho khớp
+    if (drawer.classList.contains('open') && curLoc) { renderMeta(); loadPage(1); }
   }
   function refreshLayout() {
     fetch('Warehouse/LayoutData').then(function (r) { return r.json(); }).then(function (d) { applyOccupancy(d || []); }).catch(function () {});

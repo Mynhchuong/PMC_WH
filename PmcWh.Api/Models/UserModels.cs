@@ -18,6 +18,13 @@ public class CreateUserRequest
     public string Role { get; set; } = "Member";
 }
 
+/// <summary>Body cho POST api/Users/{id}/change-password — admin tự đặt mật khẩu mới theo ý (khác
+/// reset-password vốn luôn đặt về "123456" cố định).</summary>
+public class ChangePasswordRequest
+{
+    public string NewPassword { get; set; } = string.Empty;
+}
+
 public class LoginRequest
 {
     public string Username { get; set; } = string.Empty;

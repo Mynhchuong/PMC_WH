@@ -7,6 +7,9 @@ public class WarehouseTier
     public int LevelNo { get; set; }
     public string Code { get; set; } = string.Empty;
     public int QrCount { get; set; }
+    public string? ManagerName { get; set; }
+    public string? PurposeVi { get; set; }
+    public string? PurposeEn { get; set; }
 }
 
 public class WarehouseMapViewModel

@@ -63,6 +63,29 @@ if (!app.Environment.IsDevelopment())
     // luôn quyền truy cập vì server chỉ chạy HTTP nội bộ, chưa có SSL cert.
 }
 
+// Dọn cookie TempData kiểu cũ (.AspNetCore.Mvc.CookieTempDataProvider*) còn sót lại trên trình
+// duyệt của user TỪ TRƯỚC lúc đổi TempData sang Session (xem ghi chú AddSession ở trên) — cookie
+// cũ này có thể đã bị chia hàng chục mảnh (chunks-52...), làm request sau đó vượt giới hạn header
+// của IIS/http.sys => "HTTP 400 - request headers too long" NGAY CẢ VỚI TRANG LOGIN, vì IIS chặn
+// request trước khi vào tới app. Middleware này chỉ dọn được cho user CHƯA vượt ngưỡng (request
+// còn lọt qua IIS tới đây) — user đã bị chặn hẳn thì phải tự xoá cookie/site data 1 lần thủ công,
+// dọn ở server không giúp được vì request của họ không bao giờ chạm tới dòng code này.
+app.Use(async (context, next) =>
+{
+    var staleNames = context.Request.Cookies.Keys
+        .Where(k => k.StartsWith(".AspNetCore.Mvc.CookieTempDataProvider", StringComparison.Ordinal))
+        .ToList();
+    foreach (var name in staleNames)
+    {
+        foreach (var path in new[] { "/", context.Request.PathBase.Value })
+        {
+            if (string.IsNullOrEmpty(path)) continue;
+            context.Response.Cookies.Delete(name, new CookieOptions { Path = path });
+        }
+    }
+    await next();
+});
+
 // Không dùng HTTPS redirect — IIS server nội bộ chưa có SSL cert, chỉ chạy HTTP.
 app.UseRouting();
 

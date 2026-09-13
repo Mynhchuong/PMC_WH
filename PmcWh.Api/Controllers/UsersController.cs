@@ -90,6 +90,62 @@ public class UsersController : ControllerBase
         return Ok(new { message = $"Đã đặt lại mật khẩu về '{DefaultResetPassword}'." });
     }
 
+    /// <summary>Admin tự đặt mật khẩu mới theo ý (khác reset-password vốn về "123456" cố định).</summary>
+    [HttpPost("{id:int}/change-password")]
+    public async Task<IActionResult> ChangePassword(int id, [FromBody] ChangePasswordRequest req)
+    {
+        if (string.IsNullOrWhiteSpace(req.NewPassword) || req.NewPassword.Trim().Length < 6)
+        {
+            return BadRequest(new { message = "Mật khẩu mới phải từ 6 ký tự trở lên." });
+        }
+
+        var affected = await _db.ExecuteAsync(
+            "UPDATE PMC_Users SET PasswordHash = :PasswordHash WHERE UserId = :UserId",
+            new OracleParameter("PasswordHash", req.NewPassword.Trim()),
+            new OracleParameter("UserId", id));
+
+        return affected == 0 ? NotFound() : Ok();
+    }
+
+    /// <summary>
+    /// Bật/tắt đăng nhập của 1 user (không xóa — PMC_StockMovements.UserId có FK tới bảng này,
+    /// xóa thật sẽ vỡ hàng ngàn dòng lịch sử nhập/xuất cũ). Tắt user Admin cuối cùng đang active thì
+    /// chặn — tránh khóa hết quyền quản trị của cả hệ thống.
+    /// </summary>
+    [HttpPost("{id:int}/toggle-active")]
+    public async Task<IActionResult> ToggleActive(int id)
+    {
+        var rows = (await _db.QueryAsync(
+            "SELECT Role, IsActive FROM PMC_Users WHERE UserId = :Id",
+            new OracleParameter("Id", id))).ToList();
+
+        if (rows.Count == 0)
+        {
+            return NotFound();
+        }
+
+        var role = rows[0]["ROLE"]?.ToString() ?? string.Empty;
+        var currentlyActive = Convert.ToInt32(rows[0]["ISACTIVE"]) == 1;
+
+        if (currentlyActive && role == "Admin")
+        {
+            var otherActiveAdmins = Convert.ToInt32((await _db.QueryAsync(
+                "SELECT COUNT(*) AS c FROM PMC_Users WHERE Role = 'Admin' AND IsActive = 1 AND UserId != :Id",
+                new OracleParameter("Id", id))).First()["C"]);
+
+            if (otherActiveAdmins == 0)
+            {
+                return Conflict(new { message = "Không thể tắt — đây là Admin đang hoạt động cuối cùng, hệ thống sẽ mất hết quyền quản trị." });
+            }
+        }
+
+        await _db.ExecuteAsync(
+            "UPDATE PMC_Users SET IsActive = 1 - IsActive WHERE UserId = :Id",
+            new OracleParameter("Id", id));
+
+        return Ok();
+    }
+
     [HttpPost("authenticate")]
     public async Task<ActionResult<LoginResult>> Authenticate([FromBody] LoginRequest req)
     {

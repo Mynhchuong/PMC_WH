@@ -10,6 +10,15 @@ public class WarehouseTierDto
     public int LevelNo { get; set; }
     public string Code { get; set; } = string.Empty;
     public int QrCount { get; set; }
+
+    /// <summary>Người/tổ quản lý ô kệ này (nếu PMC có khai báo) — hiển thị ở bản đồ 3D.</summary>
+    public string? ManagerName { get; set; }
+
+    /// <summary>Công dụng — dùng để chứa gì (tiếng Việt).</summary>
+    public string? PurposeVi { get; set; }
+
+    /// <summary>Purpose — what it stores (English).</summary>
+    public string? PurposeEn { get; set; }
 }
 
 /// <summary>1 mã QR (1 cây liệu) đang nằm ở 1 ô kệ — hiển thị trong panel chi tiết.</summary>

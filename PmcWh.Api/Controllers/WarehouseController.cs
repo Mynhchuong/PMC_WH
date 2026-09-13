@@ -25,7 +25,8 @@ public class WarehouseController : ControllerBase
     public async Task<ActionResult<List<WarehouseTierDto>>> Layout()
     {
         var rows = await _db.QueryAsync(
-            @"SELECT l.LocationId, l.RackNo, l.LevelNo, l.Code, NVL(m.qr, 0) AS QrCount
+            @"SELECT l.LocationId, l.RackNo, l.LevelNo, l.Code, NVL(m.qr, 0) AS QrCount,
+                     l.ManagerName, l.Purpose_Vi, l.Purpose_En
                 FROM PMC_StorageLocations l
                 LEFT JOIN (
                      SELECT CurrentLocationId, COUNT(*) AS qr
@@ -45,6 +46,9 @@ public class WarehouseController : ControllerBase
             LevelNo = Convert.ToInt32(r["LEVELNO"]),
             Code = r["CODE"]?.ToString() ?? string.Empty,
             QrCount = Convert.ToInt32(r["QRCOUNT"]),
+            ManagerName = r["MANAGERNAME"]?.ToString(),
+            PurposeVi = r["PURPOSE_VI"]?.ToString(),
+            PurposeEn = r["PURPOSE_EN"]?.ToString(),
         }).ToList();
 
         return Ok(items);

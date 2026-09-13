@@ -49,6 +49,7 @@ public static class SideMenuBuilder
                 {
                     new SideMenuItem { Title = "Người dùng", TranslationKey = "menuUsers", Controller = "Users", Action = "Index", Icon = "group", ColorFrom = "#6610f2", ColorTo = "#4909ad" },
                     new SideMenuItem { Title = "Nơi nhận", TranslationKey = "menuRecipients", Controller = "Recipients", Action = "Index", Icon = "add_location_alt", ColorFrom = "#0dcaf0", ColorTo = "#087990" },
+                    new SideMenuItem { Title = "Quản lý kệ", TranslationKey = "menuStorageLocations", Controller = "StorageLocations", Action = "Index", Icon = "shelves", ColorFrom = "#795548", ColorTo = "#4e342e" },
                 }
             },
         };

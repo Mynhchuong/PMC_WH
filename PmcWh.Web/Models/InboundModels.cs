@@ -1,12 +1,6 @@
 namespace PmcWh.Web.Models;
 
-public class StorageLocationDto
-{
-    public int LocationId { get; set; }
-    public int RackNo { get; set; }
-    public int LevelNo { get; set; }
-    public string Code { get; set; } = string.Empty;
-}
+// StorageLocationDto giờ ở Models/StorageLocationModels.cs (dùng chung cho trang Quản lý kệ).
 
 /// <summary>
 /// 1 dòng trong bảng "Cần lên kệ" (Inbound/Index) — gộp chung Mới nhập (Staging) và Nhận lại
