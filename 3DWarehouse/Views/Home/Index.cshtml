@@ -1,0 +1,57 @@
+@using Warehouse3D.Helpers
+@{
+    ViewData["Title"] = "Danh sách kho";
+}
+
+@section Styles {
+    <style>
+        .wh-picker { min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 28px; padding: 24px; }
+        .wh-picker h1 { color: #e9edf5; font-size: 22px; font-weight: 700; }
+        .wh-picker .sub { color: #8a93a6; font-size: 13px; margin-top: -18px; }
+        .wh-cards { display: flex; flex-wrap: wrap; gap: 16px; justify-content: center; max-width: 900px; }
+        .wh-card {
+            width: 220px; background: linear-gradient(160deg, #171b26 0%, #0e1118 100%);
+            border: 1px solid #2a3040; border-radius: 14px; padding: 22px 18px; text-align: center;
+            text-decoration: none !important; transition: border-color 0.15s ease, transform 0.15s ease;
+        }
+        .wh-card:hover { border-color: #ff8a3d; transform: translateY(-2px); }
+        .wh-card .icon {
+            width: 46px; height: 46px; margin: 0 auto 12px; border-radius: 12px; display: flex;
+            align-items: center; justify-content: center; background: linear-gradient(135deg,#ff8a3d,#c9501a);
+        }
+        .wh-card .icon .material-icons { color: #fff; font-size: 22px; }
+        .wh-card .name { color: #e9edf5; font-weight: 700; font-size: 15px; }
+        .wh-card .desc { color: #8a93a6; font-size: 11.5px; margin-top: 4px; }
+        .wh-card.wh-soon { opacity: 0.45; pointer-events: none; }
+    </style>
+}
+
+<div class="wh-picker">
+    <div class="text-center">
+        <h1>3D Warehouse</h1>
+        <div class="sub">Chọn kho để xem bản đồ 3D</div>
+    </div>
+    @* Danh sách kho đọc thẳng từ WarehouseRegistry — thêm kho mới ở đó là tự hiện thêm card
+       ở đây, không phải sửa view này. *@
+    <div class="wh-cards">
+        @foreach (var wh in WarehouseRegistry.Warehouses)
+        {
+            if (wh.IsActive)
+            {
+                <a class="wh-card" asp-controller="Warehouse" asp-action="Map" asp-route-warehouseId="@wh.Id">
+                    <div class="icon"><span class="material-icons">@wh.Icon</span></div>
+                    <div class="name">@wh.Name</div>
+                    <div class="desc">@wh.Description</div>
+                </a>
+            }
+            else
+            {
+                <div class="wh-card wh-soon">
+                    <div class="icon"><span class="material-icons">@wh.Icon</span></div>
+                    <div class="name">@wh.Name</div>
+                    <div class="desc">Sắp có</div>
+                </div>
+            }
+        }
+    </div>
+</div>

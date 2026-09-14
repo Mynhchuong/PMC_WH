@@ -1,0 +1,52 @@
+﻿<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewData["Title"] - 3D Warehouse</title>
+    <link rel="icon" type="image/png" href="~/img/pmc-warehouse-logo.png" />
+    <base href="@Url.Content("~/")" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+    <style>
+        html, body { height: 100%; margin: 0; background: #0c0e14; font-family: 'Inter', sans-serif; }
+    </style>
+    @await RenderSectionAsync("Styles", required: false)
+</head>
+<body>
+    <div class="wh-topbar">
+        <partial name="_WarehouseMenu" />
+        <select id="wh3d-lang-select">
+            <option value="vi">Tiếng Việt</option>
+            <option value="en">English</option>
+        </select>
+    </div>
+
+    <div class="wh-body">
+        <main role="main">
+            @RenderBody()
+        </main>
+    </div>
+
+    <script src="~/lib/jquery/dist/jquery.min.js"></script>
+    <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="~/js/warehouse-i18n.js" asp-append-version="true"></script>
+    <script src="~/js/ui-helper.js" asp-append-version="true"></script>
+    <script>
+        // Wiring #wh3d-lang-select toàn cục — đặt ở đây (thay vì warehouse-dashboard.js) vì topbar
+        // giờ hiện trên MỌI trang, kể cả trang không nạp warehouse-dashboard.js (vd Home/Index).
+        (function () {
+            var sel = document.getElementById('wh3d-lang-select');
+            if (!sel || !window.PmcWhI18n) return;
+            sel.value = PmcWhI18n.getLang();
+            sel.addEventListener('change', function () { PmcWhI18n.setLang(sel.value); });
+            PmcWhI18n.onChange(function () { sel.value = PmcWhI18n.getLang(); });
+        })();
+    </script>
+    @await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

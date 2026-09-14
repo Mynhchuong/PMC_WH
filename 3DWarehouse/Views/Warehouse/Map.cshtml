@@ -1,0 +1,273 @@
+@using System.Text.Json
+@model Warehouse3D.Models.WarehouseMapViewModel
+@{
+    ViewData["Title"] = $"Bản đồ kho 3D — {Model.Warehouse.Name}";
+    var tiersJson = JsonSerializer.Serialize(Model.Tiers, new JsonSerializerOptions(JsonSerializerDefaults.Web));
+}
+
+@section Styles {
+    <style>
+        .wh3d-mapbody { padding: 0 14px 14px; }
+
+        #wh3d-page { display: flex; flex-direction: column; gap: 10px; min-height: 480px; }
+        .wh3d-mainrow { display: flex; gap: 12px; flex: 1 1 auto; min-height: 320px; }
+        #wh3d-wrap {
+            position: relative; flex: 1 1 auto; width: auto; min-width: 0; height: 100%;
+            border-radius: 16px; overflow: hidden; background: #d2d8df;
+            box-shadow: 0 10px 30px rgba(15, 23, 42, 0.12); border: 1px solid #e2e6ea;
+        }
+        .wh3d-side { flex: 0 0 300px; display: flex; flex-direction: column; gap: 10px; min-height: 0; }
+        @@media (max-width: 1100px) {
+            #wh3d-page { height: auto !important; }
+            .wh3d-mainrow { flex-direction: column; }
+            #wh3d-wrap { height: 60vh; min-height: 420px; }
+            .wh3d-side { flex: none; }
+        }
+        @@media (max-width: 680px) {
+            .wh3d-search { left: 14px; flex-wrap: wrap; max-width: calc(100% - 28px); justify-content: center; }
+            .wh3d-search input { width: 120px; }
+            .wh3d-search-sep { display: none; }
+        }
+        #wh3d-canvas { display: block; width: 100%; height: 100%; cursor: grab; }
+        .wh3d-hud {
+            position: absolute; top: 14px; left: 14px; right: 14px; display: flex; align-items: center;
+            justify-content: space-between; gap: 12px; pointer-events: none; z-index: 4;
+        }
+        .wh3d-badge {
+            background: rgba(15, 18, 24, 0.82); color: #e9edf5; border: 1px solid #2a3040;
+            border-radius: 9px; padding: 5px 10px; backdrop-filter: blur(6px);
+            font-size: 10.5px; display: flex; align-items: center; gap: 6px;
+        }
+        .wh3d-legend {
+            position: absolute; left: 14px; bottom: 14px; z-index: 4;
+            background: rgba(17, 20, 27, 0.85); border: 1px solid #2a3040; border-radius: 12px;
+            padding: 11px 13px; backdrop-filter: blur(6px); min-width: 180px;
+        }
+        .wh3d-legend .acts { display: flex; gap: 6px; }
+        .wh3d-btn {
+            font-size: 11.5px; font-weight: 600; color: #e9edf5; background: #1d2230; border: 1px solid #2a3040;
+            border-radius: 7px; padding: 6px 10px; cursor: pointer;
+        }
+        .wh3d-btn:hover { background: #262c3c; }
+        .wh3d-btn.on { border-color: #ff8a3d; color: #ff8a3d; }
+        .wh3d-tooltip {
+            position: absolute; z-index: 6; pointer-events: none; background: rgba(17, 20, 27, 0.95);
+            border: 1px solid #2a3040; border-radius: 8px; padding: 8px 11px; font-size: 12px; color: #e9edf5;
+            min-width: 150px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); opacity: 0; transform: translateY(4px);
+            transition: opacity 0.1s ease, transform 0.1s ease;
+        }
+        .wh3d-tooltip.show { opacity: 1; transform: translateY(0); }
+        .wh3d-tt-code { font-family: var(--font-mono, monospace); font-weight: 600; }
+        .wh3d-tt-row { display: flex; justify-content: space-between; gap: 14px; color: #8a93a6; }
+        .wh3d-tt-row span:last-child { color: #e9edf5; }
+        .wh3d-tt-status { display: inline-block; margin-top: 4px; font-size: 10.5px; font-weight: 700; text-transform: uppercase; padding: 1px 7px; border-radius: 999px; }
+        .wh3d-loading { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; background: #eef1f4; color: #64748b; z-index: 8; }
+
+        .wh3d-search { position: absolute; top: 14px; right: 14px; z-index: 6; display: flex; gap: 7px; align-items: center; background: rgba(15,18,24,0.9); border: 1px solid #2a3040; border-radius: 11px; padding: 6px 8px 6px 12px; backdrop-filter: blur(6px); box-shadow: 0 8px 24px rgba(0,0,0,0.25); transition: opacity 0.2s ease, transform 0.2s ease; }
+        .wh3d-search.wh3d-hide { opacity: 0; transform: translateY(-6px); pointer-events: none; }
+        .wh3d-search input { width: 230px; border: none; outline: none; background: transparent; color: #e9edf5; font-family: monospace; font-size: 13px; }
+        .wh3d-search input::placeholder { color: #5c6478; font-family: var(--font-body, sans-serif); }
+        .wh3d-search button { border: 1px solid #2a3040; background: #1d2230; color: #e9edf5; font-size: 12px; font-weight: 600; padding: 5px 11px; border-radius: 8px; cursor: pointer; }
+        .wh3d-search button:hover { border-color: #ff8a3d; }
+        .wh3d-search .msg { font-size: 11px; color: #ff8a3d; max-width: 190px; }
+        .wh3d-search .msg.err { color: #ff6a6a; }
+        .wh3d-search-sep { width: 1px; align-self: stretch; background: #2a3040; margin: 0 2px; }
+
+        .wh3d-drawer { position: absolute; top: 0; right: 0; bottom: 0; width: 300px; background: rgba(15,18,24,0.97); border-left: 1px solid #2a3040; z-index: 7; transform: translateX(100%); transition: transform 0.28s cubic-bezier(0.22,1,0.36,1); display: flex; flex-direction: column; }
+        .wh3d-drawer.open { transform: translateX(0); }
+        .wh3d-drawer .head { display: flex; justify-content: space-between; align-items: flex-start; padding: 16px 16px 12px; border-bottom: 1px solid #2a3040; }
+        .wh3d-drawer .head .code { font-family: monospace; font-size: 15px; font-weight: 700; color: #e9edf5; }
+        .wh3d-drawer .head .loc { font-size: 12px; color: #8a93a6; margin-top: 2px; }
+        .wh3d-drawer .close { background: none; border: none; color: #8a93a6; font-size: 18px; cursor: pointer; line-height: 1; }
+        .wh3d-drawer .body { padding: 14px 16px; overflow-y: auto; flex: 1; }
+        .wh3d-drawer-meta { padding: 12px 16px; border-bottom: 1px solid #2a3040; display: flex; flex-direction: column; gap: 4px; font-size: 12.5px; }
+        .wh3d-drawer-meta:empty { display: none; padding: 0; border: 0; }
+        .wh3d-status { display: inline-block; font-size: 11px; font-weight: 700; text-transform: uppercase; padding: 4px 10px; border-radius: 999px; margin-bottom: 12px; background: rgba(47,191,122,0.16); color: #2fbf7a; }
+        .wh3d-mini { width: 100%; border-collapse: collapse; font-size: 12px; color: #e9edf5; }
+        .wh3d-mini th { text-align: left; color: #8a93a6; font-size: 10px; text-transform: uppercase; padding: 4px 6px; border-bottom: 1px solid #2a3040; }
+        .wh3d-mini td { padding: 5px 6px; border-bottom: 1px solid rgba(255,255,255,0.04); }
+        .wh3d-mini td.mono { font-family: monospace; }
+        .wh3d-mini tr.hl td { background: rgba(255,196,0,0.16); }
+        .wh3d-pager { display: flex; justify-content: center; align-items: center; gap: 12px; margin-top: 12px; font-size: 12px; color: #8a93a6; }
+        .wh3d-pager button { border: 1px solid #2a3040; background: #1d2230; color: #e9edf5; width: 28px; height: 26px; border-radius: 7px; cursor: pointer; font-size: 15px; }
+        .wh3d-pager button:disabled { opacity: 0.35; cursor: default; }
+        .wh3d-empty { text-align: center; color: #8a93a6; font-size: 12.5px; padding: 26px 10px; }
+
+        .wh3d-banner {
+            display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap;
+            flex: 0 0 auto;
+            background: linear-gradient(120deg, #0c0e14 0%, #1a1f2c 55%, #0c0e14 100%);
+            border: 1px solid #2a3040; border-radius: 14px; padding: 9px 18px;
+            box-shadow: 0 12px 30px rgba(0,0,0,0.25);
+        }
+        .wh3d-banner .id { display: flex; align-items: center; gap: 12px; }
+        .wh3d-banner .id .icon { width: 38px; height: 38px; font-size: 18px; }
+        .wh3d-banner h5 { color: #f4f6fb; letter-spacing: 0.02em; margin-bottom: 1px; font-size: 16px; }
+        .wh3d-banner .sub { color: #8a93a6; }
+        .wh3d-clock { text-align: right; color: #e9edf5; font-variant-numeric: tabular-nums; }
+        .wh3d-clock .time { font-size: 18px; font-weight: 700; line-height: 1.1; }
+        .wh3d-clock .date { font-size: 10.5px; color: #8a93a6; text-transform: uppercase; letter-spacing: 0.06em; }
+
+        .wh3d-bignums { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; flex: 0 0 auto; }
+        .wh3d-bignum {
+            position: relative; overflow: hidden;
+            background: linear-gradient(160deg, #171b26 0%, #0e1118 100%);
+            border: 1px solid #2a3040; border-radius: 12px; padding: 12px 8px 10px; text-align: center;
+        }
+        .wh3d-bignum::before {
+            content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px;
+            background: linear-gradient(90deg, transparent, #4a5164, transparent);
+        }
+        .wh3d-bignum .icon {
+            width: 26px; height: 26px; margin: 0 auto 4px; border-radius: 8px;
+            display: flex; align-items: center; justify-content: center;
+            background: rgba(148, 163, 184, 0.12); color: #8a93a6;
+        }
+        .wh3d-bignum .icon .material-icons { font-size: 15px; }
+        .wh3d-bignum .n { font-size: 26px; font-weight: 800; line-height: 1.05; color: #e9edf5; font-variant-numeric: tabular-nums; }
+        .wh3d-bignum .l { font-size: 10px; color: #8a93a6; text-transform: uppercase; letter-spacing: 0.04em; margin-top: 3px; }
+        .wh3d-bignum.occ::before { background: linear-gradient(90deg, transparent, #2fbf7a, transparent); }
+        .wh3d-bignum.occ .icon { background: rgba(47,191,122,0.14); color: #2fbf7a; }
+        .wh3d-bignum.occ .n { color: #2fbf7a; }
+        .wh3d-bignum.out::before { background: linear-gradient(90deg, transparent, #ffb84d, transparent); }
+        .wh3d-bignum.out .icon { background: rgba(255,184,77,0.14); color: #ffb84d; }
+        .wh3d-bignum.out .n { color: #ffb84d; }
+        .wh3d-bignum.inb::before { background: linear-gradient(90deg, transparent, #5b9bff, transparent); }
+        .wh3d-bignum.inb .icon { background: rgba(91,155,255,0.14); color: #5b9bff; }
+        .wh3d-bignum.inb .n { color: #5b9bff; }
+        @@media (max-width: 700px) { .wh3d-bignums { grid-template-columns: 1fr; } }
+        .wh3d-updated-row { flex: 0 0 auto; text-align: right; font-size: 10.5px; color: #6b7385; margin-top: -6px; display: flex; align-items: center; justify-content: flex-end; gap: 4px; }
+        .wh3d-updated-row .material-icons { font-size: 12px; }
+
+        .wh3d-feed {
+            background: #12151d; border: 1px solid #2a3040; border-radius: 14px; padding: 12px 14px;
+            box-shadow: 0 10px 26px rgba(0,0,0,0.18); flex: 1 1 0; display: flex; flex-direction: column; min-height: 0;
+        }
+        .wh3d-feed h6 {
+            display: flex; align-items: center; gap: 8px; color: #e9edf5; font-size: 11.5px;
+            text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 6px; flex: 0 0 auto;
+        }
+        .wh3d-feed h6 .dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+        .wh3d-feed.in h6 .dot { background: #2fbf7a; box-shadow: 0 0 8px #2fbf7a; }
+        .wh3d-feed.out h6 .dot { background: #ffb84d; box-shadow: 0 0 8px #ffb84d; }
+        .wh3d-feed-list { flex: 1 1 auto; overflow-y: auto; min-height: 0; }
+        .wh3d-feed-item {
+            display: flex; align-items: center; justify-content: space-between; gap: 10px;
+            padding: 7px 0; border-bottom: 1px solid rgba(255,255,255,0.05);
+        }
+        .wh3d-feed-item:last-child { border-bottom: none; }
+        .wh3d-feed-item .fi-main { min-width: 0; }
+        .wh3d-feed-item .fi-code { font-family: monospace; font-weight: 700; color: #e9edf5; font-size: 12.5px; }
+        .wh3d-feed-item .fi-sub { font-size: 10.5px; color: #8a93a6; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .wh3d-feed-item .fi-right { text-align: right; flex-shrink: 0; }
+        .wh3d-feed-item .fi-qty { font-size: 11.5px; color: #e9edf5; font-weight: 600; }
+        .wh3d-feed-item .fi-time { font-size: 10px; color: #6b7385; }
+        .wh3d-feed-empty { text-align: center; color: #6b7385; font-size: 12px; padding: 14px 0; }
+    </style>
+}
+
+<div class="wh3d-mapbody">
+<div id="wh3d-page">
+    <div class="wh3d-banner">
+        <div class="id">
+            <span class="d-inline-flex align-items-center justify-content-center rounded-4 icon"
+                  style="background:linear-gradient(135deg,#ff8a3d,#c9501a);flex-shrink:0;">
+                <span class="material-icons text-white">warehouse</span>
+            </span>
+            <div>
+                <h5 class="mb-0" id="wh3d-banner-title">@Model.Warehouse.Name</h5>
+            </div>
+        </div>
+        <div class="d-flex align-items-center gap-3">
+            <div class="wh3d-clock">
+                <div class="time" id="wh3d-clock-time">--:--:--</div>
+                <div class="date" id="wh3d-clock-date">—</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="wh3d-bignums">
+        <div class="wh3d-bignum occ">
+            <div class="icon"><span class="material-icons">inventory_2</span></div>
+            <div class="n" id="wh3d-big-instock">—</div><div class="l" id="wh3d-big-instock-label">Tổng số hàng trong kho</div>
+        </div>
+        <div class="wh3d-bignum out">
+            <div class="icon"><span class="material-icons">local_shipping</span></div>
+            <div class="n" id="wh3d-big-issued-today">—</div><div class="l" id="wh3d-big-issued-today-label">Đã xuất hôm nay</div>
+        </div>
+        <div class="wh3d-bignum inb">
+            <div class="icon"><span class="material-icons">move_to_inbox</span></div>
+            <div class="n" id="wh3d-big-inbound-today">—</div><div class="l" id="wh3d-big-inbound-today-label">Lên kệ hôm nay</div>
+        </div>
+    </div>
+    <div class="wh3d-updated-row"><span class="material-icons">schedule</span><span id="wh3d-summary-updated">—</span></div>
+
+    <div class="wh3d-mainrow">
+        <div id="wh3d-wrap">
+            <canvas id="wh3d-canvas"></canvas>
+            <div class="wh3d-loading" id="wh3d-loading">Đang dựng kho 3D…</div>
+
+            <div class="wh3d-hud">
+                <div class="wh3d-badge" id="wh3d-badge">Kéo <b>xoay</b> · Cuộn <b>zoom</b> · Bấm 1 tầng để xem mã QR</div>
+            </div>
+
+            <div class="wh3d-legend">
+                <div class="acts">
+                    <button class="wh3d-btn" id="wh3d-btnReset">↺ Reset góc nhìn</button>
+                    <button class="wh3d-btn" id="wh3d-btnSpin">▶ Tự xoay</button>
+                    <button class="wh3d-btn d-inline-flex align-items-center gap-1" id="wh3d-btnFullscreen">
+                        <span class="material-icons" style="font-size:13px;">fullscreen</span> <span id="wh3d-tvbtn-label">Chế độ TV</span>
+                    </button>
+                </div>
+            </div>
+
+            <div class="wh3d-search">
+                <span>🔍</span>
+                <input id="wh3d-search-input" type="text" placeholder="Tìm theo barcode…" autocomplete="off" />
+                <button id="wh3d-search-btn">Tìm</button>
+                <span class="wh3d-search-sep"></span>
+                <span>📍</span>
+                <input id="wh3d-goto-input" type="text" placeholder="Đến kệ (vd: 3.2)…" autocomplete="off" style="width:130px;" />
+                <button id="wh3d-goto-btn">Đến</button>
+                <span class="msg" id="wh3d-search-msg"></span>
+            </div>
+
+            <div class="wh3d-tooltip" id="wh3d-tooltip"></div>
+
+            <div class="wh3d-drawer" id="wh3d-drawer">
+                <div class="head">
+                    <div>
+                        <div class="code" id="wh3d-drawer-code">—</div>
+                        <div class="loc" id="wh3d-drawer-loc">—</div>
+                    </div>
+                    <button class="close" id="wh3d-drawer-close" aria-label="Đóng">✕</button>
+                </div>
+                <div class="wh3d-drawer-meta" id="wh3d-drawer-meta"></div>
+                <div class="body" id="wh3d-drawer-body"></div>
+            </div>
+        </div>
+
+        <div class="wh3d-side">
+            <div class="wh3d-feed in">
+                <h6><span class="dot"></span> <span id="wh3d-feed-inbound-title">5 mã vừa lên kệ</span></h6>
+                <div class="wh3d-feed-list" id="wh3d-feed-inbound"><div class="wh3d-feed-empty">Đang tải…</div></div>
+            </div>
+            <div class="wh3d-feed out">
+                <h6><span class="dot"></span> <span id="wh3d-feed-issue-title">5 mã vừa xuất kho</span></h6>
+                <div class="wh3d-feed-list" id="wh3d-feed-issue"><div class="wh3d-feed-empty">Đang tải…</div></div>
+            </div>
+        </div>
+    </div>
+</div>
+</div>
+
+@section Scripts {
+    <script>
+        window.PMC_TIERS = @Html.Raw(tiersJson);
+        window.PMC_WAREHOUSE_ID = @Html.Raw(JsonSerializer.Serialize(Model.Warehouse.Id));
+        window.PMC_WAREHOUSE_NAME = @Html.Raw(JsonSerializer.Serialize(Model.Warehouse.Name));
+    </script>
+    <script src="~/lib/three/three.min.js" asp-append-version="true"></script>
+    <script src="~/js/warehouse-map.js" asp-append-version="true"></script>
+    <script src="~/js/warehouse-dashboard.js" asp-append-version="true"></script>
+}

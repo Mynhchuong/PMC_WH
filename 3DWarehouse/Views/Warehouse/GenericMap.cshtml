@@ -1,0 +1,115 @@
+@using System.Text.Json
+@model Warehouse3D.Models.GenericWarehouseMapViewModel
+@{
+    ViewData["Title"] = $"Bản đồ kho 3D — {Model.Warehouse.Name}";
+    var racksJson = JsonSerializer.Serialize(Model.Racks, new JsonSerializerOptions(JsonSerializerDefaults.Web));
+}
+
+@section Styles {
+    <style>
+        .whg-mapbody { padding: 0 14px 14px; }
+        #whg-page { display: flex; flex-direction: column; gap: 10px; min-height: 480px; }
+        .whg-mainrow { display: flex; gap: 12px; flex: 1 1 auto; min-height: 420px; }
+        #whg-wrap {
+            position: relative; flex: 1 1 auto; width: auto; min-width: 0; height: 100%;
+            border-radius: 16px; overflow: hidden; background: #d2d8df;
+            box-shadow: 0 10px 30px rgba(15, 23, 42, 0.12); border: 1px solid #e2e6ea;
+        }
+        #whg-canvas { display: block; width: 100%; height: 100%; cursor: grab; }
+        @@media (max-width: 1100px) {
+            .whg-mainrow { flex-direction: column; }
+            #whg-wrap { height: 60vh; min-height: 420px; }
+            .whg-side { flex: none; }
+        }
+
+        .whg-side { flex: 0 0 300px; display: flex; flex-direction: column; gap: 10px; min-height: 0; }
+        .whg-banner {
+            display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap;
+            background: linear-gradient(120deg, #0c0e14 0%, #1a1f2c 55%, #0c0e14 100%);
+            border: 1px solid #2a3040; border-radius: 14px; padding: 9px 18px;
+        }
+        .whg-banner .t { color: #e9edf5; font-size: 13px; font-weight: 700; }
+        .whg-banner .stats { display: flex; gap: 14px; }
+        .whg-banner .stat { color: #8a93a6; font-size: 11px; }
+        .whg-banner .stat b { color: #e9edf5; font-size: 14px; display: block; }
+
+        .whg-hud { position: absolute; top: 14px; left: 14px; z-index: 4; display: flex; gap: 8px; }
+        .whg-badge {
+            background: rgba(15, 18, 24, 0.82); color: #e9edf5; border: 1px solid #2a3040;
+            border-radius: 9px; padding: 5px 10px; backdrop-filter: blur(6px); font-size: 10.5px;
+        }
+        .whg-legend {
+            position: absolute; left: 14px; bottom: 14px; z-index: 4;
+            background: rgba(17, 20, 27, 0.85); border: 1px solid #2a3040; border-radius: 12px;
+            padding: 10px 13px; backdrop-filter: blur(6px); min-width: 170px; font-size: 11px; color: #cdd3df;
+        }
+        .whg-legend .row { display: flex; align-items: center; gap: 7px; margin: 3px 0; }
+        .whg-legend .sw { width: 11px; height: 11px; border-radius: 3px; flex-shrink: 0; }
+
+        .whg-search {
+            position: absolute; top: 14px; right: 14px; z-index: 6; display: flex; gap: 7px; align-items: center;
+            background: rgba(15,18,24,0.9); border: 1px solid #2a3040; border-radius: 11px; padding: 6px 8px 6px 12px;
+            backdrop-filter: blur(6px); box-shadow: 0 8px 24px rgba(0,0,0,0.25);
+        }
+        .whg-search input { width: 190px; border: none; outline: none; background: transparent; color: #e9edf5; font-family: monospace; font-size: 13px; }
+        .whg-search input::placeholder { color: #5c6478; font-family: var(--font-body, sans-serif); }
+        .whg-search button { border: 1px solid #2a3040; background: #1d2230; color: #e9edf5; font-size: 12px; font-weight: 600; padding: 5px 11px; border-radius: 8px; cursor: pointer; }
+        .whg-search button:hover { border-color: #ff8a3d; }
+        .whg-search .msg { font-size: 11px; color: #ff6a6a; max-width: 160px; }
+
+        .whg-panel { background: #11141b; border: 1px solid #2a3040; border-radius: 14px; padding: 14px 16px; flex: 1 1 auto; overflow-y: auto; min-height: 0; color: #e9edf5; }
+        .whg-panel .rid { font-family: monospace; font-size: 15px; font-weight: 700; color: #ff8a3d; }
+        .whg-panel .label { font-size: 14px; font-weight: 600; margin-top: 2px; }
+        .whg-panel .note { font-size: 11.5px; color: #8a93a6; margin-top: 4px; }
+        .whg-panel .empty { color: #8a93a6; font-size: 12.5px; text-align: center; padding: 30px 10px; }
+        .whg-facegrp { margin-top: 12px; }
+        .whg-facegrp .ft { font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.06em; color: #8a93a6; margin-bottom: 6px; }
+        .whg-level { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 5px; align-items: center; }
+        .whg-level .ln { font-family: monospace; font-size: 10px; color: #8a93a6; width: 20px; flex-shrink: 0; }
+        .whg-chip { font-family: monospace; font-size: 10.5px; padding: 2px 6px; border-radius: 5px; background: #1d2230; border: 1px solid #2a3040; }
+        .whg-chip.filled { color: #2fbf7a; border-color: #2fbf7a44; }
+        .whg-chip.empty { color: #4a5065; }
+        .whg-chip.hl { background: rgba(255,196,0,0.18); border-color: #ffc400; color: #ffe9a8; }
+    </style>
+}
+
+<div class="whg-mapbody">
+    <div id="whg-page">
+        <div class="whg-banner">
+            <div class="t">@Model.Warehouse.Name</div>
+            <div class="stats">
+                <div class="stat">Kệ<b>@Model.TotalRacks</b></div>
+                <div class="stat">Tổng ô<b>@Model.TotalLocations</b></div>
+                <div class="stat">Đã có mã<b>@Model.FilledLocations</b></div>
+            </div>
+        </div>
+
+        <div class="whg-mainrow">
+            <div id="whg-wrap">
+                <canvas id="whg-canvas"></canvas>
+                <div class="whg-hud"><div class="whg-badge">Kéo chuột xoay · lăn để zoom · click 1 kệ để xem chi tiết</div></div>
+                <div class="whg-legend">
+                    <div class="row"><span class="sw" style="background:#2f5fa8;"></span> Kệ chứa liệu</div>
+                    <div class="row"><span class="sw" style="background:#a8402b;"></span> Máy / khu Lamination</div>
+                    <div class="row"><span class="sw" style="background:#6b7280;"></span> Bàn / khu kiểm tra</div>
+                </div>
+                <div class="whg-search">
+                    <input id="whg-search-input" type="text" placeholder="Tìm mã vị trí (NB108-21)" />
+                    <button id="whg-search-btn">Tìm</button>
+                    <span class="msg" id="whg-search-msg"></span>
+                </div>
+            </div>
+            <div class="whg-side">
+                <div class="whg-panel" id="whg-panel">
+                    <div class="empty">Click 1 kệ trong bản đồ để xem chi tiết từng tầng / mã ô.</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script id="whg-racks-data" type="application/json">@Html.Raw(racksJson)</script>
+    <script src="~/lib/three/three.min.js" asp-append-version="true"></script>
+    <script src="~/js/warehouse-map-generic.js" asp-append-version="true"></script>
+}

@@ -1,0 +1,41 @@
+@using Warehouse3D.Helpers
+@{
+    // ViewBag.CurrentWarehouseId set ở WarehouseController.Map() — để menu tô sáng đúng kho đang
+    // xem (giống cách _SideNav.cshtml bên PmcWh.Web so khớp URL hiện tại để highlight mục đang chọn).
+    var currentId = ViewBag.CurrentWarehouseId as string;
+    var current = !string.IsNullOrEmpty(currentId) ? WarehouseRegistry.Find(currentId) : null;
+}
+<div class="wh-menu dropdown">
+    <button class="wh-menu-btn dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+        <span class="material-icons">apps</span>
+        <span>@(current?.Name ?? "Chọn kho")</span>
+    </button>
+    <ul class="dropdown-menu dropdown-menu-dark dropdown-menu-end wh-menu-list">
+        @* Danh sách kho đọc thẳng từ WarehouseRegistry — thêm kho mới ở đó là tự hiện thêm mục ở
+           đây, không phải sửa partial này. *@
+        @foreach (var wh in WarehouseRegistry.Warehouses)
+        {
+            var isCurrent = current is not null && string.Equals(wh.Id, current.Id, StringComparison.OrdinalIgnoreCase);
+            <li>
+                @if (wh.IsActive)
+                {
+                    <a class="dropdown-item @(isCurrent ? "active" : "")" asp-controller="Warehouse" asp-action="Map" asp-route-warehouseId="@wh.Id">
+                        <span class="material-icons">@wh.Icon</span>@wh.Name
+                    </a>
+                }
+                else
+                {
+                    <span class="dropdown-item disabled">
+                        <span class="material-icons">@wh.Icon</span>@wh.Name <small class="text-muted">(sắp có)</small>
+                    </span>
+                }
+            </li>
+        }
+        <li><hr class="dropdown-divider" /></li>
+        <li>
+            <a class="dropdown-item" asp-controller="Home" asp-action="Index">
+                <span class="material-icons">home</span>Trang chủ
+            </a>
+        </li>
+    </ul>
+</div>
