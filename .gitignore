@@ -14,6 +14,7 @@ DataProtectionKeys/
 /publish/
 # Chứa Oracle password thật (kiểu HR_api) — không được lên git, chỉ tồn tại trên máy dev/server.
 /PmcWh.Api/appsettings.Production.json
+/3DWarehouse/appsettings.Production.json
 
 # Visual Studio / Rider / VS Code
 .vs/
