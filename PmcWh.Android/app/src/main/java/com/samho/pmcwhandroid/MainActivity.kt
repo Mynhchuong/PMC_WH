@@ -16,6 +16,7 @@ import androidx.compose.ui.Modifier
 import com.samho.pmcwhandroid.data.SessionManager
 import com.samho.pmcwhandroid.data.UserSession
 import com.samho.pmcwhandroid.network.ApiClient
+import com.samho.pmcwhandroid.ui.DoiKheScreen
 import com.samho.pmcwhandroid.ui.HomeScreen
 import com.samho.pmcwhandroid.ui.LoginScreen
 import com.samho.pmcwhandroid.ui.NhapKhoScreen
@@ -64,6 +65,10 @@ class MainActivity : ComponentActivity() {
                                 onBack = { route = null },
                             )
                             "xuat_kho" -> XuatKhoScreen(
+                                session = currentSession,
+                                onBack = { route = null },
+                            )
+                            "doi_ke" -> DoiKheScreen(
                                 session = currentSession,
                                 onBack = { route = null },
                             )

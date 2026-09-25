@@ -49,6 +49,7 @@ private data class HomeMenuItem(
 private val menuItems = listOf(
     HomeMenuItem("nhap_kho", "Nhập kho", "📥", implemented = true),
     HomeMenuItem("xuat_kho", "Xuất kho", "📤", implemented = true),
+    HomeMenuItem("doi_ke", "Đổi kệ", "🔁", implemented = true),
     HomeMenuItem("nhan_lai", "Nhận lại", "↩️", implemented = true),
     HomeMenuItem("huy_lieu", "Hủy liệu", "🗑️", implemented = true),
     HomeMenuItem("tim_kiem", "Tìm kiếm", "🔍", implemented = true),

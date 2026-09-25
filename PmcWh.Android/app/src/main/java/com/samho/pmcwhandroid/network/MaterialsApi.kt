@@ -55,4 +55,9 @@ interface MaterialsApi {
 
     @GET("api/StorageLocations")
     suspend fun storageLocations(): List<StorageLocationDto>
+
+    /** Đổi kệ thuần tuý (không đổi Balance/Status) — chỉ liệu đang InStock/PartiallyIssued mới đổi
+     *  được. Cùng lý do dùng Response<ResponseBody> như inbound()/issue() — Ok() không có body. */
+    @POST("api/Materials/{id}/relocate")
+    suspend fun relocate(@Path("id") id: Int, @Body request: RelocateRequest): Response<ResponseBody>
 }

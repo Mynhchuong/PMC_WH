@@ -853,6 +853,80 @@ public class MaterialsController : ControllerBase
     }
 
     /// <summary>
+    /// Đổi kệ thuần tuý (không đổi Balance/Status) — dành riêng cho app mobile, dùng cho các liệu
+    /// nhỏ (dây, chỉ...) cần dời qua kệ khác thường xuyên mà KHÔNG qua nghiệp vụ Xuất/Nhận lại. Chỉ
+    /// áp dụng cho liệu đang thật sự nằm trên 1 kệ (InStock/PartiallyIssued) — Staging chưa từng lên
+    /// kệ, IssuedOut đã rời kệ hẳn, phải đi qua Inbound/Return như bình thường. Ghi StockMovements
+    /// (Relocate, Qty = Balance hiện tại chỉ để có số liệu trong lịch sử, không đổi tồn kho thật).
+    /// </summary>
+    [HttpPost("{id:int}/relocate")]
+    public async Task<IActionResult> Relocate(int id, [FromBody] RelocateRequest req)
+    {
+        var rows = (await _db.QueryAsync(
+            "SELECT Status, Balance, CurrentLocationId FROM PMC_Materials WHERE MaterialId = :id",
+            new OracleParameter("id", id))).ToList();
+
+        if (rows.Count == 0)
+        {
+            return NotFound(new { message = "Không tìm thấy liệu." });
+        }
+
+        var status = rows[0]["STATUS"]?.ToString();
+        if (status != "InStock" && status != "PartiallyIssued")
+        {
+            return Conflict(new { message = "Liệu này không có kệ để đổi (phải đang trong kho — InStock hoặc PartiallyIssued)." });
+        }
+
+        var currentLocationId = rows[0]["CURRENTLOCATIONID"] != null ? Convert.ToInt32(rows[0]["CURRENTLOCATIONID"]) : (int?)null;
+        if (currentLocationId == req.LocationId)
+        {
+            return BadRequest(new { message = "Liệu đã ở kệ này rồi." });
+        }
+
+        if (!await LocationExistsAsync(req.LocationId))
+        {
+            return BadRequest(new { message = "Vị trí kệ không hợp lệ hoặc không còn hoạt động." });
+        }
+
+        var balance = rows[0]["BALANCE"] != null ? Convert.ToDecimal(rows[0]["BALANCE"]) : 0m;
+
+        var statements = new (string Sql, OracleParameter[] Parameters)[]
+        {
+            ("UPDATE PMC_Materials " +
+             "   SET CurrentLocationId = :LocationId, " +
+             "       UpdatedBy = :UserId, UpdatedAt = SYSTIMESTAMP, VersionNo = VersionNo + 1 " +
+             " WHERE MaterialId = :MaterialId AND Status IN ('InStock', 'PartiallyIssued') AND CurrentLocationId = :OldLocationId",
+             new[]
+             {
+                 new OracleParameter("LocationId", req.LocationId),
+                 new OracleParameter("UserId", req.UserId),
+                 new OracleParameter("MaterialId", id),
+                 new OracleParameter("OldLocationId", (object?)currentLocationId ?? DBNull.Value),
+             }),
+            ("INSERT INTO PMC_StockMovements (MaterialId, MovementType, Qty, LocationId, UserId) " +
+             "VALUES (:MaterialId, 'Relocate', :Qty, :LocationId, :UserId)",
+             new[]
+             {
+                 new OracleParameter("MaterialId", id),
+                 new OracleParameter("Qty", balance),
+                 new OracleParameter("LocationId", req.LocationId),
+                 new OracleParameter("UserId", req.UserId),
+             }),
+        };
+
+        try
+        {
+            await _db.ExecuteBatchAsync(statements);
+        }
+        catch (ConcurrencyConflictException)
+        {
+            return Conflict(new { message = "Liệu này vừa được người khác đổi kệ hoặc thao tác, vui lòng tải lại danh sách." });
+        }
+
+        return Ok();
+    }
+
+    /// <summary>
     /// Import 1 batch (tối đa 40 dòng) vào PMC_Materials với Status mặc định 'Staging'.
     /// Bỏ qua (không insert) các dòng: barcode trống, ArrivalQty trống/không hợp lệ,
     /// trùng barcode trong chính batch, hoặc barcode đã có sẵn trong CSDL.

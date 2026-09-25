@@ -44,30 +44,39 @@
 
 <div class="card border-0 shadow-sm rounded-4">
     <div class="card-body">
-        <div class="d-flex flex-wrap align-items-center gap-2 mb-4">
-            <h5 class="card-title mb-0 me-1" data-i18n="needShelving">Cần lên kệ</h5>
+        <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-4">
+            <div class="d-flex flex-wrap align-items-center gap-2">
+                <h5 class="card-title mb-0 me-1" data-i18n="needShelving">Cần lên kệ</h5>
 
-            <span class="d-inline-flex align-items-center gap-1 rounded-pill px-3 py-1 small fw-semibold"
-                  style="background-color:rgba(33,37,41,0.06);color:#212529;">
-                <span class="material-icons" style="font-size:16px;">inventory_2</span>
-                <span data-i18n="totalLabel">Tổng</span> @Model.Pagination.TotalCount
-            </span>
+                <span class="d-inline-flex align-items-center gap-1 rounded-pill px-3 py-1 small fw-semibold"
+                      style="background-color:rgba(33,37,41,0.06);color:#212529;">
+                    <span class="material-icons" style="font-size:16px;">inventory_2</span>
+                    <span data-i18n="totalLabel">Tổng</span> @Model.Pagination.TotalCount
+                </span>
 
-            <span class="d-inline-flex align-items-center gap-1 rounded-pill px-3 py-1 small fw-semibold pmc-badge-soft-blue">
-                <span class="material-icons" style="font-size:16px;">new_releases</span>
-                <span data-i18n="newlyAddedLabel">Mới nhập</span> @Model.NewCount
-            </span>
+                <span class="d-inline-flex align-items-center gap-1 rounded-pill px-3 py-1 small fw-semibold pmc-badge-soft-blue">
+                    <span class="material-icons" style="font-size:16px;">new_releases</span>
+                    <span data-i18n="newlyAddedLabel">Mới nhập</span> @Model.NewCount
+                </span>
 
-            <span class="d-inline-flex align-items-center gap-1 rounded-pill px-3 py-1 small fw-semibold"
-                  style="background-color:rgba(255,193,7,0.15);color:#997404;">
-                <span class="material-icons" style="font-size:16px;">assignment_return</span>
-                <span data-i18n="returnableLabel">Nhận lại</span> @Model.ReturnCount
-            </span>
+                <span class="d-inline-flex align-items-center gap-1 rounded-pill px-3 py-1 small fw-semibold"
+                      style="background-color:rgba(255,193,7,0.15);color:#997404;">
+                    <span class="material-icons" style="font-size:16px;">assignment_return</span>
+                    <span data-i18n="returnableLabel">Nhận lại</span> @Model.ReturnCount
+                </span>
+            </div>
+
+            <button type="button" id="btnBulkShelve" class="btn btn-sm pmc-btn-dark d-inline-flex align-items-center gap-1" disabled>
+                <span class="material-icons" style="font-size:16px;">qr_code_scanner</span>
+                <span data-i18n="btnBulkShelve">Lên kệ đã chọn</span>
+                <span id="shelfBulkSelectedCount" class="badge bg-light text-dark ms-1" style="display:none;"></span>
+            </button>
         </div>
 
         <div class="table-responsive pmc-table-scroll">
             <table id="materialsTable" class="table align-middle table-sm pmc-table-compact" style="table-layout: fixed;">
                 <colgroup>
+                    <col data-col-key="select" style="width: 36px">
                     @{ await Html.RenderPartialAsync("_MaterialColGroup"); }
                     <col style="width: 110px">
                     <col style="width: 100px">
@@ -76,6 +85,9 @@
                 </colgroup>
                 <thead>
                     <tr class="text-uppercase text-muted small" style="white-space: normal;">
+                        <th>
+                            <input type="checkbox" class="form-check-input" id="chkSelectAllShelf" title="Chọn tất cả" data-i18n-title="selectAllLabel" />
+                        </th>
                         @{ await Html.RenderPartialAsync("_MaterialColHeaders"); }
                         <th data-i18n="colType">Loại</th>
                         <th class="text-end" data-i18n="colQty">Số lượng</th>
@@ -88,6 +100,14 @@
                     {
                         var m = qi.Material;
                         <tr class="js-shelf-row js-detail-row" data-material-id="@m.MaterialId" data-barcode="@m.Barcode" title="Double-click để xem chi tiết">
+                            <td onclick="event.stopPropagation();">
+                                @* PMC yêu cầu (19/9): Lên kệ hàng loạt CHỈ áp dụng cho liệu Mới nhập —
+                                   dòng Nhận lại không có checkbox, không chọn/gộp vào lô được. *@
+                                @if (qi.Kind == "New")
+                                {
+                                    <input type="checkbox" class="form-check-input js-shelf-check" value="@m.MaterialId" />
+                                }
+                            </td>
                             @{ await Html.RenderPartialAsync("_MaterialColCells", m); }
                             @if (qi.Kind == "New")
                             {
@@ -119,7 +139,7 @@
                     @if (Model.QueueItems.Count == 0)
                     {
                         <tr>
-                            <td colspan="22" class="text-center text-muted py-4" data-i18n="emptyNeedShelving">Không có liệu nào cần lên kệ.</td>
+                            <td colspan="23" class="text-center text-muted py-4" data-i18n="emptyNeedShelving">Không có liệu nào cần lên kệ.</td>
                         </tr>
                     }
                 </tbody>
@@ -160,6 +180,33 @@
                         <label class="form-label small fw-semibold text-secondary" data-i18n="levelLabel">Tầng</label>
                         <select name="locationId" id="levelSelect" class="form-select" required></select>
                     </div>
+                </div>
+                <div class="modal-footer border-0">
+                    <button type="button" class="btn btn-light" data-bs-dismiss="modal" data-i18n="btnCancel">Hủy</button>
+                    <button type="submit" class="btn pmc-btn-dark d-inline-flex align-items-center gap-1">
+                        <span class="material-icons" style="font-size:18px;">check</span> <span data-i18n="btnConfirm">Xác nhận</span>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="bulkShelveModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 rounded-4 shadow">
+            <div class="modal-header border-0">
+                <h5 class="modal-title" data-i18n="bulkShelveModalTitle">Lên kệ hàng loạt</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form asp-controller="Inbound" asp-action="BulkScan" method="post" id="bulkShelveForm">
+                <div class="modal-body">
+                    <p class="text-muted small mb-3" id="bulkShelveCountLabel"></p>
+                    <label class="form-label small fw-semibold text-secondary" data-i18n="rackLabel">Kệ</label>
+                    <select id="bulkRackSelect" class="form-select mb-3"></select>
+
+                    <label class="form-label small fw-semibold text-secondary" data-i18n="levelLabel">Tầng</label>
+                    <select name="locationId" id="bulkLevelSelect" class="form-select" required></select>
                 </div>
                 <div class="modal-footer border-0">
                     <button type="button" class="btn btn-light" data-bs-dismiss="modal" data-i18n="btnCancel">Hủy</button>
@@ -305,6 +352,109 @@
             shelfForm.addEventListener('submit', function () {
                 shelfForm.querySelector('button[type="submit"]').disabled = true;
             });
+
+            // Checkbox chọn nhiều dòng + nút "Lên kệ đã chọn" — mở modal riêng (bulkShelveModal, chỉ
+            // chọn Kệ/Tầng, không đụng modal đơn lẻ #shelfModal ở trên vì logic qty/giữ-nguyên-kệ của
+            // nó khác nhau tuỳ dòng). BulkScan phía server tự đọc lại Status mới nhất cho từng liệu để
+            // quyết định gọi inbound() (Mới nhập) hay return() full outstanding (Nhận lại).
+            (function () {
+                var selectAll = document.getElementById('chkSelectAllShelf');
+                var rowChecks = Array.prototype.slice.call(document.querySelectorAll('.js-shelf-check'));
+                var bulkBtn = document.getElementById('btnBulkShelve');
+                var bulkCountBadge = document.getElementById('shelfBulkSelectedCount');
+                var bulkForm = document.getElementById('bulkShelveForm');
+                if (!bulkBtn || !bulkForm) return;
+
+                var bulkShelveModal = new bootstrap.Modal(document.getElementById('bulkShelveModal'));
+                var bulkShelveCountLabel = document.getElementById('bulkShelveCountLabel');
+                var bulkRackSelect = document.getElementById('bulkRackSelect');
+                var bulkLevelSelect = document.getElementById('bulkLevelSelect');
+
+                function renderBulkRackOptions() {
+                    bulkRackSelect.innerHTML = '';
+                    racks.forEach(function (rack) {
+                        var opt = document.createElement('option');
+                        opt.value = rack;
+                        opt.textContent = PmcWhI18n.t('rackPrefix') + rack;
+                        bulkRackSelect.appendChild(opt);
+                    });
+                }
+
+                function populateBulkLevels(rack) {
+                    bulkLevelSelect.innerHTML = '';
+                    (byRack[rack] || []).sort(function (a, b) { return a.levelNo - b.levelNo; }).forEach(function (loc) {
+                        var opt = document.createElement('option');
+                        opt.value = loc.locationId;
+                        opt.textContent = PmcWhI18n.t('levelPrefix') + loc.levelNo + ' (' + loc.code + ')';
+                        bulkLevelSelect.appendChild(opt);
+                    });
+                }
+
+                renderBulkRackOptions();
+                PmcWhI18n.onChange(function () {
+                    var currentRack = bulkRackSelect.value;
+                    renderBulkRackOptions();
+                    bulkRackSelect.value = currentRack;
+                    populateBulkLevels(currentRack);
+                });
+                bulkRackSelect.addEventListener('change', function () { populateBulkLevels(bulkRackSelect.value); });
+                if (racks.length > 0) {
+                    bulkRackSelect.value = racks[0];
+                    populateBulkLevels(racks[0]);
+                }
+
+                function updateBulkUi() {
+                    var checked = rowChecks.filter(function (c) { return c.checked; });
+                    rowChecks.forEach(function (c) {
+                        var row = c.closest('tr');
+                        if (row) row.classList.toggle('pmc-row-selected', c.checked);
+                    });
+                    bulkBtn.disabled = checked.length === 0;
+                    if (checked.length > 0) {
+                        bulkCountBadge.textContent = PmcWhI18n.t('selectedCountLabel').replace('{0}', checked.length);
+                        bulkCountBadge.style.display = '';
+                    } else {
+                        bulkCountBadge.style.display = 'none';
+                    }
+                    if (selectAll) {
+                        selectAll.checked = rowChecks.length > 0 && checked.length === rowChecks.length;
+                        selectAll.indeterminate = checked.length > 0 && checked.length < rowChecks.length;
+                    }
+                }
+
+                if (selectAll) {
+                    selectAll.addEventListener('change', function () {
+                        rowChecks.forEach(function (c) { c.checked = selectAll.checked; });
+                        updateBulkUi();
+                    });
+                }
+                rowChecks.forEach(function (c) { c.addEventListener('change', updateBulkUi); });
+                updateBulkUi();
+
+                bulkBtn.addEventListener('click', function () {
+                    var checked = rowChecks.filter(function (c) { return c.checked; });
+                    if (checked.length === 0) return;
+                    bulkForm.querySelectorAll('input[name="materialIds"], input[name="returnUrl"]').forEach(function (el) { el.remove(); });
+                    checked.forEach(function (c) {
+                        var input = document.createElement('input');
+                        input.type = 'hidden';
+                        input.name = 'materialIds';
+                        input.value = c.value;
+                        bulkForm.appendChild(input);
+                    });
+                    var returnUrlInput = document.createElement('input');
+                    returnUrlInput.type = 'hidden';
+                    returnUrlInput.name = 'returnUrl';
+                    returnUrlInput.value = window.location.pathname + window.location.search;
+                    bulkForm.appendChild(returnUrlInput);
+                    bulkShelveCountLabel.textContent = PmcWhI18n.t('selectedCountLabel').replace('{0}', checked.length);
+                    bulkShelveModal.show();
+                });
+
+                bulkForm.addEventListener('submit', function () {
+                    bulkForm.querySelector('button[type="submit"]').disabled = true;
+                });
+            })();
 
             var scanInput = document.getElementById('scanInput');
             scanInput.addEventListener('keydown', async function (e) {

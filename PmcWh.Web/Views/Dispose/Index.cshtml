@@ -43,11 +43,20 @@
 
 <div class="card border-0 shadow-sm rounded-4">
     <div class="card-body">
-        <h5 class="card-title mb-3"><span data-i18n="disposableTitle">Có thể hủy</span> (@Model.Pagination.TotalCount)</h5>
+        <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
+            <h5 class="card-title mb-0"><span data-i18n="disposableTitle">Có thể hủy</span> (@Model.Pagination.TotalCount)</h5>
+            <button type="button" id="btnBulkDispose" class="btn btn-sm btn-outline-danger d-inline-flex align-items-center gap-1" disabled>
+                <span class="material-icons" style="font-size:16px;">delete_sweep</span>
+                <span data-i18n="btnBulkDispose">Hủy đã chọn</span>
+                <span id="disposeBulkSelectedCount" class="badge bg-danger ms-1" style="display:none;"></span>
+            </button>
+        </div>
+        <form asp-controller="Dispose" asp-action="BulkDispose" method="post" id="bulkDisposeForm"></form>
 
         <div class="table-responsive pmc-table-scroll">
             <table id="materialsTable" class="table align-middle table-sm pmc-table-compact" style="table-layout: fixed;">
                 <colgroup>
+                    <col data-col-key="select" style="width: 36px">
                     @{ await Html.RenderPartialAsync("_MaterialColGroup"); }
                     <col style="width: 100px">
                     <col style="width: 130px">
@@ -55,6 +64,9 @@
                 </colgroup>
                 <thead>
                     <tr class="text-uppercase text-muted small" style="white-space: normal;">
+                        <th>
+                            <input type="checkbox" class="form-check-input" id="chkSelectAllDispose" title="Chọn tất cả" data-i18n-title="selectAllLabel" />
+                        </th>
                         @{ await Html.RenderPartialAsync("_MaterialColHeaders"); }
                         <th class="text-end" data-i18n="colBalance">Tồn</th>
                         <th data-i18n="colStatus">Trạng thái</th>
@@ -65,6 +77,9 @@
                     @foreach (var m in Model.DisposableItems)
                     {
                         <tr class="js-disposable-row js-detail-row" data-material-id="@m.MaterialId" data-barcode="@m.Barcode" title="Double-click để xem chi tiết">
+                            <td onclick="event.stopPropagation();">
+                                <input type="checkbox" class="form-check-input js-dispose-check" value="@m.MaterialId" />
+                            </td>
                             @{ await Html.RenderPartialAsync("_MaterialColCells", m); }
                             <td class="text-end">@m.Balance @m.Unit</td>
                             <td>
@@ -83,7 +98,7 @@
                     @if (Model.DisposableItems.Count == 0)
                     {
                         <tr>
-                            <td colspan="21" class="text-center text-muted py-4" data-i18n="emptyDisposable">Không có liệu nào để hủy.</td>
+                            <td colspan="22" class="text-center text-muted py-4" data-i18n="emptyDisposable">Không có liệu nào để hủy.</td>
                         </tr>
                     }
                 </tbody>
@@ -132,6 +147,67 @@
                     }
                 });
             });
+
+            // Checkbox chọn nhiều dòng + nút "Hủy đã chọn" — cùng pattern với Materials/Index
+            // (chkSelectAllMaterials / btnBulkDeleteMaterials), chỉ khác action là hủy chứ không xoá.
+            (function () {
+                var selectAll = document.getElementById('chkSelectAllDispose');
+                var rowChecks = Array.prototype.slice.call(document.querySelectorAll('.js-dispose-check'));
+                var bulkBtn = document.getElementById('btnBulkDispose');
+                var bulkCountBadge = document.getElementById('disposeBulkSelectedCount');
+                var bulkForm = document.getElementById('bulkDisposeForm');
+                if (!bulkBtn || !bulkForm) return;
+
+                function updateBulkUi() {
+                    var checked = rowChecks.filter(function (c) { return c.checked; });
+                    rowChecks.forEach(function (c) {
+                        var row = c.closest('tr');
+                        if (row) row.classList.toggle('pmc-row-selected', c.checked);
+                    });
+                    bulkBtn.disabled = checked.length === 0;
+                    if (checked.length > 0) {
+                        bulkCountBadge.textContent = PmcWhI18n.t('selectedCountLabel').replace('{0}', checked.length);
+                        bulkCountBadge.style.display = '';
+                    } else {
+                        bulkCountBadge.style.display = 'none';
+                    }
+                    if (selectAll) {
+                        selectAll.checked = rowChecks.length > 0 && checked.length === rowChecks.length;
+                        selectAll.indeterminate = checked.length > 0 && checked.length < rowChecks.length;
+                    }
+                }
+
+                if (selectAll) {
+                    selectAll.addEventListener('change', function () {
+                        rowChecks.forEach(function (c) { c.checked = selectAll.checked; });
+                        updateBulkUi();
+                    });
+                }
+                rowChecks.forEach(function (c) { c.addEventListener('change', updateBulkUi); });
+                updateBulkUi();
+
+                bulkBtn.addEventListener('click', async function () {
+                    var checked = rowChecks.filter(function (c) { return c.checked; });
+                    if (checked.length === 0) return;
+                    var ok = await PmcUI.confirmDelete(PmcWhI18n.t('confirmBulkDisposeMsg').replace('{0}', checked.length));
+                    if (!ok) return;
+                    bulkForm.querySelectorAll('input[name="materialIds"], input[name="returnUrl"]').forEach(function (el) { el.remove(); });
+                    checked.forEach(function (c) {
+                        var input = document.createElement('input');
+                        input.type = 'hidden';
+                        input.name = 'materialIds';
+                        input.value = c.value;
+                        bulkForm.appendChild(input);
+                    });
+                    var returnUrlInput = document.createElement('input');
+                    returnUrlInput.type = 'hidden';
+                    returnUrlInput.name = 'returnUrl';
+                    returnUrlInput.value = window.location.pathname + window.location.search;
+                    bulkForm.appendChild(returnUrlInput);
+                    bulkBtn.disabled = true;
+                    bulkForm.submit();
+                });
+            })();
 
             var scanInput = document.getElementById('scanInput');
             scanInput.addEventListener('keydown', async function (e) {

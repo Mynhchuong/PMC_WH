@@ -30,6 +30,27 @@
   tickClock();
   setInterval(tickClock, 1000);
 
+  var pageEl = document.getElementById('whg-page');
+  var lastPageHeight = null;
+  function fitPageHeight() {
+    if (!pageEl) return;
+    var newHeight;
+    if (window.innerWidth < 1100) {
+      newHeight = '';
+    } else {
+      var top = pageEl.getBoundingClientRect().top;
+      var h = window.innerHeight - top - 14;
+      newHeight = Math.max(480, h) + 'px';
+    }
+    if (newHeight === lastPageHeight) return;
+    lastPageHeight = newHeight;
+    pageEl.style.height = newHeight;
+    window.dispatchEvent(new Event('resize'));
+  }
+  fitPageHeight();
+  window.addEventListener('resize', fitPageHeight);
+  document.addEventListener('fullscreenchange', function () { setTimeout(fitPageHeight, 60); });
+
   function applyStaticTranslations() {
     document.title = WH_NAME ? (WH_NAME + ' — ' + I18N.t('pageTitle')) : I18N.t('pageTitle');
     var sub = document.getElementById('whg-banner-sub');

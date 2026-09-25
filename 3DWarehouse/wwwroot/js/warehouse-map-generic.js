@@ -1046,6 +1046,42 @@
     });
   }
 
+  var btnToggleSide = document.getElementById('whg-btn-toggle-side');
+  var sidePanel = document.getElementById('whg-side');
+  if (btnToggleSide && sidePanel) {
+    var sideHidden = false;
+    function applyToggleSideLabel() {
+      btnToggleSide.textContent = sideHidden ? I18N.t('wgShowPanel') : I18N.t('wgHidePanel');
+    }
+    applyToggleSideLabel();
+    btnToggleSide.addEventListener('click', function () {
+      sideHidden = !sideHidden;
+      sidePanel.classList.toggle('whg-hide', sideHidden);
+      btnToggleSide.classList.toggle('on', sideHidden);
+      applyToggleSideLabel();
+      window.dispatchEvent(new Event('resize'));
+    });
+    I18N.onChange(applyToggleSideLabel);
+  }
+
+  var btnFocus = document.getElementById('whg-btn-focus');
+  var mapPageEl = document.getElementById('whg-page');
+  if (btnFocus && mapPageEl) {
+    var focusOn = false;
+    function applyFocusLabel() {
+      btnFocus.textContent = focusOn ? I18N.t('wgFocusExit') : I18N.t('wgFocusMode');
+    }
+    applyFocusLabel();
+    btnFocus.addEventListener('click', function () {
+      focusOn = !focusOn;
+      mapPageEl.classList.toggle('whg-focus', focusOn);
+      btnFocus.classList.toggle('on', focusOn);
+      applyFocusLabel();
+      window.dispatchEvent(new Event('resize'));
+    });
+    I18N.onChange(applyFocusLabel);
+  }
+
   // Xoay tự do bình thường — chỉ chặn phi lật quá xuống dưới sàn / quá thẳng đứng lên trên, không
   // khoá hướng xoay ngang (theta) nữa.
   var PHI_MIN = 0.12, PHI_MAX = 1.5;

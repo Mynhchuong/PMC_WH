@@ -252,13 +252,20 @@ body {
   font-weight: 800;
 }
 
-/* Checkbox chọn nhiều (Overdue/Index) — material-dashboard.css tự set .form-check-input {
-   border-style: none; } cho MỌI checkbox trong site, khiến checkbox chưa tick gần như vô hình
-   trên nền trắng. Trả lại viền riêng cho 2 checkbox này. */
+/* Checkbox chọn nhiều (Overdue/Index, Materials/Index, Inbound/Issue/Dispose) —
+   material-dashboard.css tự set .form-check-input { border-style: none; } cho MỌI checkbox trong
+   site, khiến checkbox chưa tick gần như vô hình trên nền trắng. Trả lại viền riêng cho các checkbox
+   chọn hàng loạt này. */
 .js-overdue-check,
 #chkSelectAll,
 .js-material-check,
-#chkSelectAllMaterials {
+#chkSelectAllMaterials,
+.js-shelf-check,
+#chkSelectAllShelf,
+.js-issue-check,
+#chkSelectAllIssue,
+.js-dispose-check,
+#chkSelectAllDispose {
   border: 1px solid #adb5bd;
 }
 

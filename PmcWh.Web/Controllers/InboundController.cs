@@ -32,24 +32,33 @@ public class InboundController : Controller
         var client = _httpClientFactory.CreateClient("PmcApi");
         var searchQuery = SearchFilterHelper.ToQueryString(field, q, field2, q2, field3, q3);
 
+        // pageSize lớn: bảng này gộp toàn bộ Staging + Returnable rồi tự phân trang lại ở tầng Web
+        // (xem doc-comment class), nên phải kéo về HẾT chứ không phải 1 trang — pageSize=1000 cũ từng
+        // cắt cụt danh sách thật (Nhận lại thực tế đã hơn 2700 dòng) khiến badge đếm luôn dừng ở đúng
+        // 1000 (giá trị pageSize) và hơn 1700 liệu Nhận lại còn lại không bao giờ hiện ra được.
+        const int fetchAllPageSize = 20000;
         var stagingTask = client.GetFromJsonAsync<PagedResultDto<MaterialListItem>>(
-            $"api/Materials?status=Staging&page=1&pageSize=1000&{searchQuery}", ApiJsonOptions);
+            $"api/Materials?status=Staging&page=1&pageSize={fetchAllPageSize}&{searchQuery}", ApiJsonOptions);
         var returnableTask = client.GetFromJsonAsync<PagedResultDto<MaterialListItem>>(
-            $"api/Materials/returnable?page=1&pageSize=1000&{searchQuery}", ApiJsonOptions);
+            $"api/Materials/returnable?page=1&pageSize={fetchAllPageSize}&{searchQuery}", ApiJsonOptions);
         var locationsTask = client.GetFromJsonAsync<List<StorageLocationDto>>("api/StorageLocations", ApiJsonOptions);
 
         await Task.WhenAll(stagingTask, returnableTask, locationsTask);
+        var stagingResult = await stagingTask;
+        var returnableResult = await returnableTask;
 
-        // Ưu tiên xử lý theo FIFO (liệu chờ lâu nhất trước) — cùng quy ước với Issuable/Returnable bên Api.
-        var stagingItems = ((await stagingTask)?.Items ?? new List<MaterialListItem>())
-            .OrderBy(m => m.ArrivalDate ?? DateTime.MaxValue)
-            .ThenBy(m => m.CreatedAt)
+        var stagingItems = (stagingResult?.Items ?? new List<MaterialListItem>())
             .Select(m => new InboundQueueItem { Material = m, Kind = "New", Outstanding = m.ArrivalQty ?? 0 });
 
-        var returnableItems = ((await returnableTask)?.Items ?? new List<MaterialListItem>())
+        var returnableItems = (returnableResult?.Items ?? new List<MaterialListItem>())
             .Select(m => new InboundQueueItem { Material = m, Kind = "Return", Outstanding = (m.ArrivalQty ?? 0) - (m.Balance ?? 0) });
 
-        var allItems = stagingItems.Concat(returnableItems).ToList();
+        // PMC yêu cầu (19/9): liệu về GẦN ĐÂY NHẤT lên đầu (trang 1), không phải FIFO cũ nữa —
+        // OrderByDescending theo ATA (ArrivalDate); liệu chưa rõ ngày về thì rớt xuống cuối cùng.
+        var allItems = stagingItems.Concat(returnableItems)
+            .OrderByDescending(qi => qi.Material.ArrivalDate ?? DateTime.MinValue)
+            .ThenByDescending(qi => qi.Material.CreatedAt)
+            .ToList();
         if (page < 1) page = 1;
         var totalPages = pageSize > 0 ? (int)Math.Ceiling(allItems.Count / (double)pageSize) : 1;
         var pagedItems = pageSize > 0 ? allItems.Skip((page - 1) * pageSize).Take(pageSize).ToList() : allItems;
@@ -57,8 +66,10 @@ public class InboundController : Controller
         var model = new InboundViewModel
         {
             QueueItems = pagedItems,
-            NewCount = stagingItems.Count(),
-            ReturnCount = returnableItems.Count(),
+            // TotalCount của Api (không phải .Items.Count()) — không bị ảnh hưởng bởi pageSize đang
+            // lấy về, luôn đúng số thật kể cả khi fetchAllPageSize không đủ lớn trong tương lai.
+            NewCount = stagingResult?.TotalCount ?? 0,
+            ReturnCount = returnableResult?.TotalCount ?? 0,
             Locations = await locationsTask ?? new List<StorageLocationDto>(),
             Field = field,
             Q = q,
@@ -125,6 +136,63 @@ public class InboundController : Controller
         {
             var problem = await response.Content.ReadFromJsonAsync<ApiMessage>(ApiJsonOptions);
             TempData["FlashError"] = problem?.Message ?? failMessage;
+        }
+
+        return RedirectToAction(nameof(Index));
+    }
+
+    
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> BulkScan(int[] materialIds, int locationId, string? returnUrl)
+    {
+        if (materialIds == null || materialIds.Length == 0)
+        {
+            return RedirectToLocal(returnUrl);
+        }
+
+        var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
+        var client = _httpClientFactory.CreateClient("PmcApi");
+
+        var successCount = 0;
+        foreach (var materialId in materialIds)
+        {
+            var detailResponse = await client.GetAsync($"api/Materials/{materialId}");
+            if (!detailResponse.IsSuccessStatusCode) continue;
+
+            var detail = await detailResponse.Content.ReadFromJsonAsync<MaterialDetail>(ApiJsonOptions);
+            // PMC yêu cầu (19/9): Lên kệ hàng loạt CHỈ áp dụng cho liệu Mới nhập (Staging) — giao diện
+            // không còn cho chọn dòng Nhận lại nữa, nhưng vẫn chặn lại ở đây phòng request bị chỉnh tay.
+            if (detail?.Status != "Staging") continue;
+
+            var response = await client.PostAsJsonAsync($"api/Materials/{materialId}/inbound", new { locationId, userId });
+            if (response.IsSuccessStatusCode) successCount++;
+        }
+
+        var failCount = materialIds.Length - successCount;
+        if (successCount > 0)
+        {
+            TempData["FlashSuccess"] = failCount > 0
+                ? FlashHelper.Msg("bulkShelvedPartial", successCount.ToString(), materialIds.Length.ToString())
+                : FlashHelper.Msg("bulkShelvedSuccess", successCount.ToString());
+            await _hub.Clients.All.SendAsync("warehouseChanged");
+        }
+        else
+        {
+            TempData["FlashError"] = FlashHelper.Msg("bulkShelvedFail");
+        }
+
+        return RedirectToLocal(returnUrl);
+    }
+
+    /// <summary>Redirect an toàn tới URL do client gửi lên (returnUrl) — chỉ chấp nhận local path,
+    /// tránh open-redirect nếu returnUrl bị chỉnh thành 1 domain khác. Cùng pattern với
+    /// MaterialsController.RedirectToLocal.</summary>
+    private IActionResult RedirectToLocal(string? returnUrl)
+    {
+        if (!string.IsNullOrWhiteSpace(returnUrl) && Url.IsLocalUrl(returnUrl))
+        {
+            return Redirect(returnUrl);
         }
 
         return RedirectToAction(nameof(Index));

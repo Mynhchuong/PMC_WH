@@ -90,6 +90,57 @@ public class DisposeController : Controller
         return RedirectToAction(nameof(Index));
     }
 
+    /// <summary>Hủy nhiều liệu cùng lúc (checkbox chọn nhiều ở Dispose/Index, nút "Hủy đã chọn") —
+    /// cùng pattern với MaterialsController.BulkDelete: gọi tuần tự từng cái qua API dispose thật,
+    /// gộp lại 1 thông báo tổng kết, chỉ báo warehouseChanged 1 lần ở cuối.</summary>
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> BulkDispose(int[] materialIds, string? returnUrl)
+    {
+        if (materialIds == null || materialIds.Length == 0)
+        {
+            return RedirectToLocal(returnUrl);
+        }
+
+        var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
+        var client = _httpClientFactory.CreateClient("PmcApi");
+
+        var successCount = 0;
+        foreach (var materialId in materialIds)
+        {
+            var response = await client.PostAsJsonAsync($"api/Materials/{materialId}/dispose", new { userId });
+            if (response.IsSuccessStatusCode) successCount++;
+        }
+
+        var failCount = materialIds.Length - successCount;
+        if (successCount > 0)
+        {
+            TempData["FlashSuccess"] = failCount > 0
+                ? FlashHelper.Msg("bulkDisposedPartial", successCount.ToString(), materialIds.Length.ToString())
+                : FlashHelper.Msg("bulkDisposedSuccess", successCount.ToString());
+            await _hub.Clients.All.SendAsync("warehouseChanged");
+        }
+        else
+        {
+            TempData["FlashError"] = FlashHelper.Msg("bulkDisposedFail");
+        }
+
+        return RedirectToLocal(returnUrl);
+    }
+
+    /// <summary>Redirect an toàn tới URL do client gửi lên (returnUrl) — chỉ chấp nhận local path,
+    /// tránh open-redirect nếu returnUrl bị chỉnh thành 1 domain khác. Cùng pattern với
+    /// MaterialsController.RedirectToLocal.</summary>
+    private IActionResult RedirectToLocal(string? returnUrl)
+    {
+        if (!string.IsNullOrWhiteSpace(returnUrl) && Url.IsLocalUrl(returnUrl))
+        {
+            return Redirect(returnUrl);
+        }
+
+        return RedirectToAction(nameof(Index));
+    }
+
     private class ApiMessage
     {
         public string? Message { get; set; }

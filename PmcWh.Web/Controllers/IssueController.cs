@@ -94,6 +94,62 @@ public class IssueController : Controller
         return RedirectToAction(nameof(Index));
     }
 
+   
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> BulkIssue(int[] materialIds, int recipientId, string? returnUrl)
+    {
+        if (materialIds == null || materialIds.Length == 0)
+        {
+            return RedirectToLocal(returnUrl);
+        }
+
+        var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
+        var client = _httpClientFactory.CreateClient("PmcApi");
+
+        var successCount = 0;
+        foreach (var materialId in materialIds)
+        {
+            var detailResponse = await client.GetAsync($"api/Materials/{materialId}");
+            if (!detailResponse.IsSuccessStatusCode) continue;
+
+            var detail = await detailResponse.Content.ReadFromJsonAsync<MaterialDetail>(ApiJsonOptions);
+            if (detail?.Balance is not > 0) continue;
+
+            var response = await client.PostAsJsonAsync($"api/Materials/{materialId}/issue",
+                new { recipientId, qty = detail.Balance.Value, userId });
+            if (response.IsSuccessStatusCode) successCount++;
+        }
+
+        var failCount = materialIds.Length - successCount;
+        if (successCount > 0)
+        {
+            TempData["FlashSuccess"] = failCount > 0
+                ? FlashHelper.Msg("bulkIssuedPartial", successCount.ToString(), materialIds.Length.ToString())
+                : FlashHelper.Msg("bulkIssuedSuccess", successCount.ToString());
+            await _hub.Clients.All.SendAsync("warehouseChanged");
+        }
+        else
+        {
+            TempData["FlashError"] = FlashHelper.Msg("bulkIssuedFail");
+        }
+
+        return RedirectToLocal(returnUrl);
+    }
+
+    /// <summary>Redirect an toàn tới URL do client gửi lên (returnUrl) — chỉ chấp nhận local path,
+    /// tránh open-redirect nếu returnUrl bị chỉnh thành 1 domain khác. Cùng pattern với
+    /// MaterialsController.RedirectToLocal.</summary>
+    private IActionResult RedirectToLocal(string? returnUrl)
+    {
+        if (!string.IsNullOrWhiteSpace(returnUrl) && Url.IsLocalUrl(returnUrl))
+        {
+            return Redirect(returnUrl);
+        }
+
+        return RedirectToAction(nameof(Index));
+    }
+
     private class PagedResultDto<T>
     {
         public List<T> Items { get; set; } = new();

@@ -46,11 +46,19 @@
 
 <div class="card border-0 shadow-sm rounded-4">
     <div class="card-body">
-        <h5 class="card-title mb-3"><span data-i18n="issuableTitle">Có thể xuất</span> (@Model.Pagination.TotalCount)</h5>
+        <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
+            <h5 class="card-title mb-0"><span data-i18n="issuableTitle">Có thể xuất</span> (@Model.Pagination.TotalCount)</h5>
+            <button type="button" id="btnBulkIssue" class="btn btn-sm pmc-btn-dark d-inline-flex align-items-center gap-1" disabled>
+                <span class="material-icons" style="font-size:16px;">local_shipping</span>
+                <span data-i18n="btnBulkIssue">Xuất đã chọn</span>
+                <span id="issueBulkSelectedCount" class="badge bg-light text-dark ms-1" style="display:none;"></span>
+            </button>
+        </div>
 
         <div class="table-responsive pmc-table-scroll">
             <table id="materialsTable" class="table align-middle table-sm pmc-table-compact" style="table-layout: fixed;">
                 <colgroup>
+                    <col data-col-key="select" style="width: 36px">
                     @{ await Html.RenderPartialAsync("_MaterialColGroup"); }
                     <col style="width: 100px">
                     <col style="width: 110px">
@@ -58,6 +66,9 @@
                 </colgroup>
                 <thead>
                     <tr class="text-uppercase text-muted small" style="white-space: normal;">
+                        <th>
+                            <input type="checkbox" class="form-check-input" id="chkSelectAllIssue" title="Chọn tất cả" data-i18n-title="selectAllLabel" />
+                        </th>
                         @{ await Html.RenderPartialAsync("_MaterialColHeaders"); }
                         <th class="text-end" data-i18n="colBalance">Tồn</th>
                         <th data-i18n="colCurrentShelf">Kệ hiện tại</th>
@@ -68,6 +79,9 @@
                     @foreach (var m in Model.IssuableItems)
                     {
                         <tr class="js-issuable-row js-detail-row" data-material-id="@m.MaterialId" data-barcode="@m.Barcode" title="Double-click để xem chi tiết">
+                            <td onclick="event.stopPropagation();">
+                                <input type="checkbox" class="form-check-input js-issue-check" value="@m.MaterialId" />
+                            </td>
                             @{ await Html.RenderPartialAsync("_MaterialColCells", m); }
                             <td class="text-end">@m.Balance @m.Unit</td>
                             <td>@(m.LocationCode ?? "—")</td>
@@ -82,7 +96,7 @@
                     @if (Model.IssuableItems.Count == 0)
                     {
                         <tr>
-                            <td colspan="21" class="text-center text-muted py-4" data-i18n="emptyIssuable">Không có liệu nào có thể xuất.</td>
+                            <td colspan="22" class="text-center text-muted py-4" data-i18n="emptyIssuable">Không có liệu nào có thể xuất.</td>
                         </tr>
                     }
                 </tbody>
@@ -91,6 +105,35 @@
 
         <div class="mt-3">
             @await Html.PartialAsync("_Pagination", Model.Pagination)
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="bulkIssueModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 rounded-4 shadow">
+            <div class="modal-header border-0">
+                <h5 class="modal-title" data-i18n="bulkIssueModalTitle">Xuất hàng loạt (toàn bộ số lượng)</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form asp-controller="Issue" asp-action="BulkIssue" method="post" id="bulkIssueForm">
+                <div class="modal-body">
+                    <p class="text-muted small mb-3" id="bulkIssueCountLabel"></p>
+                    <label class="form-label small fw-semibold text-secondary" data-i18n="recipientLabel">Nơi nhận</label>
+                    <select name="recipientId" id="bulkRecipientSelect" class="form-select" required>
+                        @foreach (var r in Model.Recipients)
+                        {
+                            <option value="@r.RecipientId">@r.Name</option>
+                        }
+                    </select>
+                </div>
+                <div class="modal-footer border-0">
+                    <button type="button" class="btn btn-light" data-bs-dismiss="modal" data-i18n="btnCancel">Hủy</button>
+                    <button type="submit" class="btn pmc-btn-dark d-inline-flex align-items-center gap-1">
+                        <span class="material-icons" style="font-size:18px;">check</span> <span data-i18n="btnConfirm">Xác nhận</span>
+                    </button>
+                </div>
+            </form>
         </div>
     </div>
 </div>
@@ -178,6 +221,72 @@
             issueForm.addEventListener('submit', function () {
                 issueForm.querySelector('button[type="submit"]').disabled = true;
             });
+
+            // Checkbox chọn nhiều dòng + nút "Xuất đã chọn" — mở modal chỉ chọn Nơi nhận (KHÔNG có ô
+            // số lượng, PMC yêu cầu bulk chỉ xuất toàn bộ tồn). BulkIssue phía server tự đọc lại
+            // Balance mới nhất và xuất hết bấy nhiêu cho từng liệu đã chọn.
+            (function () {
+                var selectAll = document.getElementById('chkSelectAllIssue');
+                var rowChecks = Array.prototype.slice.call(document.querySelectorAll('.js-issue-check'));
+                var bulkBtn = document.getElementById('btnBulkIssue');
+                var bulkCountBadge = document.getElementById('issueBulkSelectedCount');
+                var bulkForm = document.getElementById('bulkIssueForm');
+                var bulkIssueModal = new bootstrap.Modal(document.getElementById('bulkIssueModal'));
+                var bulkIssueCountLabel = document.getElementById('bulkIssueCountLabel');
+                if (!bulkBtn || !bulkForm) return;
+
+                function updateBulkUi() {
+                    var checked = rowChecks.filter(function (c) { return c.checked; });
+                    rowChecks.forEach(function (c) {
+                        var row = c.closest('tr');
+                        if (row) row.classList.toggle('pmc-row-selected', c.checked);
+                    });
+                    bulkBtn.disabled = checked.length === 0;
+                    if (checked.length > 0) {
+                        bulkCountBadge.textContent = PmcWhI18n.t('selectedCountLabel').replace('{0}', checked.length);
+                        bulkCountBadge.style.display = '';
+                    } else {
+                        bulkCountBadge.style.display = 'none';
+                    }
+                    if (selectAll) {
+                        selectAll.checked = rowChecks.length > 0 && checked.length === rowChecks.length;
+                        selectAll.indeterminate = checked.length > 0 && checked.length < rowChecks.length;
+                    }
+                }
+
+                if (selectAll) {
+                    selectAll.addEventListener('change', function () {
+                        rowChecks.forEach(function (c) { c.checked = selectAll.checked; });
+                        updateBulkUi();
+                    });
+                }
+                rowChecks.forEach(function (c) { c.addEventListener('change', updateBulkUi); });
+                updateBulkUi();
+
+                bulkBtn.addEventListener('click', function () {
+                    var checked = rowChecks.filter(function (c) { return c.checked; });
+                    if (checked.length === 0) return;
+                    bulkForm.querySelectorAll('input[name="materialIds"], input[name="returnUrl"]').forEach(function (el) { el.remove(); });
+                    checked.forEach(function (c) {
+                        var input = document.createElement('input');
+                        input.type = 'hidden';
+                        input.name = 'materialIds';
+                        input.value = c.value;
+                        bulkForm.appendChild(input);
+                    });
+                    var returnUrlInput = document.createElement('input');
+                    returnUrlInput.type = 'hidden';
+                    returnUrlInput.name = 'returnUrl';
+                    returnUrlInput.value = window.location.pathname + window.location.search;
+                    bulkForm.appendChild(returnUrlInput);
+                    bulkIssueCountLabel.textContent = PmcWhI18n.t('selectedCountLabel').replace('{0}', checked.length);
+                    bulkIssueModal.show();
+                });
+
+                bulkForm.addEventListener('submit', function () {
+                    bulkForm.querySelector('button[type="submit"]').disabled = true;
+                });
+            })();
 
             var scanInput = document.getElementById('scanInput');
             scanInput.addEventListener('keydown', async function (e) {

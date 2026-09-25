@@ -28,6 +28,11 @@
         }
 
         .whg-side { flex: 0 0 300px; display: flex; flex-direction: column; gap: 10px; min-height: 0; }
+        .whg-side.whg-hide { display: none; }
+        #whg-page.whg-focus .whg-banner,
+        #whg-page.whg-focus .whg-bignums,
+        #whg-page.whg-focus .whg-updated-row,
+        #whg-page.whg-focus .whg-side { display: none; }
         .whg-hud { position: absolute; top: 14px; left: 14px; z-index: 4; display: flex; gap: 8px; }
         .whg-badge {
             background: rgba(15, 18, 24, 0.82); color: #e9edf5; border: 1px solid #2a3040;
@@ -242,6 +247,8 @@
                     <div class="acts">
                         <button class="whg-btn" id="whg-btn-reset" data-i18n="wgResetView">↺ Reset view</button>
                         <button class="whg-btn" id="whg-btn-spin">▶ Auto-rotate</button>
+                        <button class="whg-btn" id="whg-btn-toggle-side" data-i18n="wgHidePanel">⊟ Hide panel</button>
+                        <button class="whg-btn" id="whg-btn-focus" data-i18n="wgFocusMode">🖥 View 3D only</button>
                     </div>
                 </div>
                 <div class="whg-search">
@@ -277,7 +284,7 @@
                     </div>
                 </div>
             </div>
-            <div class="whg-side">
+            <div class="whg-side" id="whg-side">
                 <div class="whg-feed in">
                     <h6><span class="dot"></span> <span data-i18n="wgFeedInboundTitle">Recently inbound</span></h6>
                     <div class="whg-feed-list" id="whg-feed-inbound"><div class="whg-feed-empty" data-i18n="wgLoading">Loading…</div></div>

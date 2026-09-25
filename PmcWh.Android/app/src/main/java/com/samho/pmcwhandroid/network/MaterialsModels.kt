@@ -69,6 +69,13 @@ data class DisposeRequest(
     val userId: Int,
 )
 
+/** Đổi kệ thuần tuý (màn Đổi kệ) — locationId luôn bắt buộc, khác ReturnRequest.locationId (optional). */
+@Serializable
+data class RelocateRequest(
+    val locationId: Int,
+    val userId: Int,
+)
+
 @Serializable
 data class ReturnRequest(
     /** Chỉ bắt buộc khi liệu đang IssuedOut (đã rời kệ hẳn, cần chọn kệ mới). Nếu đang

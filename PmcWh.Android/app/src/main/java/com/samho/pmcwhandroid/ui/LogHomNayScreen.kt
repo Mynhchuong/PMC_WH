@@ -53,6 +53,7 @@ private val typeFilters = listOf(
     TypeFilter("Nhập kho", "Inbound"),
     TypeFilter("Xuất kho", "IssueToWorkshop"),
     TypeFilter("Nhận lại", "Return"),
+    TypeFilter("Đổi kệ", "Relocate"),
     TypeFilter("Hủy", "Dispose"),
 )
 
@@ -187,6 +188,7 @@ private fun typeLabel(type: String): String = when (type) {
     "Inbound" -> "Nhập kho"
     "IssueToWorkshop" -> "Xuất kho"
     "Return" -> "Nhận lại"
+    "Relocate" -> "Đổi kệ"
     "Dispose" -> "Hủy"
     else -> type
 }
@@ -197,6 +199,7 @@ private fun LogRow(entry: TodayLogItem) {
         "Inbound" -> MaterialTheme.colorScheme.primaryContainer to MaterialTheme.colorScheme.onPrimaryContainer
         "IssueToWorkshop" -> MaterialTheme.colorScheme.tertiaryContainer to MaterialTheme.colorScheme.onTertiaryContainer
         "Return" -> MaterialTheme.colorScheme.secondaryContainer to MaterialTheme.colorScheme.onSecondaryContainer
+        "Relocate" -> MaterialTheme.colorScheme.surfaceVariant to MaterialTheme.colorScheme.onSurfaceVariant
         "Dispose" -> MaterialTheme.colorScheme.errorContainer to MaterialTheme.colorScheme.onErrorContainer
         else -> MaterialTheme.colorScheme.surfaceVariant to MaterialTheme.colorScheme.onSurfaceVariant
     }
