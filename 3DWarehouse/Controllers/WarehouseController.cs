@@ -146,7 +146,7 @@ public class WarehouseController : Controller
                         FROM MES.MTL_BAR_BARCODE@inf_m_e
                        WHERE I_STATUS = 'Y'
                        ORDER BY CREATE_DATE DESC
-                  ) WHERE ROWNUM <= 8");
+                  ) WHERE ROWNUM <= 5");
 
             // Xuất kho hôm nay — bảng MTL_BAR_SCANNING chỉ ghi lượt quét in/out (I_STATUS='O' = quét
             // ra), KHÔNG có thông tin lên kệ. D_GATHER lưu chuỗi 'YYYYMMDDHH24MISS' (giống kiểu
@@ -173,7 +173,7 @@ public class WarehouseController : Controller
                                             AND TO_CHAR(SYSDATE, 'YYYYMMDD') || '235959'
                          AND A.I_STATUS = 'O'
                        ORDER BY A.D_GATHER DESC
-                  ) WHERE ROWNUM <= 8");
+                  ) WHERE ROWNUM <= 5");
 
             return Json(new GenericDashboardDto
             {

@@ -30,6 +30,17 @@
   tickClock();
   setInterval(tickClock, 1000);
 
+  var fsBtn = document.getElementById('whg-btn-fullscreen');
+  if (fsBtn) {
+    fsBtn.addEventListener('click', function () {
+      if (!document.fullscreenElement) {
+        document.documentElement.requestFullscreen().catch(function () {});
+      } else {
+        document.exitFullscreen().catch(function () {});
+      }
+    });
+  }
+
   var pageEl = document.getElementById('whg-page');
   var lastPageHeight = null;
   function fitPageHeight() {
@@ -53,12 +64,7 @@
 
   function applyStaticTranslations() {
     document.title = WH_NAME ? (WH_NAME + ' — ' + I18N.t('pageTitle')) : I18N.t('pageTitle');
-    var sub = document.getElementById('whg-banner-sub');
-    if (sub) {
-      sub.textContent = sub.getAttribute('data-racks') + ' ' + I18N.t('wgRacksSuffix') + ' · ' +
-        sub.getAttribute('data-cells') + ' ' + I18N.t('wgCellsSuffix') + ' · ' +
-        sub.getAttribute('data-filled') + ' ' + I18N.t('wgFilledSuffix');
-    }
+    setTxt('whg-banner-title', WH_NAME || I18N.t('bannerTitle'));
   }
   applyStaticTranslations();
 

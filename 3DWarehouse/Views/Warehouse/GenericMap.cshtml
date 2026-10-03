@@ -9,8 +9,6 @@
 
 @section Styles {
     <style>
-        /* Bố cục đồng bộ với Map.cshtml (bên PMC) — banner + đồng hồ, 3 số lớn, 2 feed nhập/xuất —
-           chỉ đổi tên lớp CSS thành tiền tố "whg-" để không đụng file/lớp của PMC (2 view độc lập). */
         .whg-mapbody { padding: 0 14px 14px; }
         #whg-page { display: flex; flex-direction: column; gap: 10px; min-height: 480px; }
         .whg-mainrow { display: flex; gap: 12px; flex: 1 1 auto; min-height: 320px; }
@@ -20,50 +18,42 @@
             box-shadow: 0 10px 30px rgba(15, 23, 42, 0.12); border: 1px solid #e2e6ea;
         }
         #whg-canvas { display: block; width: 100%; height: 100%; cursor: grab; }
+        .whg-side { flex: 0 0 300px; display: flex; flex-direction: column; gap: 10px; min-height: 0; }
         @@media (max-width: 1100px) {
             #whg-page { height: auto !important; }
             .whg-mainrow { flex-direction: column; }
             #whg-wrap { height: 60vh; min-height: 420px; }
             .whg-side { flex: none; }
         }
-
-        .whg-side { flex: 0 0 300px; display: flex; flex-direction: column; gap: 10px; min-height: 0; }
-        .whg-side.whg-hide { display: none; }
-        #whg-page.whg-focus .whg-banner,
-        #whg-page.whg-focus .whg-bignums,
-        #whg-page.whg-focus .whg-updated-row,
-        #whg-page.whg-focus .whg-side { display: none; }
-        .whg-hud { position: absolute; top: 14px; left: 14px; z-index: 4; display: flex; gap: 8px; }
+        .whg-hud {
+            position: absolute; top: 14px; left: 14px; right: 14px; display: flex; align-items: center;
+            justify-content: space-between; gap: 12px; pointer-events: none; z-index: 4;
+        }
         .whg-badge {
             background: rgba(15, 18, 24, 0.82); color: #e9edf5; border: 1px solid #2a3040;
-            border-radius: 9px; padding: 5px 10px; backdrop-filter: blur(6px); font-size: 10.5px;
+            border-radius: 9px; padding: 5px 10px; backdrop-filter: blur(6px);
+            font-size: 10.5px; display: flex; align-items: center; gap: 6px;
         }
         .whg-legend {
             position: absolute; left: 14px; bottom: 14px; z-index: 4;
             background: rgba(17, 20, 27, 0.85); border: 1px solid #2a3040; border-radius: 12px;
-            padding: 10px 13px; backdrop-filter: blur(6px); min-width: 170px; font-size: 11px; color: #cdd3df;
+            padding: 11px 13px; backdrop-filter: blur(6px); min-width: 180px;
         }
-        .whg-legend .row { display: flex; align-items: center; gap: 7px; margin: 3px 0; }
-        .whg-legend .sw { width: 11px; height: 11px; border-radius: 3px; flex-shrink: 0; }
         .whg-legend .acts { display: flex; gap: 6px; }
+        .whg-loading { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; background: #eef1f4; color: #64748b; z-index: 8; }
         .whg-btn {
-            font-size: 11px; font-weight: 600; color: #e9edf5; background: #1d2230; border: 1px solid #2a3040;
-            border-radius: 7px; padding: 5px 9px; cursor: pointer;
+            font-size: 11.5px; font-weight: 600; color: #e9edf5; background: #1d2230; border: 1px solid #2a3040;
+            border-radius: 7px; padding: 6px 10px; cursor: pointer;
         }
         .whg-btn:hover { background: #262c3c; }
         .whg-btn.on { border-color: #ff8a3d; color: #ff8a3d; }
 
-        /* 1 HÀNG DUY NHẤT gộp cả 2 ô tìm (mã vị trí + kiếm liệu), ngăn nhau bằng 1 vạch dọc — y hệt
-           cách PMC gộp ô "tìm barcode" + "đến kệ" chung 1 thanh, tránh xuống dòng xấu như bản trước
-           (2 thanh xếp chồng lên nhau). */
         .whg-search {
-            position: absolute; top: 14px; right: 14px; z-index: 6; display: flex; gap: 6px; align-items: center;
+            position: absolute; top: 14px; right: 14px; z-index: 6; display: flex; gap: 7px; align-items: center;
             background: rgba(15,18,24,0.9); border: 1px solid #2a3040; border-radius: 11px; padding: 6px 8px 6px 12px;
             backdrop-filter: blur(6px); box-shadow: 0 8px 24px rgba(0,0,0,0.25);
             transition: opacity 0.2s ease, transform 0.2s ease;
         }
-        /* Ẩn đi lúc drawer chi tiết vị trí đang mở (drawer đè lên đúng góc này) — y hệt PMC ẩn ô tìm
-           kiếm khi mở drawer chi tiết, tránh 2 lớp đè lên nhau. */
         .whg-search.whg-hide { opacity: 0; transform: translateY(-6px); pointer-events: none; }
         .whg-search input { border: none; outline: none; background: transparent; color: #e9edf5; font-family: monospace; font-size: 13px; }
         .whg-search input::placeholder { color: #5c6478; font-family: var(--font-body, sans-serif); }
@@ -71,16 +61,15 @@
         .whg-search #whg-lookup-input { width: 145px; }
         .whg-search button { border: 1px solid #2a3040; background: #1d2230; color: #e9edf5; font-size: 12px; font-weight: 600; padding: 5px 11px; border-radius: 8px; cursor: pointer; white-space: nowrap; }
         .whg-search button:hover { border-color: #ff8a3d; }
-        .whg-search #whg-lookup-btn { background: #ff8a3d; border-color: #ff8a3d; color: #1c1200; }
-        .whg-search .msg { font-size: 11px; color: #ff6a6a; max-width: 110px; }
-        .whg-search-sep { width: 1px; align-self: stretch; background: #2a3040; margin: 0 1px; }
-        @@media (max-width: 1100px) {
+        .whg-search .msg { font-size: 11px; color: #ff8a3d; max-width: 190px; }
+        .whg-search .msg.err { color: #ff6a6a; }
+        .whg-search-sep { width: 1px; align-self: stretch; background: #2a3040; margin: 0 2px; }
+        @@media (max-width: 680px) {
             .whg-search { left: 14px; flex-wrap: wrap; max-width: calc(100% - 28px); justify-content: center; }
+            .whg-search input { width: 120px !important; }
             .whg-search-sep { display: none; }
         }
 
-        /* Drawer chi tiết 1 vị trí — trượt ra từ bên phải NGAY TRONG khung bản đồ 3D (y hệt
-           .wh3d-drawer bên PMC), không che hết màn hình như modal — camera vẫn xoay/zoom được. */
         .whg-drawer {
             position: absolute; top: 0; right: 0; bottom: 0; width: 300px;
             background: rgba(15,18,24,0.97); border-left: 1px solid #2a3040; z-index: 7;
@@ -99,7 +88,6 @@
         .whg-drawer td.num { text-align: right; font-variant-numeric: tabular-nums; }
         .whg-drawer-empty { color: #8a93a6; font-size: 12.5px; text-align: center; padding: 20px 0; }
 
-        /* Modal dùng chung (Kiếm liệu 2 bảng) */
         .whg-modal-backdrop {
             position: fixed; inset: 0; background: rgba(8, 10, 15, 0.72); z-index: 50;
             display: flex; align-items: center; justify-content: center; padding: 24px;
@@ -124,7 +112,6 @@
         .whg-modal-col td.num { text-align: right; font-variant-numeric: tabular-nums; }
         .whg-modal-empty { color: #8a93a6; font-size: 12.5px; text-align: center; padding: 20px 0; }
 
-        /* Banner + đồng hồ (y hệt .wh3d-banner/.wh3d-clock bên PMC) */
         .whg-banner {
             display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap;
             flex: 0 0 auto;
@@ -135,12 +122,11 @@
         .whg-banner .id { display: flex; align-items: center; gap: 12px; }
         .whg-banner .id .icon { width: 38px; height: 38px; font-size: 18px; }
         .whg-banner h5 { color: #f4f6fb; letter-spacing: 0.02em; margin-bottom: 1px; font-size: 16px; }
-        .whg-banner .sub { color: #8a93a6; font-size: 11.5px; }
+        .whg-banner .sub { color: #8a93a6; }
         .whg-clock { text-align: right; color: #e9edf5; font-variant-numeric: tabular-nums; }
         .whg-clock .time { font-size: 18px; font-weight: 700; line-height: 1.1; }
         .whg-clock .date { font-size: 10.5px; color: #8a93a6; text-transform: uppercase; letter-spacing: 0.06em; }
 
-        /* 3 số lớn (y hệt .wh3d-bignum bên PMC) */
         .whg-bignums { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; flex: 0 0 auto; }
         .whg-bignum {
             position: relative; overflow: hidden;
@@ -172,7 +158,6 @@
         .whg-updated-row { flex: 0 0 auto; text-align: right; font-size: 10.5px; color: #6b7385; margin-top: -6px; display: flex; align-items: center; justify-content: flex-end; gap: 4px; }
         .whg-updated-row .material-icons { font-size: 12px; }
 
-        /* 2 feed nhập/xuất (y hệt .wh3d-feed bên PMC) */
         .whg-feed {
             background: #12151d; border: 1px solid #2a3040; border-radius: 14px; padding: 12px 14px;
             box-shadow: 0 10px 26px rgba(0,0,0,0.18); flex: 1 1 0; display: flex; flex-direction: column; min-height: 0;
@@ -182,7 +167,7 @@
             text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 6px; flex: 0 0 auto;
         }
         .whg-feed h6 .dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
-        .whg-feed.in h6 .dot { background: #5b9bff; box-shadow: 0 0 8px #5b9bff; }
+        .whg-feed.in h6 .dot { background: #2fbf7a; box-shadow: 0 0 8px #2fbf7a; }
         .whg-feed.out h6 .dot { background: #ffb84d; box-shadow: 0 0 8px #ffb84d; }
         .whg-feed-list { flex: 1 1 auto; overflow-y: auto; min-height: 0; }
         .whg-feed-item {
@@ -192,7 +177,7 @@
         .whg-feed-item:last-child { border-bottom: none; }
         .whg-feed-item .fi-main { min-width: 0; }
         .whg-feed-item .fi-code { font-family: monospace; font-weight: 700; color: #e9edf5; font-size: 12.5px; }
-        .whg-feed-item .fi-sub { font-size: 10.5px; color: #8a93a6; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 210px; }
+        .whg-feed-item .fi-sub { font-size: 10.5px; color: #8a93a6; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         .whg-feed-item .fi-right { text-align: right; flex-shrink: 0; }
         .whg-feed-item .fi-qty { font-size: 11.5px; color: #e9edf5; font-weight: 600; }
         .whg-feed-item .fi-time { font-size: 10px; color: #6b7385; }
@@ -210,11 +195,7 @@
                     <span class="material-icons text-white">warehouse</span>
                 </span>
                 <div>
-                    <h5 class="mb-0">@Model.Warehouse.Name</h5>
-                    <div class="sub" id="whg-banner-sub"
-                         data-racks="@Model.TotalRacks" data-cells="@Model.TotalLocations" data-filled="@Model.FilledLocations">
-                        @Model.TotalRacks · @Model.TotalLocations · @Model.FilledLocations
-                    </div>
+                    <h5 class="mb-0" id="whg-banner-title">@Model.Warehouse.Name</h5>
                 </div>
             </div>
             <div class="whg-clock">
@@ -242,13 +223,15 @@
         <div class="whg-mainrow">
             <div id="whg-wrap">
                 <canvas id="whg-canvas"></canvas>
+                <div class="whg-loading" id="whg-loading" data-i18n="wgLoading3d">Đang dựng kho 3D…</div>
                 <div class="whg-hud"><div class="whg-badge" data-i18n="wgHudHint">Drag to rotate · scroll to zoom</div></div>
                 <div class="whg-legend">
                     <div class="acts">
                         <button class="whg-btn" id="whg-btn-reset" data-i18n="wgResetView">↺ Reset view</button>
                         <button class="whg-btn" id="whg-btn-spin">▶ Auto-rotate</button>
-                        <button class="whg-btn" id="whg-btn-toggle-side" data-i18n="wgHidePanel">⊟ Hide panel</button>
-                        <button class="whg-btn" id="whg-btn-focus" data-i18n="wgFocusMode">🖥 View 3D only</button>
+                        <button class="whg-btn d-inline-flex align-items-center gap-1" id="whg-btn-fullscreen">
+                            <span class="material-icons" style="font-size:13px;">fullscreen</span> <span data-i18n="tvMode">Chế độ TV</span>
+                        </button>
                     </div>
                 </div>
                 <div class="whg-search">
@@ -284,7 +267,7 @@
                     </div>
                 </div>
             </div>
-            <div class="whg-side" id="whg-side">
+            <div class="whg-side">
                 <div class="whg-feed in">
                     <h6><span class="dot"></span> <span data-i18n="wgFeedInboundTitle">Recently inbound</span></h6>
                     <div class="whg-feed-list" id="whg-feed-inbound"><div class="whg-feed-empty" data-i18n="wgLoading">Loading…</div></div>
