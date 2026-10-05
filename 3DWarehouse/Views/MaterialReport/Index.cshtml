@@ -1,0 +1,227 @@
+@model Warehouse3D.Models.WarehouseDefinition
+@{
+    ViewData["Title"] = $"Quản lý dữ liệu Material — {Model.Name}";
+    var barcodesUrl = Url.Action("BarcodesData", "MaterialReport", new { warehouseId = Model.Id });
+    var cuttingUrl = Url.Action("CuttingData", "MaterialReport", new { warehouseId = Model.Id });
+    var exportBarcodesUrl = Url.Action("ExportScannedInNotOut", "MaterialReport", new { warehouseId = Model.Id });
+    var exportCuttingUrl = Url.Action("ExportCutting", "MaterialReport", new { warehouseId = Model.Id });
+}
+
+@section Styles {
+    <style>
+        .mr-page { padding: 18px 22px 30px; max-width: 1500px; margin: 0 auto; color: #e9edf5; }
+        .mr-head h1 { font-size: 20px; font-weight: 700; margin: 0; }
+        .mr-head .sub { color: #8a93a6; font-size: 12.5px; margin-top: 2px; }
+        .mr-tabs { display: flex; gap: 6px; margin: 16px 0 12px; border-bottom: 1px solid #2a3040; }
+        .mr-tab { background: none; border: 0; color: #8a93a6; font-weight: 600; font-size: 13.5px; padding: 9px 16px; border-bottom: 2px solid transparent; display: flex; align-items: center; gap: 6px; }
+        .mr-tab.active { color: #ff8a3d; border-bottom-color: #ff8a3d; }
+        .mr-tab .material-icons { font-size: 18px; }
+        .mr-panel { display: none; }
+        .mr-panel.active { display: block; }
+        .mr-toolbar { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-bottom: 12px; }
+        .mr-toolbar input { background: #12151e; border: 1px solid #2a3040; color: #e9edf5; border-radius: 8px; padding: 7px 11px; font-size: 13px; min-width: 240px; color-scheme: dark; }
+        .mr-toolbar input:focus { outline: none; border-color: #ff8a3d; }
+        .mr-btn { background: #1b2030; border: 1px solid #2a3040; color: #e9edf5; border-radius: 8px; padding: 7px 14px; font-size: 13px; font-weight: 600; display: inline-flex; align-items: center; gap: 6px; text-decoration: none !important; cursor: pointer; }
+        .mr-btn:hover { border-color: #ff8a3d; }
+        .mr-btn.primary { background: linear-gradient(135deg,#ff8a3d,#c9501a); border-color: transparent; color: #fff; }
+        .mr-btn .material-icons { font-size: 17px; }
+        .mr-total { margin-left: auto; color: #8a93a6; font-size: 12.5px; }
+        .mr-total b { color: #ff8a3d; }
+        .mr-tablewrap { background: #0e1118; border: 1px solid #2a3040; border-radius: 12px; overflow: auto; max-height: calc(100vh - 290px); }
+        .mr-table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+        .mr-table th { position: sticky; top: 0; background: #171b26; color: #aab3c5; text-align: left; font-weight: 600; padding: 9px 12px; white-space: nowrap; border-bottom: 1px solid #2a3040; }
+        .mr-table td { padding: 7px 12px; border-bottom: 1px solid #1a1f2c; white-space: nowrap; max-width: 340px; overflow: hidden; text-overflow: ellipsis; }
+        .mr-table tr:hover td { background: #141925; }
+        .mr-table .num { text-align: right; font-variant-numeric: tabular-nums; }
+        .mr-empty { padding: 36px; text-align: center; color: #8a93a6; }
+        .mr-pager { display: flex; align-items: center; justify-content: center; gap: 6px; margin-top: 12px; flex-wrap: wrap; }
+        .mr-pager button { background: #1b2030; border: 1px solid #2a3040; color: #e9edf5; border-radius: 7px; min-width: 34px; padding: 5px 9px; font-size: 12.5px; }
+        .mr-pager button.active { background: #ff8a3d; border-color: #ff8a3d; color: #fff; font-weight: 700; }
+        .mr-pager button:disabled { opacity: .4; }
+        .mr-pager .gap { color: #8a93a6; }
+    </style>
+}
+
+<div class="mr-page">
+    <div class="mr-head">
+        <h1>Quản lý dữ liệu Material</h1>
+        <div class="sub">@Model.Name — xem trực tiếp, lọc và xuất Excel</div>
+    </div>
+
+    <div class="mr-tabs">
+        <button type="button" class="mr-tab active" data-tab="barcodes"><span class="material-icons">inventory_2</span>Barcode đã SCAN IN chưa SCAN OUT</button>
+        <button type="button" class="mr-tab" data-tab="cutting"><span class="material-icons">content_cut</span>Lịch cắt</button>
+    </div>
+
+    <section class="mr-panel active" id="panel-barcodes">
+        <div class="mr-toolbar">
+            <input type="search" id="bc-q" placeholder="Tìm barcode / mã hàng / vị trí…" />
+            <button type="button" class="mr-btn" id="bc-search"><span class="material-icons">search</span>Tìm</button>
+            <button type="button" class="mr-btn" id="bc-refresh"><span class="material-icons">refresh</span>Tải lại từ MES</button>
+            <a class="mr-btn primary" id="bc-export" href="@exportBarcodesUrl"><span class="material-icons">download</span>Xuất Excel</a>
+            <span class="mr-total" id="bc-total"></span>
+        </div>
+        <div class="mr-tablewrap">
+            <table class="mr-table">
+                <thead><tr><th>Barcode</th><th>Mã hàng</th><th>Mô tả</th><th>Vị trí</th><th class="num">Số lượng</th><th>Mã NCC</th><th>NCC</th><th>PO</th><th>Style</th><th>Lịch cắt</th><th>Ngày tạo</th></tr></thead>
+                <tbody id="bc-body"></tbody>
+            </table>
+        </div>
+        <div class="mr-pager" id="bc-pager"></div>
+    </section>
+
+    <section class="mr-panel" id="panel-cutting">
+        <div class="mr-toolbar">
+            <input type="date" id="cut-date" />
+            <button type="button" class="mr-btn" id="cut-today"><span class="material-icons">today</span>Hôm nay</button>
+            <button type="button" class="mr-btn" id="cut-refresh"><span class="material-icons">refresh</span>Tải lại từ MES</button>
+            <a class="mr-btn primary" id="cut-export" href="@exportCuttingUrl"><span class="material-icons">download</span>Xuất Excel</a>
+            <span class="mr-total" id="cut-total"></span>
+        </div>
+        <div class="mr-tablewrap">
+            <table class="mr-table">
+                <thead><tr><th>Mã hàng</th><th>Mô tả</th><th>Vị trí</th><th>Mã NCC</th><th>NCC</th><th>Lịch cắt</th><th class="num">Số barcode</th><th class="num">Tổng SL</th></tr></thead>
+                <tbody id="cut-body"></tbody>
+            </table>
+        </div>
+        <div class="mr-pager" id="cut-pager"></div>
+    </section>
+</div>
+
+@section Scripts {
+    <script>
+        (function () {
+            var urls = {
+                barcodes: @Json.Serialize(barcodesUrl),
+                cutting: @Json.Serialize(cuttingUrl),
+                exportBarcodes: @Json.Serialize(exportBarcodesUrl),
+                exportCutting: @Json.Serialize(exportCuttingUrl)
+            };
+            var numCols = { barcodes: [4], cutting: [6, 7] };
+
+            function esc(s) {
+                return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) {
+                    return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c];
+                });
+            }
+
+            function pageList(cur, total) {
+                var out = [], from = Math.max(1, cur - 2), to = Math.min(total, cur + 2);
+                if (from > 1) { out.push(1); if (from > 2) out.push(0); }
+                for (var i = from; i <= to; i++) out.push(i);
+                if (to < total) { if (to < total - 1) out.push(0); out.push(total); }
+                return out;
+            }
+
+            function renderPager(el, cur, total, go) {
+                el.innerHTML = '';
+                if (total <= 1) return;
+                function btn(label, page, active, disabled) {
+                    var b = document.createElement('button');
+                    b.type = 'button';
+                    b.textContent = label;
+                    if (active) b.className = 'active';
+                    b.disabled = !!disabled;
+                    b.addEventListener('click', function () { go(page); });
+                    el.appendChild(b);
+                }
+                btn('‹', cur - 1, false, cur <= 1);
+                pageList(cur, total).forEach(function (p) {
+                    if (p === 0) {
+                        var s = document.createElement('span');
+                        s.className = 'gap';
+                        s.textContent = '…';
+                        el.appendChild(s);
+                    } else {
+                        btn(p, p, p === cur, false);
+                    }
+                });
+                btn('›', cur + 1, false, cur >= total);
+            }
+
+            function makeList(key, bodyId, pagerId, totalId, colCount, buildQuery) {
+                var body = document.getElementById(bodyId);
+                var pager = document.getElementById(pagerId);
+                var total = document.getElementById(totalId);
+                var cols = numCols[key];
+
+                var forceRefresh = false;
+                async function load(page, refresh) {
+                    forceRefresh = !!refresh;
+                    var res;
+                    try {
+                        res = await PmcUI.withLoading(function () {
+                            return fetch(urls[key] + (urls[key].indexOf('?') >= 0 ? '&' : '?') + buildQuery(page) + (forceRefresh ? '&refresh=true' : '')).then(function (r) { return r.json(); });
+                        });
+                    } catch (e) {
+                        PmcUI.error('Không tải được dữ liệu');
+                        return;
+                    }
+                    if (!res.available) {
+                        PmcUI.error('Không lấy được dữ liệu từ MES (dblink lỗi/chậm)');
+                        return;
+                    }
+                    if (!res.rows.length) {
+                        body.innerHTML = '<tr><td colspan="' + colCount + '" class="mr-empty">Không có dữ liệu</td></tr>';
+                    } else {
+                        body.innerHTML = res.rows.map(function (r) {
+                            return '<tr>' + r.map(function (v, i) {
+                                return '<td' + (cols.indexOf(i) >= 0 ? ' class="num"' : '') + ' title="' + esc(v) + '">' + esc(v) + '</td>';
+                            }).join('') + '</tr>';
+                        }).join('');
+                    }
+                    total.innerHTML = 'Tổng: <b>' + res.totalCount.toLocaleString('vi-VN') + '</b> dòng';
+                    renderPager(pager, res.page, res.totalPages, function (p) { load(p, false); });
+                }
+                return load;
+            }
+
+            var bcQ = document.getElementById('bc-q');
+            var loadBarcodes = makeList('barcodes', 'bc-body', 'bc-pager', 'bc-total', 11, function (page) {
+                return 'q=' + encodeURIComponent(bcQ.value) + '&page=' + page;
+            });
+            function searchBarcodes(refresh) {
+                document.getElementById('bc-export').href = urls.exportBarcodes + '?q=' + encodeURIComponent(bcQ.value);
+                loadBarcodes(1, refresh === true);
+            }
+            document.getElementById('bc-search').addEventListener('click', function () { searchBarcodes(false); });
+            document.getElementById('bc-refresh').addEventListener('click', function () { searchBarcodes(true); });
+            bcQ.addEventListener('keydown', function (e) { if (e.key === 'Enter') searchBarcodes(false); });
+
+            var cutDate = document.getElementById('cut-date');
+            function todayStr() {
+                var d = new Date();
+                return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+            }
+            var loadCutting = makeList('cutting', 'cut-body', 'cut-pager', 'cut-total', 8, function (page) {
+                return 'date=' + encodeURIComponent(cutDate.value) + '&page=' + page;
+            });
+            function searchCutting(refresh) {
+                if (!cutDate.value) cutDate.value = todayStr();
+                document.getElementById('cut-export').href = urls.exportCutting + '?date=' + encodeURIComponent(cutDate.value);
+                loadCutting(1, refresh === true);
+            }
+            cutDate.value = todayStr();
+            cutDate.addEventListener('change', function () { searchCutting(false); });
+            document.getElementById('cut-refresh').addEventListener('click', function () { searchCutting(true); });
+            document.getElementById('cut-today').addEventListener('click', function () {
+                cutDate.value = todayStr();
+                searchCutting(false);
+            });
+
+            var loaded = { cutting: false };
+            document.querySelectorAll('.mr-tab').forEach(function (tab) {
+                tab.addEventListener('click', function () {
+                    document.querySelectorAll('.mr-tab').forEach(function (t) { t.classList.toggle('active', t === tab); });
+                    document.querySelectorAll('.mr-panel').forEach(function (p) { p.classList.toggle('active', p.id === 'panel-' + tab.dataset.tab); });
+                    if (tab.dataset.tab === 'cutting' && !loaded.cutting) {
+                        loaded.cutting = true;
+                        searchCutting(false);
+                    }
+                });
+            });
+
+            searchBarcodes(false);
+        })();
+    </script>
+}

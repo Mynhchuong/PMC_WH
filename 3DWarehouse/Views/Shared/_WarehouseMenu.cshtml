@@ -31,6 +31,15 @@
                 }
             </li>
         }
+        @if (current is not null && current.IsActive && current.Schema == "generic")
+        {
+            <li><hr class="dropdown-divider" /></li>
+            <li>
+                <a class="dropdown-item" asp-controller="MaterialReport" asp-action="Index" asp-route-warehouseId="@current.Id">
+                    <span class="material-icons">download</span>Dữ liệu cho Material
+                </a>
+            </li>
+        }
         <li><hr class="dropdown-divider" /></li>
         <li>
             <a class="dropdown-item" asp-controller="Home" asp-action="Index">
